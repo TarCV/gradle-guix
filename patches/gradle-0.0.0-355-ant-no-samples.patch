@@ -1,0 +1,12 @@
+--- a/build.xml
++++ a/build.xml
+@@ -260,9 +260,6 @@
+                 <pathelement location="${buildIntegTestsDirectory}"/>
+             </classpath>
+         </groovy>
+-        <copy todir="${distExplodedSamplesDir}">
+-            <fileset dir="src/samples"/>
+-        </copy>
+         <copy todir="${distExplodedDir}">
+             <fileset dir="src/toplevel"/>
+         </copy>

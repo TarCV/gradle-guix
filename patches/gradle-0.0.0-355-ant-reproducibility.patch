@@ -1,0 +1,11 @@
+--- a/build.xml
++++ b/build.xml
+@@ -239,7 +239,7 @@
+     </target>
+ 
+     <target name="jar" depends="compile,coverage-report,jdepend">
+-        <jar destfile="${buildDirectory}/${distName}.jar" basedir="${buildClassesDirectory}"/>
++        <jar compress="false" modificationtime="1980-01-01T00:00:00Z" destfile="${buildDirectory}/${distName}.jar" basedir="${buildClassesDirectory}"/>
+     </target>
+ 
+     <target name="compileIntegtests" depends="initialize">

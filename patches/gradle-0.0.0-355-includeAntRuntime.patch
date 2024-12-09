@@ -1,0 +1,32 @@
+--- a/src/main/groovy/org/gradle/api/tasks/compile/AntGroovyc.groovy
++++ b/src/main/groovy/org/gradle/api/tasks/compile/AntGroovyc.groovy
+@@ -28,6 +28,6 @@
+     public void executeCompileTask(antNode, List sourceDirs, File targetDir, List classpath, String sourceCompatibility,
+                                    String targetCompatibility, CompileOptions compileOptions) {
+         antNode.groovyc(
+-                includeAntRuntime: false,
++                // TODO: includeAntRuntime: false, fork: true,
+                 srcdir: sourceDirs.join(':'),
+                 destdir: targetDir,
+--- a/src/main/groovy/org/gradle/api/tasks/compile/AntJavac.groovy
++++ b/src/main/groovy/org/gradle/api/tasks/compile/AntJavac.groovy
+@@ -28,6 +28,6 @@
+     void executeCompileTask(antNode, List sourceDirs, File targetDir, List classpath, String sourceCompatibility,
+                             String targetCompatibility, CompileOptions compileOptions) {
+         Map otherArgs = [
+-                includeAntRuntime: false,
++                // TODO: includeAntRuntime: false, fork: true,
+                 srcdir: sourceDirs.join(':'),
+                 destdir: targetDir,
+                 classpathref: AbstractAntCompile.CLASSPATH_ID,
+--- a/src/main/groovy/org/gradle/api/tasks/testing/AntJunit.groovy
++++ b/src/main/groovy/org/gradle/api/tasks/testing/AntJunit.groovy
+@@ -37,7 +37,7 @@
+         ant.mkdir(dir: testResultsDir.absolutePath)
+         createAntClassPath(ant, classPath + antJunitJarFiles)
+         Map otherArgs = [
+-                includeantruntime: 'false',
++                includeantruntime: 'true',
+                 errorproperty: FAILURES_OR_ERRORS_PROPERTY,
+                 failureproperty: FAILURES_OR_ERRORS_PROPERTY
+         ]

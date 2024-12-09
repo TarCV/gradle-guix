@@ -1,0 +1,24 @@
+--- a/build.xml
++++ a/build.xml
+@@ -260,14 +260,13 @@
+             <fileset dir="src/main/resources"/>
+         </copy>
+         <ivy:retrieve conf="runtime" pattern="${distExplodedLibDir}/[artifact]-[revision].[ext]"/>
+-        <echo>Generate start scripts</echo>
+-        <groovy src="${buildSrcDir}/StartScriptGenerator.groovy"/>
+-        <echo>Generate tutorials</echo>
+-        <groovy src="${buildSrcDir}/SamplesGenerator.groovy">
+-            <classpath>
+-                <pathelement location="${buildIntegTestsDirectory}"/>
+-            </classpath>
+-        </groovy>
++        <exec executable="groovy" failonerror="true">
++            <arg value="-DbuildSrcDir=${buildSrcDir}"/>
++            <arg value="-DdistExplodedLibDir=${distExplodedLibDir}"/>
++            <arg value="-DdistExplodedBinDir=${distExplodedBinDir}"/>
++            <arg value="-DprojectName=${projectName}"/>
++            <arg value="${buildSrcDir}/StartScriptGenerator.groovy"/>
++       </exec>
+         <copy todir="${distExplodedDir}">
+             <fileset dir="src/toplevel"/>
+         </copy>

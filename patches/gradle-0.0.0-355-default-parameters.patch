@@ -1,0 +1,23 @@
+--- a/src/main/groovy/org/gradle/api/internal/project/DefaultProject.groovy
++++ a/src/main/groovy/org/gradle/api/internal/project/DefaultProject.groovy
+@@ -184,9 +184,5 @@
+         createTask([:], name, null)
+     }
+
+-    Task createTask(Map args, String name) {
+-        createTask(args, name, null)
+-    }
+-
+     Task createTask(String name, Closure action) {
+         createTask([:], name, action)
+@@ -299,10 +299,6 @@
+         path
+     }
+ 
+-    Project project(String path) {
+-        project(path, null)
+-    }
+-
+     Project project(String path, Closure configureClosure = null) {
+         if (!path) {
+             throw new InvalidUserDataException("A path must be specified!")

@@ -1,0 +1,11 @@
+--- a/src/build/StartScriptGenerator.groovy
++++ b/src/build/StartScriptGenerator.groovy
+@@ -13,7 +13,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-
++import static System.properties
+ String startScriptDir = properties['buildSrcDir'] 
+ String windowsStartScriptHead = new File(startScriptDir, 'windowsStartScriptHead.txt').text
+ String windowsStartScriptTail = new File(startScriptDir, 'windowsStartScriptTail.txt').text

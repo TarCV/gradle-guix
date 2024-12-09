@@ -1,0 +1,40 @@
+--- a/buildSrc/src/main/groovy/org/gradle/build/release/Version.groovy
++++ b/buildSrc/src/main/groovy/org/gradle/build/release/Version.groovy
+@@ -29,14 +29,11 @@
+ 
+     boolean majorNotMinor
+ 
+-    Svn svn
+-
+     int majorInternal, minorInternal, revisionInternal
+ 
+-    Version(Svn svn, Project project, boolean majorNotMinor) {
++    Version(Object svn, Project project, boolean majorNotMinor) {
+         this.project = project
+         this.majorNotMinor = majorNotMinor
+-        this.svn = svn
+         majorInternal = project.hasProperty('previousMajor') ? project.previousMajor.toInteger() : 0
+         minorInternal = project.hasProperty('previousMinor') ? project.previousMinor.toInteger() : 0
+         revisionInternal = project.hasProperty('previousRevision') ? project.previousRevision.toInteger() : 0
+@@ -54,19 +54,15 @@
+     }
+ 
+     int getMajor() {
+-        majorNotMinor && svn.isTrunk() ? majorInternal + 1 : majorInternal
++        majorNotMinor ? majorInternal + 1 : majorInternal
+     }
+ 
+     int getMinor() {
+-        if (svn.isTrunk()) {
+             return majorNotMinor ? 0 : minorInternal + 1
+-        } else {
+-            return minorInternal
+-        }
+     }
+ 
+     int getRevision() {
+-        svn.isTrunk() ? 0 : revisionInternal + 1
++        0
+     }
+ 
+     String getLastRelease() {

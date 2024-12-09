@@ -1,0 +1,18 @@
+--- a/src/main/groovy/org/gradle/api/tasks/compile/CompileOptions.groovy
++++ b/src/main/groovy/org/gradle/api/tasks/compile/CompileOptions.groovy
+@@ -26,7 +26,6 @@
+     boolean deprecation = false
+     boolean warnings = true
+     String encoding = null
+-    boolean dependencyTracking = false
+     boolean optimize
+ 
+     boolean debug = true
+@@ -60,7 +59,6 @@
+                 warnings: 'nowarn',
+                 bootClasspath: 'bootclasspath',
+                 extensionDirs: 'extdirs',
+-                dependencyTracking: 'depend',
+                 failOnError: 'failonerror',
+                 listFiles: 'listfiles',
+         ]
