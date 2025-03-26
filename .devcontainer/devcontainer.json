@@ -1,0 +1,9 @@
+{
+	"image": "mcr.microsoft.com/devcontainers/universal:2",
+	"features": {
+		"ghcr.io/wxw-matt/devcontainer-features/script_runner:0": {
+			"command1":"cd /tmp && curl -L 'https://git.savannah.gnu.org/cgit/guix.git/plain/etc/guix-install.sh' -o guix-install.sh && chmod +x guix-install.sh && yes '' || sudo ./guix-install.sh",
+			"command2":"sudo ~root/.config/guix/current/bin/guix-daemon --build-users-group=guixbuild &"
+		}
+	}
+}
