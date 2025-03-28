@@ -1,0 +1,883 @@
+TODO: review if something need to be restored in a non-bootstrap build:
+--- a/buildSrc/build.gradle
++++ b/buildSrc/build.gradle
+@@ -53,23 +53,9 @@
+     compile("com.google.guava:guava-jdk5:14.0.1@jar")
+     compile("commons-lang:commons-lang:2.6@jar")
+     compile(localGroovy())
+-    compile("org.codehaus.groovy.modules.http-builder:http-builder:0.7.2") {
+-        exclude(module: "groovy")
+-        exclude(module: "xercesImpl")
+-    }
+-    testCompile("junit:junit:4.12@jar")
+-    testCompile("org.spockframework:spock-core:2.0-M4-groovy-3.0") {
+-        exclude(group = "org.codehaus.groovy")
+-    }
+-    testCompile("cglib:cglib-nodep:3.2.5")
+-    testCompile("org.objenesis:objenesis:1.2")
+-    testCompile("org.hamcrest:hamcrest-core:1.3")
+ 
+     compile("org.pegdown:pegdown:1.6.0")
+     compile("org.jsoup:jsoup:1.6.3")
+-    compile("me.champeau.gradle:japicmp-gradle-plugin:0.2.4")
+-    compile("org.asciidoctor:asciidoctor-gradle-plugin:1.5.6")
+-    compile("com.github.javaparser:javaparser-core:2.4.0")
+ }
+ 
+ ext.isCiServer = System.getenv().containsKey("CI")
+--- a/gradle/codeQuality.gradle
++++ b/gradle/codeQuality.gradle
+@@ -1,6 +1,3 @@
+-apply plugin: 'checkstyle'
+-apply plugin: 'codenarc'
+-
+ def validateTaskPropertiesForConfiguration(Configuration configuration) {
+     // Apply to all projects depending on :core
+     configuration.dependencies.withType(ProjectDependency).matching { it.dependencyProject == project(":core") }.all {
+@@ -8,42 +5,8 @@
+     }
+ }
+ 
+-plugins.withType(JavaBasePlugin) {
+-    validateTaskPropertiesForConfiguration(configurations.compile)
+-}
+-plugins.withType(JavaLibraryPlugin) {
+-    validateTaskPropertiesForConfiguration(configurations.api)
+-}
+-
+-def codeQualityConfigDir = new File(buildscript.sourceFile.parentFile.parentFile, 'config')
+-
+-codenarc {
+-    configFile = new File(codeQualityConfigDir, "codenarc.xml")
+-}
+-
+-checkstyle {
+-    configDir = new File(codeQualityConfigDir, "checkstyle")
+-}
+-
+-tasks.withType(CodeNarc) {
+-    reports.xml.enabled = true
+-}
+-
+-configurations.codenarc.resolutionStrategy.force(libraries.groovy)
+-
+-plugins.withType(GroovyBasePlugin) {
+-    sourceSets.all { sourceSet ->
+-        task "${sourceSet.getTaskName('checkstyle', 'groovy')}"(type: Checkstyle) {
+-            configFile = new File(checkstyle.configDir, "checkstyle-groovy.xml")
+-            source sourceSet.allGroovy
+-            classpath = sourceSet.compileClasspath
+-            reports.xml.destination new File(checkstyle.reportsDir, "${sourceSet.name}-groovy.xml")
+-        }
+-    }
+-}
+-
+ def codeQualityTasks = tasks.matching { task ->
+-    [org.gradle.api.plugins.quality.CodeNarc, org.gradle.api.plugins.quality.Checkstyle, org.gradle.plugin.devel.tasks.ValidateTaskProperties].any { it.isInstance(task) }
++    [org.gradle.plugin.devel.tasks.ValidateTaskProperties].any { it.isInstance(task) }
+ }
+ 
+ task codeQuality {
+--- a/gradle/buildScanUserData.gradle
++++ b/gradle/buildScanUserData.gradle
+@@ -93,35 +93,5 @@
+             }
+         }
+     }
+-
+-    // Capture individual issues for some reports
+-    gradle.taskGraph.afterTask { Task task, TaskState state ->
+-        if (task instanceof Checkstyle) {
+-            if (state.failure && task.reports.xml.destination.exists()) {
+-                def checkstyle = new XmlSlurper().parse(task.reports.xml.destination)
+-                def errors = checkstyle.file.collect { fileTag ->
+-                    fileTag.error.collect {
+-                        String filePath = task.project.rootProject.relativePath(fileTag.@name.text())
+-                        "${filePath}:${it.@line}:${it.@column} \u2192 ${it.@message}"
+-                    }
+-                }.flatten()
+-                errors.each { task.project.buildScan.value 'Checkstyle Issue', it }
+-            }
+-        }
+-        if (task instanceof CodeNarc) {
+-            if (state.failure && task.reports.xml.destination.exists()) {
+-                def codenarc = new XmlSlurper().parse(task.reports.xml.destination)
+-                def errors = codenarc.Package.collect {
+-                    it.File.collect { fileTag ->
+-                        fileTag.Violation.collect {
+-                            String filePath = task.project.rootProject.relativePath(fileTag.@name.text())
+-                            "${filePath}:${it.@lineNumber} \u2192 ${it.Message.text()}"
+-                        }
+-                    }.flatten()
+-                }.flatten()
+-                errors.each { task.project.buildScan.value 'CodeNarc Issue', it }
+-            }
+-        }
+-    }
+ }
+ 
+--- a/build.gradle
++++ b/build.gradle
+@@ -30,7 +30,7 @@
+ 
+ buildTypes {
+     sanityCheck {
+-        tasks "classes", "doc:checkstyleApi", "codeQuality", "docs:check", "distribution:checkBinaryCompatibility", "javadocAll"
++        tasks "classes", "docs:check", "distribution:checkBinaryCompatibility", "javadocAll"
+         projectProperties ignoreIncomingBuildReceipt: true
+     }
+ 
+@@ -141,13 +141,13 @@
+     groovyProjects = subprojects
+     publicGroovyProjects = groovyProjects - internalProjects
+     pluginProjects = [
+-        'plugins', 'codeQuality', 'antlr', 'wrapper', 'osgi', 'maven',
+-        'ide', 'announce', 'scala', 'signing', 'ear', 'javascript', 'buildComparison',
+-        'diagnostics', 'reporting', 'publish', 'ivy', 'jacoco', 'buildInit', 'platformBase',
+-        'platformJvm', 'languageJvm', 'languageJava', 'languageGroovy', 'languageScala',
+-        'platformNative', 'platformPlay', 'idePlay', 'languageNative', 'ideNative', 'testingBase',
++        'plugins', 'antlr', 'wrapper', 'osgi', 'maven',
++        'ide', 'announce', 'signing', 'ear', 'javascript', 'buildComparison',
++        'diagnostics', 'reporting', 'publish', 'ivy', 'buildInit', 'platformBase',
++        'platformJvm', 'languageJvm', 'languageJava', 'languageGroovy',
++        'platformNative', 'languageNative', 'ideNative', 'testingBase',
+         'testingNative', 'testingJvm', 'pluginDevelopment', 'pluginUse', 'resourcesHttp',
+-        'resourcesSftp', 'resourcesS3', 'resourcesGcs', 'compositeBuilds', 'buildCacheHttp'
++        'resourcesSftp', 'compositeBuilds', 'buildCacheHttp'
+     ].collect { project(it) }
+     implementationPluginProjects = [
+         project('toolingApiBuilders')
+@@ -173,9 +173,6 @@
+ apply from: "gradle/taskCacheBuildScanUserData.gradle"
+ apply from: "gradle/versioning.gradle"
+ apply from: "gradle/dependencies.gradle"
+-apply from: "gradle/wrapper.gradle"
+-apply from: "gradle/idea.gradle"
+-apply from: "gradle/eclipse.gradle"
+ apply from: "gradle/classycle.gradle"
+ apply from: "gradle/strictCompile.gradle"
+ apply from: "gradle/noDependencyResolutionDuringConfiguration.gradle"
+@@ -184,7 +181,6 @@
+ apply from: 'gradle/customM2Check.gradle'
+ apply from: "gradle/publicApi.gradle"
+ apply from: "gradle/updateReleasedVersions.gradle"
+-apply from: "gradle/dependenciesCheck.gradle"
+ 
+ allprojects {
+     group = 'org.gradle'
+@@ -210,12 +205,6 @@
+         apply from: "$rootDir/gradle/groovyProject.gradle"
+         apply from: "$rootDir/gradle/testWithUnknownOS.gradle"
+         apply from: "$rootDir/gradle/java9.gradle"
+-        check.dependsOn ":docs:checkstyleApi"
+-        check.dependsOn "codeQuality"
+-    }
+-
+-    if (project in publishedProjects) {
+-        apply from: "$rootDir/gradle/publish.gradle"
+     }
+ 
+     apply from: "$rootDir/gradle/codeQuality.gradle"
+--- a/gradle/integTest.gradle
++++ b/gradle/integTest.gradle
+@@ -59,23 +59,3 @@
+         systemProperties['org.gradle.integtest.executer'] = mode
+     }
+ }
+-
+-plugins.withType(org.gradle.plugins.ide.idea.IdeaPlugin) { // lazy as plugin not applied yet
+-    idea {
+-        module {
+-            testSourceDirs += sourceSets.integTest.groovy.srcDirs
+-            testSourceDirs += sourceSets.integTest.resources.srcDirs
+-            scopes.TEST.plus.add(configurations.integTestCompile)
+-            scopes.TEST.plus.add(configurations.integTestRuntime)
+-        }
+-    }
+-}
+-
+-plugins.withType(org.gradle.plugins.ide.eclipse.EclipsePlugin) { // lazy as plugin not applied yet
+-    eclipse {
+-        classpath {
+-            plusConfigurations.add(configurations.integTestCompile)
+-            plusConfigurations.add(configurations.integTestRuntime)
+-        }
+-    }
+-}
+--- a/gradle/testFixtures.gradle
++++ b/gradle/testFixtures.gradle
+@@ -36,24 +36,3 @@
+     testFixturesUsageCompile project(project.path)
+     testFixturesCompile libraries.junit, libraries.jmock, libraries.spock
+ }
+-
+-plugins.withType(org.gradle.plugins.ide.idea.IdeaPlugin) {
+-    idea {
+-        module {
+-            testSourceDirs += sourceSets.testFixtures.groovy.srcDirs
+-            testSourceDirs += sourceSets.testFixtures.resources.srcDirs
+-        }
+-    }
+-}
+-
+-plugins.withType(org.gradle.plugins.ide.eclipse.EclipsePlugin) {
+-    eclipse {
+-        classpath {
+-            plusConfigurations.add(configurations.testFixturesCompile)
+-            plusConfigurations.add(configurations.testFixturesRuntime)
+-
+-            //avoiding the certain output directories from the classpath in Eclipse
+-            minusConfigurations.add(configurations.outputDirs)
+-        }
+-    }
+-}
+--- a/gradle/groovyProject.gradle
++++ b/gradle/groovyProject.gradle
+@@ -116,18 +116,6 @@
+     apply from: "$rootDir/gradle/integTest.gradle"
+ }
+ 
+-if (file("src/crossVersionTest").exists()) {
+-    apply from: "$rootDir/gradle/crossVersionTest.gradle"
+-}
+-
+-if (file("src/performanceTest").exists()) {
+-    apply from: "$rootDir/gradle/performanceTest.gradle"
+-}
+-
+-if (file("src/jmh").exists()) {
+-    apply from: "$rootDir/gradle/jmh.gradle"
+-}
+-
+ apply from: "$rootDir/gradle/distributionTesting.gradle"
+ apply from: "$rootDir/gradle/intTestImage.gradle"
+ 
+TODO: Call asciidoctor directly
+===================================================================
+--- a/subprojects/docs/docs.gradle
++++ b/subprojects/docs/docs.gradle
+@@ -16,7 +16,6 @@
+  */
+ import org.apache.tools.ant.filters.ReplaceTokens
+ import org.gradle.build.docs.AssembleSamplesDocTask
+-import org.gradle.build.docs.CacheableAsciidoctorTask
+ import org.gradle.build.docs.Docbook2Xhtml
+ import org.gradle.build.docs.ExtractSamplesTask
+ import org.gradle.build.docs.ExtractSnippetsTask
+@@ -30,16 +29,11 @@
+ import org.gradle.build.docs.releasenotes.checks.*
+ import org.gradle.plugins.pegdown.PegDown
+ 
+-import javax.xml.transform.TransformerFactory
+-import javax.xml.transform.stream.StreamResult
+-import javax.xml.transform.stream.StreamSource
+-
+ plugins {
+     id 'base'
+     id 'pegdown'
+     id 'jsoup'
+     id 'javascript-base'
+-    id 'org.asciidoctor.convert'
+ }
+ 
+ repositories {
+@@ -56,8 +50,6 @@
+ }
+ 
+ dependencies {
+-    asciidoctor 'org.asciidoctor:asciidoctorj:1.5.6'
+-
+     userGuideTask 'xalan:xalan:2.7.1', libraries.xerces
+     userGuideTask module('xhtmlrenderer:xhtmlrenderer:R8rc1') {
+         dependency 'itext:itext:2.0.8@jar'
+@@ -104,42 +96,6 @@
+     builtBy 'javadocAll', 'userguide', 'dslHtml', 'releaseNotes'
+ }
+ 
+-tasks.withType(CacheableAsciidoctorTask) {
+-    backends = ['docbook']
+-    separateOutputDirs = false
+-    options doctype: 'book'
+-    inputs.file asciidocSanitizeStylesheet withPropertyName "sanitizerStylesheet" withPathSensitivity PathSensitivity.NONE
+-
+-    extensions {
+-        inlinemacro (name: "api") {
+-            parent, target, attributes ->
+-            def (className, method) = target.split('#', 2) as List
+-            def content = "<apilink class=\"$className\""
+-            if (method) {
+-                // Add space after comma, because we can't have spaces in api: targets
+-                // Restore Asciidoc's '&hellip;&zwsp;' replacement to the original '...'
+-                content += " method=\"${method.replaceAll(/,\s*/, ', ').replaceAll(/\&#8230;\&#8203;/, '...')}\""
+-            }
+-            content += " />"
+-            return content
+-        }
+-    }
+-
+-    attributes website: 'http://www.gradle.org'
+-
+-    doLast {
+-        outputDir.eachFileMatch(~/.*.xml/) { File file ->
+-            def contents = file.getText("utf-8")
+-            try {
+-                def transformer = TransformerFactory.newInstance().newTransformer(new StreamSource(asciidocSanitizeStylesheet))
+-                transformer.transform(new StreamSource(new StringReader(contents)), new StreamResult(file))
+-            } catch (Exception ex) {
+-                throw new RuntimeException("Couldn't process $file:\n" + contents, ex)
+-            }
+-        }
+-    }
+-}
+-
+ tasks.withType(Docbook2Xhtml) {
+     dependsOn userguideStyleSheets
+     classpath = configurations.userGuideTask
+@@ -214,19 +170,20 @@
+     }
+ }
+ 
+-tasks.remove(asciidoctor)
+-
+-task userguideAsciidoc(type: CacheableAsciidoctorTask) {
+-    sourceDir = userguideSrcDir
+-    sources { include '*.adoc' }
+-    outputDir = asciidocOutputDir
+-    inputs.file { defaultImports.importsDestFile } withPropertyName 'defaultImports' withPathSensitivity PathSensitivity.NONE
++task userguideAsciidoc(type: Exec) {
++// TODO add settings from tasks.withType(CacheableAsciidoctorTask)
++// TODO    sourceDir = userguideSrcDir
++//    sources { include '*.adoc' }
++    workingDir asciidocOutputDir
++    commandLine 'asciidoctor'
++//    inputs.file { defaultImports.importsDestFile } withPropertyName 'defaultImports' withPathSensitivity PathSensitivity.NONE
+ 
+     // we pull the default-imports from here:
+-    resources {
+-        from(generatedResourcesDir)
+-        include "**/*.txt"
+-    }
++// TODO    resources {
++//        from(generatedResourcesDir)
++//        include "**/*.txt"
++//    }
++// TODO set outputs
+ }
+ 
+ task samplesDocbook(type: AssembleSamplesDocTask) {
+@@ -406,13 +363,6 @@
+     ext.entryPoint = "$destinationDir/index.html"
+ }
+ 
+-task checkstyleApi(type: Checkstyle) {
+-    source javadocAll.source
+-    configFile = new File(checkstyle.configDir, "checkstyle-api.xml")
+-    classpath = files()
+-    reports.xml.destination = file("$checkstyle.reportsDir/checkstyle-api.xml")
+-}
+-
+ task distDocs(type: Docbook2Xhtml) {
+     dependsOn userguideAsciidoc
+     source new File(asciidocOutputDir, 'gettingStarted.xml')
+--- a/subprojects/distributions/distributions.gradle	(revision 37007e1c012001ff09973e0bd095139239ecd3b3)
++++ b/subprojects/distributions/distributions.gradle	(date 1744520306820)
+@@ -134,5 +134,3 @@
+     systemProperty 'org.gradle.public.api.includes', publicApiIncludes.join(':')
+     systemProperty 'org.gradle.public.api.excludes', publicApiExcludes.join(':')
+ }
+-
+-apply from: 'binary-compatibility.gradle'
+--- a/subprojects/base-services/base-services.gradle	(revision 37007e1c012001ff09973e0bd095139239ecd3b3)
++++ b/subprojects/base-services/base-services.gradle	(date 1744519330376)
+@@ -19,12 +19,6 @@
+     implementation libraries.commons_lang
+     implementation libraries.commons_io
+     implementation libraries.jcip
+-
+-    jmh libraries.bouncycastle_provider
+-}
+-
+-jmh {
+-    include = ["HashingAlgorithmsBenchmark"]
+ }
+ 
+ task buildReceiptResource(type: Copy) {
+--- a/subprojects/build-cache/build-cache.gradle
++++ b/subprojects/build-cache/build-cache.gradle
+@@ -28,12 +28,6 @@s
+     implementation project(":logging")
+ 
+     implementation libraries.commons_io
+-
+-    jmh libraries.ant
+-    jmh libraries.commons_compress
+-    jmh "io.airlift:aircompressor:0.8"
+-    jmh "org.iq80.snappy:snappy:0.4"
+-    jmh "org.kamranzafar:jtar:2.3"
+ }
+ 
+ useTestFixtures()
+--- a/settings.gradle
++++ b/settings.gradle
+@@ -32,18 +32,13 @@
+ include("messaging")
+ include("resources")
+ include("resourcesHttp")
+-include("resourcesGcs")
+-include("resourcesS3")
+ include("resourcesSftp")
+ include("plugins")
+-include("scala")
+ include("ide")
+ include("ideNative")
+-include("idePlay")
+ include("osgi")
+ include("maven")
+ include("announce")
+-include("codeQuality")
+ include("antlr")
+ include("toolingApi")
+ include("toolingApiBuilders")
+@@ -54,17 +49,12 @@
+ include("native")
+ include("internalTesting")
+ include("internalIntegTesting")
+-include("internalPerformanceTesting")
+-include("internalAndroidPerformanceTesting")
+-include("performance")
+-include("buildScanPerformance")
+ include("javascript")
+ include("buildComparison")
+ include("reporting")
+ include("diagnostics")
+ include("publish")
+ include("ivy")
+-include("jacoco")
+ include("buildInit")
+ include("buildOption")
+ include("platformBase")
+@@ -74,7 +64,6 @@
+ include("languageJava")
+ include("languageGroovy")
+ include("languageNative")
+-include("languageScala")
+ include("pluginUse")
+ include("pluginDevelopment")
+ include("modelCore")
+@@ -83,7 +72,6 @@
+ include("testingBase")
+ include("testingNative")
+ include("testingJvm")
+-include("platformPlay")
+ include("testKit")
+ include("installationBeacon")
+ include("soak")
+--- a/subprojects/internal-integ-testing/internal-integ-testing.gradle
++++ b/subprojects/internal-integ-testing/internal-integ-testing.gradle
+@@ -69,4 +69,3 @@
+     }
+ }
+ 
+-apply from: "$rootDir/gradle/ideaTestSourcesWorkaround.gradle"
+--- a/subprojects/internal-performance-testing/internal-performance-testing.gradle
++++ b/subprojects/internal-performance-testing/internal-performance-testing.gradle
+@@ -50,4 +50,3 @@
+ useTestFixtures(project: ':toolingApi', sourceSet: 'main')
+ useClassycle()
+ 
+-apply from: "$rootDir/gradle/ideaTestSourcesWorkaround.gradle"
+--- a/subprojects/internal-testing/internal-testing.gradle
++++ b/subprojects/internal-testing/internal-testing.gradle
+@@ -37,4 +37,3 @@
+ 
+ useClassycle()
+ 
+-apply from: "$rootDir/gradle/ideaTestSourcesWorkaround.gradle"
+--- a/subprojects/native/native.gradle
++++ b/subprojects/native/native.gradle
+@@ -21,62 +21,3 @@
+ useTestFixtures(project: ":logging")
+ useClassycle()
+ 
+-jmh {
+-    fork = 1
+-    threads = 2
+-    warmupIterations = 10
+-    synchronizeIterations = false
+-    resultFormat = 'CSV'
+-}
+-
+-task copyJmhReport(type: Copy) {
+-    destinationDir = file("$buildDir/reports/jmh-html")
+-
+-    from 'src/jmh/html'
+-}
+-
+-task convertCSV {
+-    ext.inputFile = file("$buildDir/reports/jmh/results.csv")
+-    ext.outputFile = file("$buildDir/reports/jmh-html/data.csv")
+-    inputs.file(inputFile)
+-    outputs.file(outputFile)
+-    doLast {
+-        def benchToScenarioName = [
+-            'org.gradle.internal.nativeintegration.filesystem.FileMetadataAccessorBenchmark.stat_existing': 'Existing',
+-            'org.gradle.internal.nativeintegration.filesystem.FileMetadataAccessorBenchmark.stat_directory': 'Directory',
+-            'org.gradle.internal.nativeintegration.filesystem.FileMetadataAccessorBenchmark.stat_missing_file': 'Missing',
+-        ]
+-        boolean first = true
+-        def benchmarks = [:].withDefault { [] }
+-        inputFile.eachLine { line ->
+-            if (first) {
+-                first = false
+-            } else {
+-                def (benchmark, mode, threads, samples, score, error, unit, accessor) = line.replace('"', '').split(",")
+-                benchmarks[benchToScenarioName[benchmark]] << [accessor - 'FileMetadataAccessor', Double.valueOf(score) as int]
+-            }
+-        }
+-        outputFile.parentFile.mkdirs()
+-        Set tested = []
+-        benchmarks.each { benchmark, values ->
+-            values.each {
+-                tested << it[0]
+-            }
+-        }
+-        outputFile.withWriter { writer ->
+-            writer << "Scenario,${tested.join(',')}\n"
+-            benchmarks.each { benchmark, values ->
+-                writer << "$benchmark"
+-                tested.each { test ->
+-                    writer << ",${values.find { it[0] == test }[1]}"
+-                }
+-                writer << '\n'
+-            }
+-        }
+-        println outputFile.absolutePath
+-    }
+-}
+-
+-task jmhReport {
+-    dependsOn 'jmh', copyJmhReport, convertCSV
+-}
+--- a/subprojects/smoke-test/smoke-test.gradle
++++ b/subprojects/smoke-test/smoke-test.gradle
+@@ -21,10 +21,8 @@
+     smokeTestCompile libraries.spock
+ 
+     smokeTestRuntimeOnly "org.gradle:gradle-kotlin-dsl:${versions.gradle_kotlin_dsl}"
+-    smokeTestRuntimeOnly project(':codeQuality')
+     smokeTestRuntimeOnly project(':ide')
+     smokeTestRuntimeOnly project(':ivy')
+-    smokeTestRuntimeOnly project(':jacoco')
+     smokeTestRuntimeOnly project(':maven')
+     smokeTestRuntimeOnly project(':plugins')
+     smokeTestRuntimeOnly project(':toolingApiBuilders')
+@@ -46,24 +44,3 @@
+     classpath = sourceSets.smokeTest.runtimeClasspath
+     maxParallelForks = 1 // those tests are pretty expensive, we shouldn't execute them concurrently
+ }
+-
+-plugins.withType(org.gradle.plugins.ide.idea.IdeaPlugin) { // lazy as plugin not applied yet
+-    idea {
+-        module {
+-            sourceSets.smokeTest.allSource.srcDirs.each {
+-                testSourceDirs += it
+-            }
+-            scopes.TEST.plus.add(configurations.smokeTestCompile)
+-            scopes.TEST.plus.add(configurations.smokeTestRuntime)
+-        }
+-    }
+-}
+-
+-plugins.withType(org.gradle.plugins.ide.eclipse.EclipsePlugin) { // lazy as plugin not applied yet
+-    eclipse {
+-        classpath {
+-            plusConfigurations.add(configurations.smokeTestCompile)
+-            plusConfigurations.add(configurations.smokeTestRuntime)
+-        }
+-    }
+-}
+--- a/subprojects/tooling-api/tooling-api.gradle
++++ b/subprojects/tooling-api/tooling-api.gradle
+@@ -12,7 +12,7 @@
+     compile project(':messaging')
+     compile project(':wrapper')
+     compile project(':baseServices')
+-    publishCompile libraries.slf4j_api
++// TODO:   publishCompile libraries.slf4j_api
+     compile libraries.jcip
+ 
+     testFixturesCompile project(':baseServicesGroovy')
+@@ -60,30 +60,20 @@
+ 
+ apply from: 'buildship.gradle'
+ 
+-sourceJar {
++/* TODO sourceJar {
+     configurations.compile.allDependencies.withType(ProjectDependency).each {
+         from it.dependencyProject.sourceSets.main.groovy.srcDirs
+         from it.dependencyProject.sourceSets.main.java.srcDirs
+     }
+-}
+-
+-eclipse {
+-    classpath {
+-        file.whenMerged { classpath ->
+-            //**TODO
+-            classpath.entries.removeAll { it.path.contains('src/test/groovy') }
+-            classpath.entries.removeAll { it.path.contains('src/integTest/groovy') }
+-        }
+-    }
+-}
++}*/
+ 
+ artifacts {
+-    publishRuntime file: toolingApiShadedJar.archivePath, name: archivesBaseName, type: 'jar', builtBy: toolingApiShadedJar
++// TODO    publishRuntime file: toolingApiShadedJar.archivePath, name: archivesBaseName, type: 'jar', builtBy: toolingApiShadedJar
+ }
+ 
+ task publishLocalArchives(type: Upload) {
+     ext.repoBaseDir = rootProject.file('build/repo')
+-    configuration = configurations.publishRuntime
++// TODO   configuration = configurations.publishRuntime
+     uploadDescriptor = false
+     repositories {
+         ivy {
+--- a/subprojects/dependency-management/dependency-management.gradle
++++ b/subprojects/dependency-management/dependency-management.gradle
+@@ -36,7 +36,6 @@
+ 
+     integTestRuntime project(":ivy")
+     integTestRuntime project(":maven")
+-    integTestRuntime project(":resourcesS3")
+     integTestRuntime project(":resourcesSftp")
+     integTestRuntime project(":testKit")
+ 
+--- a/subprojects/ivy/ivy.gradle
++++ b/subprojects/ivy/ivy.gradle
+@@ -24,7 +24,6 @@
+     compile project(':dependencyManagement')
+ 
+     integTestCompile project(":ear")
+-    integTestRuntime project(":resourcesS3")
+     integTestRuntime project(":resourcesSftp")
+     testFixturesCompile project(":internalIntegTesting")
+ }
+--- a/subprojects/maven/maven.gradle
++++ b/subprojects/maven/maven.gradle
+@@ -32,7 +32,6 @@
+     testCompile libraries.xmlunit
+ 
+     integTestCompile project(":ear")
+-    integTestRuntime project(":resourcesS3")
+     integTestRuntime project(":resourcesSftp")
+ 
+     testFixturesCompile project(":internalIntegTesting")
+--- a/subprojects/ide/ide.gradle
++++ b/subprojects/ide/ide.gradle
+@@ -20,7 +20,6 @@
+ dependencies {
+     compile libraries.groovy
+ 
+-    compile project(':scala')
+     compile project(':core')
+     compile project(':plugins')
+     compile project(':ear')
+--- a/subprojects/reporting/reporting.gradle
++++ b/subprojects/reporting/reporting.gradle
+@@ -18,8 +18,6 @@
+     compile libraries.jatl
+ 
+     testCompile libraries.jsoup
+-    integTestRuntime project(':codeQuality')
+-    integTestRuntime project(':jacoco')
+ 
+     reports "jquery:jquery.min:1.11.0@js"
+ }
+--- a/subprojects/ide/src/main/java/org/gradle/plugins/ide/idea/model/IdeaModule.java
++++ b/subprojects/ide/src/main/java/org/gradle/plugins/ide/idea/model/IdeaModule.java
+@@ -27,7 +27,6 @@
+ import org.gradle.api.Project;
+ import org.gradle.api.artifacts.Configuration;
+ import org.gradle.api.internal.project.ProjectInternal;
+-import org.gradle.language.scala.ScalaPlatform;
+ import org.gradle.plugins.ide.idea.model.internal.IdeaDependenciesProvider;
+ 
+ import java.io.File;
+@@ -162,7 +161,6 @@
+     private String jdkName;
+     private IdeaLanguageLevel languageLevel;
+     private JavaVersion targetBytecodeVersion;
+-    private ScalaPlatform scalaPlatform;
+     private final IdeaModuleIml iml;
+     private final Project project;
+     private PathFactory pathFactory;
+@@ -428,18 +426,6 @@
+         this.targetBytecodeVersion = targetBytecodeVersion;
+     }
+ 
+-    /**
+-     * The Scala version used by this module.
+-     */
+-    @Incubating
+-    public ScalaPlatform getScalaPlatform() {
+-        return scalaPlatform;
+-    }
+-
+-    @Incubating
+-    public void setScalaPlatform(ScalaPlatform scalaPlatform) {
+-        this.scalaPlatform = scalaPlatform;
+-    }
+ 
+     /**
+      * See {@link #iml(Action)}
+--- a/subprojects/ide/src/main/java/org/gradle/plugins/ide/idea/IdeaPlugin.java
++++ b/subprojects/ide/src/main/java/org/gradle/plugins/ide/idea/IdeaPlugin.java
+@@ -39,16 +39,13 @@
+ import org.gradle.api.plugins.JavaPlugin;
+ import org.gradle.api.plugins.JavaPluginConvention;
+ import org.gradle.api.plugins.WarPlugin;
+-import org.gradle.api.plugins.scala.ScalaBasePlugin;
+ import org.gradle.api.tasks.SourceSetContainer;
+ import org.gradle.api.tasks.TaskDependency;
+ import org.gradle.initialization.ProjectPathRegistry;
+ import org.gradle.internal.component.local.model.LocalComponentArtifactMetadata;
+ import org.gradle.internal.reflect.Instantiator;
+ import org.gradle.internal.service.ServiceRegistry;
+-import org.gradle.language.scala.plugins.ScalaLanguagePlugin;
+ import org.gradle.plugins.ide.api.XmlFileContentMerger;
+-import org.gradle.plugins.ide.idea.internal.IdeaScalaConfigurer;
+ import org.gradle.plugins.ide.idea.model.IdeaLanguageLevel;
+ import org.gradle.plugins.ide.idea.model.IdeaModel;
+ import org.gradle.plugins.ide.idea.model.IdeaModule;
+@@ -130,7 +127,6 @@
+         configureIdeaModule(project);
+         configureForJavaPlugin(project);
+         configureForWarPlugin(project);
+-        configureForScalaPlugin();
+         registerIdeArtifact(createImlArtifact(project));
+         linkCompositeBuildDependencies((ProjectInternal) project);
+     }
+@@ -193,7 +189,7 @@
+ 
+             });
+ 
+-            ideaProject.getWildcards().addAll(Arrays.asList("!?*.class", "!?*.scala", "!?*.groovy", "!?*.java"));
++            ideaProject.getWildcards().addAll(Arrays.asList("!?*.class", "!?*.groovy", "!?*.java"));
+             conventionMapping.map("modules", new Callable<List<IdeaModule>>() {
+                 @Override
+                 public List<IdeaModule> call() throws Exception {
+@@ -442,24 +438,6 @@
+         return !moduleLanguageLevel.equals(ideaProject.getLanguageLevel());
+     }
+ 
+-    private void configureForScalaPlugin() {
+-        project.getPlugins().withType(ScalaBasePlugin.class, new Action<ScalaBasePlugin>() {
+-            @Override
+-            public void execute(ScalaBasePlugin scalaBasePlugin) {
+-                ideaModuleDependsOnRoot();
+-            }
+-        });
+-        project.getPlugins().withType(ScalaLanguagePlugin.class, new Action<ScalaLanguagePlugin>() {
+-            @Override
+-            public void execute(ScalaLanguagePlugin scalaLanguagePlugin) {
+-                ideaModuleDependsOnRoot();
+-            }
+-
+-        });
+-        if (isRoot()) {
+-            new IdeaScalaConfigurer(project).configure();
+-        }
+-    }
+ 
+     private void ideaModuleDependsOnRoot() {
+         // see IdeaScalaConfigurer which requires the ipr to be generated first
+--- a/subprojects/ide/src/main/java/org/gradle/plugins/ide/eclipse/EclipsePlugin.java
++++ b/subprojects/ide/src/main/java/org/gradle/plugins/ide/eclipse/EclipsePlugin.java
+@@ -38,7 +38,6 @@
+ import org.gradle.api.plugins.JavaPlugin;
+ import org.gradle.api.plugins.JavaPluginConvention;
+ import org.gradle.api.plugins.WarPlugin;
+-import org.gradle.api.plugins.scala.ScalaBasePlugin;
+ import org.gradle.api.tasks.SourceSetContainer;
+ import org.gradle.api.tasks.TaskContainer;
+ import org.gradle.internal.reflect.Instantiator;
+@@ -175,20 +174,6 @@
+ 
+                 });
+ 
+-                project.getPlugins().withType(ScalaBasePlugin.class, new Action<ScalaBasePlugin>() {
+-                    @Override
+-                    public void execute(ScalaBasePlugin scalaBasePlugin) {
+-                        projectModel.getBuildCommands().set(Iterables.indexOf(projectModel.getBuildCommands(), new Predicate<BuildCommand>() {
+-                            @Override
+-                            public boolean apply(BuildCommand buildCommand) {
+-                                return buildCommand.getName().equals("org.eclipse.jdt.core.javabuilder");
+-                            }
+-
+-                        }), new BuildCommand("org.scala-ide.sdt.core.scalabuilder"));
+-                        projectModel.getNatures().add(projectModel.getNatures().indexOf("org.eclipse.jdt.core.javanature"), "org.scala-ide.sdt.core.scalanature");
+-                    }
+-
+-                });
+             }
+ 
+         });
+@@ -241,7 +226,6 @@
+ 
+                         });
+ 
+-                        configureScalaDependencies(project, task);
+                     }
+ 
+                 });
+@@ -265,40 +249,6 @@
+         task.dependsOn(sourceSets.getByName("test").getOutput().getDirs());
+     }
+ 
+-    private static void configureScalaDependencies(final Project project, final GenerateEclipseClasspath task) {
+-        project.getPlugins().withType(ScalaBasePlugin.class, new Action<ScalaBasePlugin>() {
+-            @Override
+-            public void execute(ScalaBasePlugin scalaBasePlugin) {
+-                task.getClasspath().containers("org.scala-ide.sdt.launching.SCALA_CONTAINER");
+-
+-                // exclude the dependencies already provided by SCALA_CONTAINER; prevents problems with Eclipse Scala plugin
+-                project.getGradle().addBuildListener(new BuildAdapter() {
+-                    @Override
+-                    public void projectsEvaluated(Gradle gradle) {
+-                        final List<String> provided = Lists.newArrayList("scala-library", "scala-swing", "scala-dbc");
+-                        Predicate<Dependency> dependencyInProvided = new Predicate<Dependency>() {
+-                            @Override
+-                            public boolean apply(Dependency dependency) {
+-                                return provided.contains(dependency.getName());
+-                            }
+-
+-                        };
+-                        List<Dependency> dependencies = Lists.newArrayList(Iterables.filter(Iterables.concat(Iterables.transform(task.getClasspath().getPlusConfigurations(), new Function<Configuration, Iterable<Dependency>>() {
+-                            @Override
+-                            public Iterable<Dependency> apply(Configuration config) {
+-                                return config.getAllDependencies();
+-                            }
+-
+-                        })), dependencyInProvided));
+-                        if (!dependencies.isEmpty()) {
+-                            task.getClasspath().getMinusConfigurations().add(project.getConfigurations().detachedConfiguration(dependencies.toArray(new Dependency[0])));
+-                        }
+-                    }
+-                });
+-            }
+-
+-        });
+-    }
+ 
+     private void configureEclipseJdt(final Project project, final EclipseModel model) {
+         final EclipsePlugin eclipsePlugin = this;
+--- a/subprojects/ide-native/ide-native.gradle
++++ b/subprojects/ide-native/ide-native.gradle
+@@ -21,7 +21,6 @@
+     compile project(':platformNative')
+     compile project(':languageNative')
+     compile project(':testingNative')
+-    compile libraries.plist
+ 
+     testFixturesCompile project(':internalTesting')
+ }

@@ -1,0 +1,169 @@
+Backported changes from the PR #6682, #6799 (this patch), #7245, and #12432 updating Groovy to version 2.5.
+Skipped most of #6903 (and a small chunk is in this patch), #7376, #7763, #7796, #10241 as they consist of Groovy
+ version bumps or changes to code not yet existing in this Gradle version only. Skipped #6844 as it reverts a workaround
+ that was already skipped.
+
+From 7a816ac9ae8d45acec88133f06e3ec60f46943f9 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
+Date: Wed, 26 Sep 2018 16:33:43 +0200
+Subject: [PATCH 1/4] Upgrade to Groovy 2.5.3-SNAPSHOT
+
+This is a temporary measure until Groovy 2.5.3 GA comes out to fix Java 11 incompatibilities.
+---
+ buildSrc/build.gradle.kts                                     | 3 +--
+ gradle/dependencies.gradle                                    | 4 ++--
+ .../code-quality-configuration.gradle.kts                     | 2 +-
+ 3 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/buildSrc/build.gradle.kts b/buildSrc/build.gradle.kts
+index 620d2950bbbc..759d664ac64e 100644
+--- a/buildSrc/build.gradle.kts
++++ b/buildSrc/build.gradle.kts
+@@ -65,8 +65,7 @@
+         exclude(module = "xercesImpl")
+     }
+     testCompile("junit:junit:4.12@jar")
+-    val spockGroovyVersion = groovy.lang.GroovySystem.getVersion().substring(0, 3)
+-    testCompile("org.spockframework:spock-core:1.2-RC2-groovy-${spockGroovyVersion}") {
++    testCompile("org.spockframework:spock-core:1.2-groovy-2.5") {
+         exclude(group = "org.codehaus.groovy")
+     }
+     testCompile("cglib:cglib-nodep:3.2.5")
+
+From b36b4ad7dff2a5b2e93076e1396b004a7f2fbae7 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
+Date: Tue, 18 Sep 2018 13:28:14 +0200
+Subject: [PATCH 1/3] Remove unnecessary comments
+
+Apparently Groovy 2.5 has changed the semantics of `pop()`:
+
+     * Note: The behavior of this method changed in Groovy 2.5 to align with Java.
+     * If you need the old behavior use 'removeLast'.
+---
+ .../tooling/m5/ToolingApiBuildExecutionCrossVersionSpec.groovy   | 1 -
+ .../integtests/tooling/m5/ToolingApiModelCrossVersionSpec.groovy | 1 -
+ 2 files changed, 2 deletions(-)
+
+diff --git a/subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/m5/ToolingApiBuildExecutionCrossVersionSpec.groovy b/subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/m5/ToolingApiBuildExecutionCrossVersionSpec.groovy
+index ba22b4438db2a..a02d099b45c17 100644
+--- a/subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/m5/ToolingApiBuildExecutionCrossVersionSpec.groovy
++++ b/subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/m5/ToolingApiBuildExecutionCrossVersionSpec.groovy
+@@ -81,7 +81,6 @@ System.err.println 'this is stderr'
+ 
+         then:
+         progress.size() >= 2
+-        // TODO:lptr I have no idea why this changed from pop() to removeLast()
+         progress.removeLast() == ''
+         progress.every { it }
+     }
+diff --git a/subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/m5/ToolingApiModelCrossVersionSpec.groovy b/subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/m5/ToolingApiModelCrossVersionSpec.groovy
+index 5e0a67aa1ab69..368d122e996b6 100644
+--- a/subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/m5/ToolingApiModelCrossVersionSpec.groovy
++++ b/subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/m5/ToolingApiModelCrossVersionSpec.groovy
+@@ -28,7 +28,6 @@ System.err.println 'this is stderr'
+ 
+         when:
+         def progress = withModel(GradleProject.class).progressMessages
+-        // TODO:lptr I have no idea why this changed from pop() to removeLast()
+         progress.removeLast()
+ 
+         then:
+
+From f25ce3004e271427e5c72b700409bc12d82d9efd Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
+Date: Tue, 18 Sep 2018 13:50:59 +0200
+Subject: [PATCH 2/3] Revert to using days instead of milliseconds in test
+
+---
+ .../gradle/build/UpdateReleasedVersionsTest.groovy    | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/buildSrc/src/test/groovy/org/gradle/build/UpdateReleasedVersionsTest.groovy b/buildSrc/src/test/groovy/org/gradle/build/UpdateReleasedVersionsTest.groovy
+index de2f82e650c13..f939728ba0f0a 100644
+--- a/buildSrc/src/test/groovy/org/gradle/build/UpdateReleasedVersionsTest.groovy
++++ b/buildSrc/src/test/groovy/org/gradle/build/UpdateReleasedVersionsTest.groovy
+@@ -20,6 +20,7 @@ import spock.lang.Specification
+ 
+ import java.text.SimpleDateFormat
+ 
++import static java.util.concurrent.TimeUnit.DAYS
+ import static org.gradle.build.UpdateReleasedVersions.updateReleasedVersions
+ 
+ class UpdateReleasedVersionsTest extends Specification {
+@@ -43,7 +44,7 @@ class UpdateReleasedVersionsTest extends Specification {
+     def "final releases are sorted by version"() {
+         def snapshot = snapshot('4.3')
+         def rc = releasedVersion('4.3-rc-1')
+-        def referenceBuildTime = System.currentTimeMillis() - 10
++        def referenceBuildTime = System.currentTimeMillis() - DAYS.toMillis(10)
+         def finalVersionsBefore = [
+             releasedVersion('4.3.1', referenceBuildTime + 7),
+             releasedVersion('4.4', referenceBuildTime + 5),
+@@ -59,7 +60,7 @@ class UpdateReleasedVersionsTest extends Specification {
+     }
+ 
+     def "newer snapshots are stored"() {
+-        def referenceBuildTime = System.currentTimeMillis() - 10
++        def referenceBuildTime = System.currentTimeMillis() - DAYS.toMillis(10)
+         def oldSnapshot = snapshot('4.3', referenceBuildTime)
+         def rc = releasedVersion('4.2-rc-1')
+         def versions = releasedVersions(oldSnapshot, rc, [])
+@@ -76,7 +77,7 @@ class UpdateReleasedVersionsTest extends Specification {
+     }
+ 
+     def "older snapshots are not stored"() {
+-        def referenceBuildTime = System.currentTimeMillis() - 10
++        def referenceBuildTime = System.currentTimeMillis() - DAYS.toMillis(10)
+         def oldSnapshot = snapshot('4.3', referenceBuildTime)
+         def rc = releasedVersion('4.2-rc-1')
+         def versions = releasedVersions(oldSnapshot, rc, [])
+@@ -93,7 +94,7 @@ class UpdateReleasedVersionsTest extends Specification {
+     }
+ 
+     def "newer rcs are stored"() {
+-        def referenceBuildTime = System.currentTimeMillis() - 10
++        def referenceBuildTime = System.currentTimeMillis() - DAYS.toMillis(10)
+         def oldRc = releasedVersion('4.3-rc-2', referenceBuildTime)
+         def snapshotVersion = snapshot('4.3', referenceBuildTime)
+         def versions = releasedVersions(snapshotVersion, oldRc, [])
+@@ -110,7 +111,7 @@ class UpdateReleasedVersionsTest extends Specification {
+     }
+ 
+     def "older rcs are not stored"() {
+-        def referenceBuildTime = System.currentTimeMillis() - 10
++        def referenceBuildTime = System.currentTimeMillis() - DAYS.toMillis(10)
+         def oldRc = releasedVersion('4.3-rc-2', referenceBuildTime)
+         def snapshotVersion = snapshot('4.3', referenceBuildTime)
+         def versions = releasedVersions(snapshotVersion, oldRc, [])
+
+From f2f50e106dac7043954a05d3b4779ff8ba4640e7 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
+Date: Tue, 18 Sep 2018 14:13:01 +0200
+Subject: [PATCH 3/3] Nicer Groovy code
+
+---
+ .../rules/AbstractGradleViolationRule.groovy           | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/buildSrc/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy b/buildSrc/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy
+index acb0174da8bac..f8aeef110abd3 100644
+--- a/buildSrc/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy
++++ b/buildSrc/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy
+@@ -177,12 +177,12 @@ abstract class AbstractGradleViolationRule extends AbstractContextAwareViolation
+         return violation
+     }
+ 
+-    String prettyPrintJson(def acceptanceJson) {
++    private static String prettyPrintJson(def acceptanceJson) {
+         def stringWriter = new StringWriter()
+-        def writer = new JsonWriter(stringWriter)
+-        writer.setIndent("    ")
+-        new Gson().toJson(acceptanceJson, AcceptedApiChange, writer)
+-        writer.close()
++        new JsonWriter(stringWriter).withCloseable { writer ->
++            writer.setIndent("    ")
++            new Gson().toJson(acceptanceJson, AcceptedApiChange, writer)
++        }
+         return stringWriter.toString()
+     }
+ 

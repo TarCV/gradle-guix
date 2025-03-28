@@ -1,0 +1,69 @@
+Backported changes from the PR #6682, #6799, #7245 (this patch), and #12432 updating Groovy to version 2.5.
+Skipped most of #6903, #7376, #7763, #7796, #10241 as they consist of Groovy version bumps or changes to code not yet
+ existing in this Gradle version only. Skipped #6844 as it reverts a workaround that was already skipped.
+
+From 980c489671bafe16e3779eb3107f3d232a99cdd8 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
+Date: Tue, 9 Oct 2018 18:24:23 +0200
+Subject: [PATCH 1/2] Do not use snapshot Groovy versions in tests
+
+When we depend on a SNAPSHOT version of Groovy, we shouldn't run tests that need to download Groovy versions with that SNAPSHOT version. This is to prevent us from bumping into problems with how Groovy snapshots are published.
+---
+ .../groovy/GroovyDocIntegrationTest.groovy    |  3 --
+ .../GroovyDocStampsIntegrationTest.groovy     |  3 --
+ .../testing/fixture/GroovyCoverage.groovy     | 47 ++++++++-----------
+ .../BasicGroovyCompilerIntegrationSpec.groovy |  4 --
+ ...DaemonGroovyCompilerIntegrationTest.groovy |  2 -
+ 5 files changed, 19 insertions(+), 40 deletions(-)
+
+diff --git a/subprojects/language-groovy/src/testFixtures/groovy/org/gradle/testing/fixture/GroovyCoverage.groovy b/subprojects/language-groovy/src/testFixtures/groovy/org/gradle/testing/fixture/GroovyCoverage.groovy
+index d46eec949a23a..bd039fdd19675 100644
+--- a/subprojects/language-groovy/src/testFixtures/groovy/org/gradle/testing/fixture/GroovyCoverage.groovy
++++ b/subprojects/language-groovy/src/testFixtures/groovy/org/gradle/testing/fixture/GroovyCoverage.groovy
+@@ -16,24 +16,32 @@
+ 
+ package org.gradle.testing.fixture
+ 
+-import org.gradle.util.VersionNumber
++import org.gradle.util.VersionNumber
+ 
+ class GroovyCoverage {
+-    final static String NEWEST = GroovySystem.version
++    private static final String[] PREVIOUS = ['1.5.8', '1.6.9', '1.7.11', '1.8.8', '2.0.5', '2.1.9', '2.2.2', '2.3.10', '2.4.15']
++    static final String[] ALL
+ 
+-    final static String[] ALL = ['1.5.8', '1.6.9', '1.7.11', '1.8.8', '2.0.5', '2.1.9', '2.2.2', '2.3.10', '2.4.15', NEWEST]
++    private static final MINIMUM_WITH_GROOVYDOC_SUPPORT = VersionNumber.parse("1.6.9")
++    static final String[] SUPPORTS_GROOVYDOC
+ 
+-    private final static List<VersionNumber> ALL_VERSIONS = ALL.collect { VersionNumber.parse(it) }
++    private static final MINIMUM_WITH_TIMESTAMP_SUPPORT = VersionNumber.parse("2.4.6")
++    static final String[] SUPPORTS_TIMESTAMP
+ 
+-    final static String[] SUPPORTS_GROOVYDOC = ALL_VERSIONS.findAll {
+-        it >= VersionNumber.parse("1.6.9")
+-    }.collect {
+-        it.toString()
+-    }
++    static {
++        def allVersions = [*PREVIOUS]
+ 
+-    final static String[] SUPPORTS_TIMESTAMP = ALL_VERSIONS.findAll {
+-        it >= VersionNumber.parse("2.4.6")
+-    }.collect {
+-        it.toString()
+-    }
++        // Only test current Groovy version if it isn't a SNAPSHOT
++        if (!GroovySystem.version.endsWith("-SNAPSHOT")) {
++            allVersions += GroovySystem.version
++        }
++
++        ALL = allVersions
++        SUPPORTS_GROOVYDOC = allVersions.findAll {
++            VersionNumber.parse(it) >= MINIMUM_WITH_GROOVYDOC_SUPPORT
++        }
++        SUPPORTS_TIMESTAMP = allVersions.findAll {
++            VersionNumber.parse(it) >= MINIMUM_WITH_TIMESTAMP_SUPPORT
++        }
++    }
+ }

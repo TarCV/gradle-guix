@@ -1,0 +1,339 @@
+Backported changes from the PR #6013 updating Groovy to version 2.4
+From b6e7d53cbbe144f6bccaeac4eefb09d231ee5b9a Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
+Date: Wed, 18 Jul 2018 16:08:19 +0200
+Subject: [PATCH 1/6] Use Groovy 2.4.15
+
+---
+ gradle/dependencies.gradle                                    | 2 +-
+ .../org/gradle/internal/service/ServiceLocatorTest.groovy     | 4 ++--
+ subprojects/docs/src/docs/userguide/installation.adoc         | 2 +-
+ .../docs/src/samples/groovy/crossCompilation/build.gradle     | 4 +++-
+ .../docs/src/samples/groovy/customizedLayout/build.gradle     | 2 +-
+ .../docs/src/samples/groovy/mixedJavaAndGroovy/build.gradle   | 2 +-
+ .../samples/groovy/multiproject/groovycDetector/build.gradle  | 2 +-
+ .../src/samples/groovy/multiproject/testproject/build.gradle  | 2 +-
+ .../testproject/src/test/groovy/org/gradle/VersionTest.groovy | 2 +-
+ subprojects/docs/src/samples/groovy/quickstart/build.gradle   | 2 +-
+ .../quickstart/src/test/groovy/org/gradle/PersonTest.groovy   | 2 +-
+ subprojects/docs/src/samples/osgi/build.gradle                | 2 +-
+ .../userguide/artifacts/externalDependencies/build.gradle     | 2 +-
+ .../samples/userguide/groovy/groovyDependency/build.gradle    | 2 +-
+ .../samples/userguide/tutorial/groovyWithFlatDir/build.gradle | 2 +-
+ .../samples/userguide/tutorial/projectReports/build.gradle    | 2 +-
+ .../performance/src/templates/config-inject/build.gradle      | 4 ++--
+ .../src/templates/kts-project-with-source/build.gradle.kts    | 2 +-
+ .../src/templates/project-with-source/build.gradle            | 4 ++--
+ .../JUnitConsoleLoggingIntegrationTest/shared/build.gradle    | 2 +-
+ .../standardOutputLogging/build.gradle                        | 2 +-
+ 21 files changed, 26 insertions(+), 24 deletions(-)
+
+diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
+index 324e5657d5b8a..36683feed3b29 100755
+--- a/gradle/dependencies.gradle
++++ b/gradle/dependencies.gradle
+@@ -21,7 +21,7 @@
+ 
+ versions.gradle_kotlin_dsl = '0.14.2'
+ versions.commons_io = '2.5'
+-versions.groovy = '2.4.12'
++versions.groovy = '2.4.15'
+ versions.bouncycastle = '1.58'
+ versions.maven = '3.0.4'
+ versions.httpclient = '4.4.1'
+diff --git a/subprojects/base-services/src/test/groovy/org/gradle/internal/service/ServiceLocatorTest.groovy b/subprojects/base-services/src/test/groovy/org/gradle/internal/service/ServiceLocatorTest.groovy
+index 19bddc57e783d..dc4570809476a 100644
+--- a/subprojects/base-services/src/test/groovy/org/gradle/internal/service/ServiceLocatorTest.groovy
++++ b/subprojects/base-services/src/test/groovy/org/gradle/internal/service/ServiceLocatorTest.groovy
+@@ -72,7 +72,7 @@ class ServiceLocatorTest extends Specification {
+ 
+         then:
+         RuntimeException e = thrown()
+-        e.message == "Could not load implementation class 'org.gradle.ImplClass' for service 'java.lang.String' specified in resource '${serviceFile}'."
++        e.message == "Could not load implementation class 'org.gradle.ImplClass' for service 'java.lang.String' specified in resource '" + serviceFile + "'."
+         e.cause == failure
+         1 * classLoader.getResources("META-INF/services/java.lang.String") >> Collections.enumeration([serviceFile])
+         1 * classLoader.loadClass('org.gradle.ImplClass') >> { throw failure }
+@@ -115,7 +115,7 @@ org.gradle.ImplClass2""")
+ 
+         then:
+         RuntimeException e = thrown()
+-        e.message == "Could not determine implementation class for service 'java.lang.String' specified in resource '${serviceFile}'."
++        e.message == "Could not determine implementation class for service 'java.lang.String' specified in resource '" + serviceFile + "'."
+         e.cause.message == "No implementation class for service 'java.lang.String' specified."
+         1 * classLoader.getResources("META-INF/services/java.lang.String") >> Collections.enumeration([serviceFile])
+     }
+diff --git a/subprojects/docs/src/samples/groovy/crossCompilation/build.gradle b/subprojects/docs/src/samples/groovy/crossCompilation/build.gradle
+index 5b5eb161d942d..a89ef161a82d7 100644
+--- a/subprojects/docs/src/samples/groovy/crossCompilation/build.gradle
++++ b/subprojects/docs/src/samples/groovy/crossCompilation/build.gradle
+@@ -1,3 +1,5 @@
++import org.apache.tools.ant.taskdefs.Javadoc
++
+ apply plugin: 'groovy'
+ version = 1.0
+ 
+@@ -6,7 +8,7 @@ repositories {
+ }
+ 
+ dependencies {
+-    compile 'org.codehaus.groovy:groovy-all:2.4.10'
++    compile 'org.codehaus.groovy:groovy-all:2.4.15'
+     testCompile 'junit:junit:4.12'
+ }
+ 
+diff --git a/subprojects/docs/src/samples/groovy/customizedLayout/build.gradle b/subprojects/docs/src/samples/groovy/customizedLayout/build.gradle
+index ba9575d469129..eb3f57b0b269f 100644
+--- a/subprojects/docs/src/samples/groovy/customizedLayout/build.gradle
++++ b/subprojects/docs/src/samples/groovy/customizedLayout/build.gradle
+@@ -5,7 +5,7 @@ repositories {
+ }
+ 
+ dependencies {
+-    compile 'org.codehaus.groovy:groovy:2.4.10'
++    compile 'org.codehaus.groovy:groovy:2.4.15'
+     testCompile 'junit:junit:4.12'
+ }
+ 
+diff --git a/subprojects/docs/src/samples/groovy/mixedJavaAndGroovy/build.gradle b/subprojects/docs/src/samples/groovy/mixedJavaAndGroovy/build.gradle
+index d61fadb224bf2..0ffbf2a974ece 100644
+--- a/subprojects/docs/src/samples/groovy/mixedJavaAndGroovy/build.gradle
++++ b/subprojects/docs/src/samples/groovy/mixedJavaAndGroovy/build.gradle
+@@ -6,6 +6,6 @@ repositories {
+ }
+ 
+ dependencies {
+-    compile 'org.codehaus.groovy:groovy-all:2.4.10'
++    compile 'org.codehaus.groovy:groovy-all:2.4.15'
+     testCompile 'junit:junit:4.12'
+ }
+diff --git a/subprojects/docs/src/samples/groovy/multiproject/groovycDetector/build.gradle b/subprojects/docs/src/samples/groovy/multiproject/groovycDetector/build.gradle
+index 3c993c78c4078..dcbd23d89832f 100644
+--- a/subprojects/docs/src/samples/groovy/multiproject/groovycDetector/build.gradle
++++ b/subprojects/docs/src/samples/groovy/multiproject/groovycDetector/build.gradle
+@@ -3,5 +3,5 @@ apply plugin: 'java'
+ version = 'SNAPSHOT'
+ 
+ dependencies {
+-    compile 'org.codehaus.groovy:groovy-all:2.4.10'
++    compile 'org.codehaus.groovy:groovy-all:2.4.15'
+ }
+diff --git a/subprojects/docs/src/samples/groovy/multiproject/testproject/build.gradle b/subprojects/docs/src/samples/groovy/multiproject/testproject/build.gradle
+index 853ef7596b48b..dabec6440bb6c 100644
+--- a/subprojects/docs/src/samples/groovy/multiproject/testproject/build.gradle
++++ b/subprojects/docs/src/samples/groovy/multiproject/testproject/build.gradle
+@@ -4,7 +4,7 @@ group = 'org.gradle'
+ version = '1.0'
+ 
+ dependencies {
+-    compile 'org.codehaus.groovy:groovy-all:2.4.10'
++    compile 'org.codehaus.groovy:groovy-all:2.4.15'
+     compile project(':groovycDetector')
+     testCompile 'junit:junit:4.12'
+ }
+diff --git a/subprojects/docs/src/samples/groovy/multiproject/testproject/src/test/groovy/org/gradle/VersionTest.groovy b/subprojects/docs/src/samples/groovy/multiproject/testproject/src/test/groovy/org/gradle/VersionTest.groovy
+index 237c76ae7c39c..9d4f587ea0cd4 100644
+--- a/subprojects/docs/src/samples/groovy/multiproject/testproject/src/test/groovy/org/gradle/VersionTest.groovy
++++ b/subprojects/docs/src/samples/groovy/multiproject/testproject/src/test/groovy/org/gradle/VersionTest.groovy
+@@ -9,6 +9,6 @@ class GroovycVersionTest {
+ 
+   @Test
+   void versionShouldBeCurrent() {
+-    assertEquals("2.4.10", groovycVersion)
++    assertEquals("2.4.15", groovycVersion)
+   }
+ }
+diff --git a/subprojects/docs/src/samples/groovy/quickstart/build.gradle b/subprojects/docs/src/samples/groovy/quickstart/build.gradle
+index 3895f08f9a557..e97a54a2a107d 100644
+--- a/subprojects/docs/src/samples/groovy/quickstart/build.gradle
++++ b/subprojects/docs/src/samples/groovy/quickstart/build.gradle
+@@ -9,7 +9,7 @@ repositories {
+ }
+ 
+ dependencies {
+-    compile 'org.codehaus.groovy:groovy-all:2.4.10'
++    compile 'org.codehaus.groovy:groovy-all:2.4.15'
+ // END SNIPPET groovy-dependency
+     testCompile 'junit:junit:4.12'
+ // START SNIPPET groovy-dependency
+diff --git a/subprojects/docs/src/samples/groovy/quickstart/src/test/groovy/org/gradle/PersonTest.groovy b/subprojects/docs/src/samples/groovy/quickstart/src/test/groovy/org/gradle/PersonTest.groovy
+index 52b98bbed86d9..521047c937326 100644
+--- a/subprojects/docs/src/samples/groovy/quickstart/src/test/groovy/org/gradle/PersonTest.groovy
++++ b/subprojects/docs/src/samples/groovy/quickstart/src/test/groovy/org/gradle/PersonTest.groovy
+@@ -17,7 +17,7 @@ class PersonTest {
+     }
+ 
+     @Test public void usingCorrectVersionOfGroovy() {
+-        assertEquals('2.4.10', GroovySystem.version)
++        assertEquals('2.4.15', GroovySystem.version)
+     }
+ 
+     @Test public void testResourcesAreAvailable() {
+diff --git a/subprojects/docs/src/samples/osgi/build.gradle b/subprojects/docs/src/samples/osgi/build.gradle
+index 6068e6ec43f88..7b9b9be95711b 100644
+--- a/subprojects/docs/src/samples/osgi/build.gradle
++++ b/subprojects/docs/src/samples/osgi/build.gradle
+@@ -14,7 +14,7 @@ repositories {
+ }
+ 
+ dependencies {
+-    compile 'org.codehaus.groovy:groovy:2.4.10'
++    compile 'org.codehaus.groovy:groovy:2.4.15'
+     compile 'org.eclipse:osgi:3.5.0.v20090520'
+ }
+ 
+diff --git a/subprojects/docs/src/samples/userguide/artifacts/externalDependencies/build.gradle b/subprojects/docs/src/samples/userguide/artifacts/externalDependencies/build.gradle
+index 5dbd7f5ef9002..7e305ba6c593a 100644
+--- a/subprojects/docs/src/samples/userguide/artifacts/externalDependencies/build.gradle
++++ b/subprojects/docs/src/samples/userguide/artifacts/externalDependencies/build.gradle
+@@ -48,7 +48,7 @@ dependencies {
+ 
+ //START SNIPPET client-modules
+ dependencies {
+-    runtime module("org.codehaus.groovy:groovy:2.4.10") {
++    runtime module("org.codehaus.groovy:groovy:2.4.15") {
+         dependency("commons-cli:commons-cli:1.0") {
+             transitive = false
+         }
+diff --git a/subprojects/docs/src/samples/userguide/groovy/groovyDependency/build.gradle b/subprojects/docs/src/samples/userguide/groovy/groovyDependency/build.gradle
+index 1d6b05d4e1a35..779a72aed2091 100644
+--- a/subprojects/docs/src/samples/userguide/groovy/groovyDependency/build.gradle
++++ b/subprojects/docs/src/samples/userguide/groovy/groovyDependency/build.gradle
+@@ -6,7 +6,7 @@ repositories {
+ 
+ // START SNIPPET groovy-test-dependency
+ dependencies {
+-    testCompile 'org.codehaus.groovy:groovy-all:2.4.10'
++    testCompile 'org.codehaus.groovy:groovy-all:2.4.15'
+ }
+ // END SNIPPET groovy-test-dependency
+ 
+diff --git a/subprojects/docs/src/samples/userguide/tutorial/groovyWithFlatDir/build.gradle b/subprojects/docs/src/samples/userguide/tutorial/groovyWithFlatDir/build.gradle
+index 5fafcc102409a..8299cac54127e 100644
+--- a/subprojects/docs/src/samples/userguide/tutorial/groovyWithFlatDir/build.gradle
++++ b/subprojects/docs/src/samples/userguide/tutorial/groovyWithFlatDir/build.gradle
+@@ -10,7 +10,7 @@ repositories {
+ }
+ 
+ dependencies {
+-    compile module('org.codehaus.groovy:groovy:2.4.10') {
++    compile module('org.codehaus.groovy:groovy:2.4.15') {
+         dependency('org.ow2.asm:asm-all:5.0.3')
+         dependency('antlr:antlr:2.7.7')
+         dependency('commons-cli:commons-cli:1.2')
+diff --git a/subprojects/docs/src/samples/userguide/tutorial/projectReports/build.gradle b/subprojects/docs/src/samples/userguide/tutorial/projectReports/build.gradle
+index 73224b6df5663..bab9fc8b14bdf 100644
+--- a/subprojects/docs/src/samples/userguide/tutorial/projectReports/build.gradle
++++ b/subprojects/docs/src/samples/userguide/tutorial/projectReports/build.gradle
+@@ -64,7 +64,7 @@ project(':api') {
+ description = 'The shared API for the application'
+ // END SNIPPET project-description
+     dependencies {
+-        compile "org.codehaus.groovy:groovy-all:2.4.10"
++        compile "org.codehaus.groovy:groovy-all:2.4.15"
+         testCompile "junit:junit:4.12"
+     }
+ }
+diff --git a/subprojects/performance/src/templates/config-inject/build.gradle b/subprojects/performance/src/templates/config-inject/build.gradle
+index f05af42c1bfe3..ecf0ae8069165 100644
+--- a/subprojects/performance/src/templates/config-inject/build.gradle
++++ b/subprojects/performance/src/templates/config-inject/build.gradle
+@@ -18,7 +18,7 @@ dependencies {
+     compile "commons-httpclient:commons-httpclient:3.0"
+     compile "commons-codec:commons-codec:1.2"
+     compile "org.slf4j:jcl-over-slf4j:1.7.10"
+-    compile "org.codehaus:groovy:groovy-all:2.4.10"
++    compile "org.codehaus:groovy:groovy-all:2.4.15"
+     compile "commons-codec:commons-codec:1.2"
+     testCompile 'junit:junit:4.12'
+     testCompile 'org.testng:testng:6.4'
+@@ -39,7 +39,7 @@ test {
+ <% if (groovyProject) { %>
+ apply plugin: 'groovy'
+ dependencies {
+-    compile 'org.codehaus:groovy:groovy-all:2.4.10'
++    compile 'org.codehaus:groovy:groovy-all:2.4.15'
+ }
+ <% } %>
+ 
+diff --git a/subprojects/performance/src/templates/kts-project-with-source/build.gradle.kts b/subprojects/performance/src/templates/kts-project-with-source/build.gradle.kts
+index 3b699daea593f..e68afc76a7a94 100644
+--- a/subprojects/performance/src/templates/kts-project-with-source/build.gradle.kts
++++ b/subprojects/performance/src/templates/kts-project-with-source/build.gradle.kts
+@@ -33,7 +33,7 @@ dependencies {
+     compile("commons-httpclient:commons-httpclient:3.0")
+     compile("commons-codec:commons-codec:1.2")
+     compile("org.slf4j:jcl-over-slf4j:1.7.10")
+-    compile("org.codehaus.groovy:groovy:2.4.10")
++    compile("org.codehaus.groovy:groovy:2.4.15")
+     testCompile("junit:junit:4.12")
+     runtime("com.googlecode:reflectasm:1.01")
+ }
+diff --git a/subprojects/performance/src/templates/project-with-source/build.gradle b/subprojects/performance/src/templates/project-with-source/build.gradle
+index c64415d8f8ba8..284e19fd30efc 100644
+--- a/subprojects/performance/src/templates/project-with-source/build.gradle
++++ b/subprojects/performance/src/templates/project-with-source/build.gradle
+@@ -32,7 +32,7 @@ dependencies {
+     compile "commons-httpclient:commons-httpclient:3.0"
+     compile "commons-codec:commons-codec:1.2"
+     compile "org.slf4j:jcl-over-slf4j:1.7.10"
+-    compile "org.codehaus.groovy:groovy:2.4.10"
++    compile "org.codehaus.groovy:groovy:2.4.15"
+     testCompile 'junit:junit:4.12'
+     runtime 'com.googlecode:reflectasm:1.01'
+ 
+@@ -77,7 +77,7 @@ tasks.withType(Test) {
+ <% if (groovyProject) { %>
+ apply plugin: 'groovy'
+ dependencies {
+-    compile 'org.codehaus:groovy:groovy-all:2.4.10'
++    compile 'org.codehaus:groovy:groovy-all:2.4.15'
+ }
+ <% } %>
+ 
+diff --git a/subprojects/testing-jvm/src/integTest/resources/org/gradle/testing/junit/JUnitConsoleLoggingIntegrationTest/shared/build.gradle b/subprojects/testing-jvm/src/integTest/resources/org/gradle/testing/junit/JUnitConsoleLoggingIntegrationTest/shared/build.gradle
+index 7324197ae974e..f9a241f075495 100644
+--- a/subprojects/testing-jvm/src/integTest/resources/org/gradle/testing/junit/JUnitConsoleLoggingIntegrationTest/shared/build.gradle
++++ b/subprojects/testing-jvm/src/integTest/resources/org/gradle/testing/junit/JUnitConsoleLoggingIntegrationTest/shared/build.gradle
+@@ -5,7 +5,7 @@ repositories {
+ }
+ 
+ dependencies {
+-    compile "org.codehaus.groovy:groovy:2.4.10"
++    compile "org.codehaus.groovy:groovy:2.4.15"
+     testCompile "junit:junit:4.12"
+ }
+ 
+diff --git a/subprojects/testing-jvm/src/integTest/resources/org/gradle/testing/junit/JUnitConsoleLoggingIntegrationTest/standardOutputLogging/build.gradle b/subprojects/testing-jvm/src/integTest/resources/org/gradle/testing/junit/JUnitConsoleLoggingIntegrationTest/standardOutputLogging/build.gradle
+index 53f47486347a0..c502583e7b15a 100644
+--- a/subprojects/testing-jvm/src/integTest/resources/org/gradle/testing/junit/JUnitConsoleLoggingIntegrationTest/standardOutputLogging/build.gradle
++++ b/subprojects/testing-jvm/src/integTest/resources/org/gradle/testing/junit/JUnitConsoleLoggingIntegrationTest/standardOutputLogging/build.gradle
+@@ -21,7 +21,7 @@ repositories {
+ }
+ 
+ dependencies {
+-    compile "org.codehaus.groovy:groovy:2.4.10"
++    compile "org.codehaus.groovy:groovy:2.4.15"
+     testCompile "junit:junit:4.12"
+ }
+ 
+
+From 5d0323fc35da005f6bc885d101de34c092e0ce90 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
+Date: Fri, 20 Jul 2018 11:51:25 +0200
+Subject: [PATCH 6/6] Remove unused import
+
+---
+ .../docs/src/samples/groovy/crossCompilation/build.gradle       | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/subprojects/docs/src/samples/groovy/crossCompilation/build.gradle b/subprojects/docs/src/samples/groovy/crossCompilation/build.gradle
+index a89ef161a82d7..936b68049639e 100644
+--- a/subprojects/docs/src/samples/groovy/crossCompilation/build.gradle
++++ b/subprojects/docs/src/samples/groovy/crossCompilation/build.gradle
+@@ -1,5 +1,3 @@
+-import org.apache.tools.ant.taskdefs.Javadoc
+-
+ apply plugin: 'groovy'
+ version = 1.0
+ 

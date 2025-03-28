@@ -1,0 +1,24 @@
+--- a/build.gradle
++++ b/build.gradle
+@@ -260,13 +260,10 @@
+ patchedExternalModules.builtBy 'patchExternalModules'
+ 
+ dependencies {
+-    externalModules "org.gradle:gradle-kotlin-dsl:${versions.gradle_kotlin_dsl}"
+-    externalModules "org.gradle:gradle-kotlin-dsl-tooling-builders:${versions.gradle_kotlin_dsl}"
+     coreRuntime project(':launcher')
+     coreRuntime project(':runtimeApiInfo')
+     runtime project(':wrapper')
+     runtime project(":installationBeacon")
+-    runtime patchedExternalModules
+     gradlePlugins pluginProjects
+     gradlePlugins implementationPluginProjects
+     gradlePlugins project(':workers')
+@@ -276,7 +273,6 @@
+     coreRuntimeExtensions project(':dependencyManagement') //See: DynamicModulesClassPathProvider.GRADLE_EXTENSION_MODULES
+     coreRuntimeExtensions project(':pluginUse')
+     coreRuntimeExtensions project(':workers')
+-    coreRuntimeExtensions patchedExternalModules
+ }
+ 
+ import org.gradle.modules.PatchExternalModules

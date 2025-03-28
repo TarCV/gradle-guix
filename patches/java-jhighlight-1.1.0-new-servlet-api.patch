@@ -1,0 +1,11 @@
+--- a/src/main/java/org/codelibs/jhighlight/servlet/HighlightFilter.java
++++ b/src/main/java/org/codelibs/jhighlight/servlet/HighlightFilter.java
+@@ -228,6 +228,8 @@
+ 	
+ 	private static class ServletOutputStreamWrapper extends ServletOutputStream
+ 	{
++       @Override public boolean isReady() { return true; }
++ 	    @Override public void setWriteListener(javax.servlet.WriteListener unused) { throw new UnsupportedOperationException(); }
+ 		protected ByteArrayOutputStream mOutput;
+ 		
+ 		public ServletOutputStreamWrapper()

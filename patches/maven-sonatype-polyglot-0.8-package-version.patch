@@ -1,0 +1,105 @@
+--- a/pom.xml
++++ b/pom.xml
+@@ -29,7 +29,7 @@
+     <groupId>org.sonatype.pmaven</groupId>
+     <artifactId>pmaven</artifactId>
+     <name>Polyglot Maven</name>
+-    <version>0.8-SNAPSHOT</version>
++    <version>${GUIX_PACKAGE_VERSION}</version>
+ 
+     <packaging>pom</packaging>
+ 
+@@ -162,61 +162,61 @@
+             <dependency>
+                 <groupId>org.sonatype.pmaven</groupId>
+                 <artifactId>pmaven-common</artifactId>
+-                <version>0.8-SNAPSHOT</version>
++                <version>${GUIX_PACKAGE_VERSION}</version>
+             </dependency>
+ 
+             <dependency>
+                 <groupId>org.sonatype.pmaven</groupId>
+                 <artifactId>pmaven-cli</artifactId>
+-                <version>0.8-SNAPSHOT</version>
++                <version>${GUIX_PACKAGE_VERSION}</version>
+             </dependency>
+ 
+             <dependency>
+                 <groupId>org.sonatype.pmaven</groupId>
+                 <artifactId>pmaven-maven-plugin</artifactId>
+-                <version>0.8-SNAPSHOT</version>
++                <version>${GUIX_PACKAGE_VERSION}</version>
+             </dependency>
+ 
+             <dependency>
+                 <groupId>org.sonatype.pmaven</groupId>
+                 <artifactId>pmaven-groovy</artifactId>
+-                <version>0.8-SNAPSHOT</version>
++                <version>${GUIX_PACKAGE_VERSION}</version>
+             </dependency>
+ 
+             <dependency>
+                 <groupId>org.sonatype.pmaven</groupId>
+                 <artifactId>pmaven-yaml</artifactId>
+-                <version>0.8-SNAPSHOT</version>
++                <version>${GUIX_PACKAGE_VERSION}</version>
+             </dependency>
+ 
+             <dependency>
+                 <groupId>org.sonatype.pmaven</groupId>
+                 <artifactId>pmaven-jruby</artifactId>
+-                <version>0.8-SNAPSHOT</version>
++                <version>${GUIX_PACKAGE_VERSION}</version>
+             </dependency>
+ 
+             <dependency>
+                 <groupId>org.sonatype.pmaven</groupId>
+                 <artifactId>pmaven-commands</artifactId>
+-                <version>0.8-SNAPSHOT</version>
++                <version>${GUIX_PACKAGE_VERSION}</version>
+             </dependency>
+ 
+             <dependency>
+                 <groupId>org.sonatype.pmaven</groupId>
+                 <artifactId>pmaven-clojure</artifactId>
+-                <version>0.8-SNAPSHOT</version>
++                <version>${GUIX_PACKAGE_VERSION}</version>
+             </dependency>
+ 
+             <!--<dependency>-->
+                 <!--<groupId>org.sonatype.pmaven</groupId>-->
+                 <!--<artifactId>pmaven-xtext</artifactId>-->
+-                <!--<version>0.8-SNAPSHOT</version>-->
++                <!--<version>${GUIX_PACKAGE_VERSION}</version>-->
+             <!--</dependency>-->
+             
+             <dependency>
+                 <groupId>org.sonatype.pmaven</groupId>
+                 <artifactId>pmaven-scala</artifactId>
+-                <version>0.8-SNAPSHOT</version>
++                <version>${GUIX_PACKAGE_VERSION}</version>
+             </dependency>
+         </dependencies>
+     </dependencyManagement>
+--- a/pmaven-common/pom.xml
++++ b/pmaven-common/pom.xml
+@@ -23,7 +23,7 @@
+     <parent>
+         <groupId>org.sonatype.pmaven</groupId>
+         <artifactId>pmaven</artifactId>
+-        <version>0.8-SNAPSHOT</version>
++        <version>${GUIX_PACKAGE_VERSION}</version>
+     </parent>
+ 
+     <artifactId>pmaven-common</artifactId>
+--- a/pmaven-groovy/pom.xml
++++ b/pmaven-groovy/pom.xml
+@@ -23,7 +23,7 @@
+     <parent>
+         <groupId>org.sonatype.pmaven</groupId>
+         <artifactId>pmaven</artifactId>
+-        <version>0.8-SNAPSHOT</version>
++        <version>${GUIX_PACKAGE_VERSION}</version>
+     </parent>
+ 
+     <artifactId>pmaven-groovy</artifactId>
