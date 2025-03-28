@@ -1,0 +1,51 @@
+--- a/gradlefile
++++ a/gradlefile
+@@ -32,7 +32,7 @@
+ type = 'jar'
+ version = new Version(svn, project, false)
+ group = 'org.gradle'
+-buildTime = new Date()
++buildTime = new Date(0)
+ versionModifier = null
+ 
+ webSrcDir = new File("$srcRoot", 'website')
+@@ -99,12 +99,13 @@
+ 
+ resources.doLast {
+     logger.info('Write version properties')
+-    Properties versionProperties = new Properties()
+-    versionProperties.putAll([
+-            (GradleVersion.VERSION): version.toString(),
+-            (GradleVersion.BUILD_TIME): DateFormat.getDateTimeInstance(DateFormat.FULL, DateFormat.FULL).format(buildTime)
+-    ])
+-    versionProperties.store(new FileOutputStream(new File(classesDir, GradleVersion.FILE_NAME)), '')
++    PrintWriter writer = new PrintWriter(new File(classesDir, GradleVersion.FILE_NAME), "utf-8")
++    try {
++        writer.printf("%s=%s%n", GradleVersion.VERSION, version.toString())
++        writer.printf("%s=%s%n", GradleVersion.BUILD_TIME, 'Thursday,·January·1,·1970·at·12:00:00·AM·Greenwich·Mean·Time')
++    } finally { 
++        writer.close()
++    }
+ }
+ 
+ test {
+@@ -133,7 +133,7 @@
+         dependencies.resolveClasspath('distLib').each {File file ->
+             copy(file: file, todir: explodedDistLibDir)
+         }
+-        jar(destfile: new File(explodedDistLibDir, "$distName-wrapper-${version}.jar"),
++        jar(compress: 'false', modificationtime: '1980-01-01T00:00:00Z', destfile: new File(explodedDistLibDir, "$distName-wrapper-${version}.jar"),
+                 basedir: classesDir, includes: 'org/gradle/wrapper/')
+         // todo: find out why Ivy does not include the jar in the resolve
+         copy(file: task('gradle_jar').archivePath, toDir: explodedDistLibDir)
+--- a/src/main/groovy/org/gradle/api/tasks/bundling/AntJar.groovy
++++ b/src/main/groovy/org/gradle/api/tasks/bundling/AntJar.groovy
+@@ -28,6 +28,8 @@
+             args.manifest = parameter.gradleManifest.file.absolutePath
+         }
+         args.destfile = "${parameter.destinationDir.absolutePath}/$parameter.archiveName"
++        args.compress = 'false' // Guix usually repacks jars with no compression
++        args.modificationtime = '1980-01-01T00:00:00Z'
+         args.whenmanifestonly = parameter.emptyPolicy()
+         parameter.ant.jar(args) {
+             addMetaArchiveParameter(parameter, delegate)

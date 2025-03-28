@@ -1,0 +1,95 @@
+--- a/gradlefile
++++ a/gradlefile
+@@ -1,11 +1,9 @@
+ import java.text.DateFormat
+ import java.text.SimpleDateFormat
+ import java.util.jar.Attributes
+-import org.gradle.api.internal.dependencies.WebdavResolver
+ import org.gradle.api.tasks.testing.ForkMode
+ import org.gradle.api.tasks.wrapper.Wrapper
+ import org.gradle.build.integtests.*
+-import org.gradle.build.release.Svn
+ import org.gradle.build.release.Version
+ import org.gradle.build.samples.TutorialCreator
+ import org.gradle.build.samples.WaterProjectCreator
+@@ -17,7 +15,7 @@
+ import org.apache.ivy.core.module.descriptor.Configuration.Visibility
+ 
+ distName = 'gradle'
+-svn = new Svn(project)
++def svn = null
+ distributionUploadUrl = null
+ 
+ type = 'jar'
+@@ -63,12 +63,6 @@
+     // todo: Improve dependency handling for xUnit jars
+     addConfiguration(new Configuration('distLib', Visibility.PRIVATE, null, ['default'] as String[], true, null))
+     addConfiguration('ftpAntTask')
+-
+-    clientModule(['ftpAntTask'], ":ant-commons-net:1.7.0") {
+-        clientModule(":commons-net:1.4.1") {
+-            dependencies(":oro:2.0.8:jar")    
+-        }
+-    }
+
+     clientModule(['compile'], ":groovy-all:1.5.5") {
+         dependency(":commons-cli:1.0")
+@@ -77,16 +77,18 @@
+     compile ":commons-cli:1.0:jar",
+             ":commons-io:1.3.1:jar",
+             ":commons-lang:2.3:jar",
+             ":commons-httpclient:3.0:jar",
+-            ":webdavlib:2.0",
+             ":logback-classic:0.9.8",
+-            ":ivy:2.0.0.beta2_20080305165542:jar"
+-    runtime ":ant-launcher:1.7.0",
+-            ":junit:4.4"
++            ":ivy:2.0.0.beta2_20080305165542:jar",
++            "org.apache.ant:ant:1.7.25",
++            "ch.qos.logback:logback-core:1.2.3",
++            "org.slf4j:slf4j-api:1.7.25",
++            "org.apache.ant:ant-launcher:1.7.0"
++    runtime ":junit:4.4"
+
+     testCompile ":junit:4.4"
+     distLib ":junit:4.4"
+-    addFlatDirResolver('lib', new File(rootDir, 'lib'))
++    classpathResolvers.add([name: 'Maven2Local', url: "file://$gradleUserHome/m2/"])
+ }
+
+ resources.doLast {
+@@ -257,12 +253,6 @@
+ uploadDists {
+     dependsOn 'integTests', 'distsWithJavadoc'
+ }.doFirst {
+-    it.uploadResolvers.add(new WebdavResolver()) {
+-        name = 'gradleReleases'
+-        user = codehausUserName
+-        userPassword = codehausUserPassword
+-        addArtifactPattern("$distributionUploadUrl/[artifact]-[revision].[ext]" as String)
+-    }
+ }
+ 
+ createTask('release', dependsOn: 'uploadDists') {
+--- a/buildSrc/gradlefile
++++ b/buildSrc/gradlefile
+@@ -1,5 +1,4 @@
+ import org.gradle.api.DependencyManager
+-import org.apache.ivy.core.install.InstallOptions
+ import org.apache.ivy.core.module.descriptor.DefaultModuleDescriptor
+ import org.apache.ivy.core.module.descriptor.DependencyDescriptor
+
+@@ -21,12 +20,4 @@
+ }
+ 
+ uploadLibs.doLast {
+-    InstallOptions installOptions = new InstallOptions()
+-    installOptions.overwrite = true
+-    installOptions.validate = false
+-    def ivy = dependencies.ivy
+-    DefaultModuleDescriptor moduleDescriptor = dependencies.moduleDescriptorConverter.convert(dependencies)
+-    moduleDescriptor.dependencies.each { DependencyDescriptor dependencyDescriptor ->
+-        ivy.install(dependencyDescriptor.dependencyRevisionId, 'lib', DependencyManager.BUILD_RESOLVER_NAME, installOptions)
+-    }
+ }
+\ No newline at end of file
