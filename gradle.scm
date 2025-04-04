@@ -20,11 +20,16 @@
   #:use-module ((guix licenses)
                 #:prefix license:)
   #:use-module (gnu packages)
+  #:use-module (gnu packages base)
   #:use-module (gnu packages compression)
   #:use-module (gnu packages groovy)
   #:use-module (gnu packages java)
+  #:use-module (gnu packages libffi)
+  #:use-module (gnu packages maven)
+  #:use-module (gnu packages pkg-config)
   #:use-module (guix build utils)
   #:use-module (guix build-system ant)
+  #:use-module (guix build-system maven)
   #:use-module (srfi srfi-1)
 )
 
@@ -108,19 +113,414 @@
     (description "Groovy uberjar with every jar from Groovy package")
     (license license:asl2.0)))
 
-(define gradle-bootstrap
+(define java-minlog
   (package
-    (name "gradle")
-    (version "0.0.0-355")
+    (name "java-minlog")
+    (version "1.3.1")
     (source
       (origin
         (method url-fetch)
-        (uri (string-append "https://github.com/gradle/gradle/archive/68ed305dc9ea1efedf6e5774451dbd7a0725494e.tar.gz"))
+        (uri (string-append "https://github.com/EsotericSoftware/minlog/archive/refs/tags/minlog-" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "0n7gx247ly9dgbdgwnhgh3r4ng7kamq95119nq7xcbifh09bhiy0"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (build-system ant-build-system)
+    (arguments
+      `(#:jar-name "minlog.jar"
+         #:source-dir "src"
+         #:tests? #f ; no tests
+         ))
+    (home-page "https://github.com/EsotericSoftware/minlog")
+    (synopsis "Minimal overhead Java logging")
+    (description
+      "MinLog is a tiny Java logging library which features:
+- Zero overhead Logging statements below a given level can be automatically removed by javac at compile time. This means applications can have detailed trace and debug logging without having any impact on the finished product.
+- Extremely lightweight The entire project consists of a single Java file with ~100 non-comment lines of code.
+- Simple and efficient The API is concise and the code is very efficient at runtime.
+")
+    (license license:bsd-3)))
+
+(define java-reflectasm
+  (package
+    (name "java-reflectasm")
+    (version "1.11.9")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/EsotericSoftware/reflectasm/archive/refs/tags/reflectasm-" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "06ivmq8r5rrd3cvfwzavsp7r2ddavs3m7amph5j3n5y720gb70pv"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (build-system ant-build-system)
+    (native-inputs (list java-junit))
+    (propagated-inputs (list java-asm))
+    (arguments
+      `(#:jar-name "reflectasm.jar"
+         #:source-dir "src"
+         #:test-dir "test"
+         #:phases ,#~(modify-phases %standard-phases
+                       (add-before 'check 'fix-test-dir
+                         (lambda _
+                           (mkdir-p "test/java")
+                           (rename-file "test/com" "test/java/com"))))))
+    (home-page "https://github.com/EsotericSoftware/reflectasm")
+    (synopsis "High performance Java reflection")
+    (description
+      "ReflectASM is a very small Java library that provides high performance reflection by using code generation. An access class is generated to set/get fields, call methods, or create a new instance. The access class uses bytecode rather than Java's reflection, so it is much faster. It can also access primitive fields via bytecode to avoid boxing.")
+    (license license:bsd-3)))
+
+(define java-kryo-2
+  (package
+    (name "java-kryo")
+    (version "2.24.0")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/EsotericSoftware/kryo/archive/refs/tags/kryo-" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "0ffpkn89xzmgxbg8jzskpkikn2wqfvjhkydsagfhv79akn9j4sdb"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (build-system ant-build-system)
+    (native-inputs (list java-junit))
+    (propagated-inputs (list java-minlog java-objenesis java-reflectasm))
+    (arguments
+      `(#:jar-name "kryo.jar"
+         #:source-dir "src"
+         #:test-dir "test"
+         #:phases ,#~(modify-phases %standard-phases
+                       (add-before 'check 'fix-test-dir
+                         (lambda _
+                           (mkdir-p "test/java")
+                           (rename-file "test/com" "test/java/com"))))))
+    (home-page "https://github.com/EsotericSoftware/kryo")
+    (synopsis "Java binary serialization and cloning: fast, efficient, automatic")
+    (description
+      "Kryo is a fast and efficient binary object graph serialization framework for Java. The goals of the project are high speed, low size, and an easy to use API. The project is useful any time objects need to be persisted, whether to a file, database, or over the network.")
+    (license license:bsd-3)))
+
+;(define java-jnr-constants
+;  (package
+;    (name "java-jnr-constants")
+;    (version "0.7")
+;    (source
+;      (origin
+;        (method url-fetch)
+;        (uri (string-append "https://github.com/jnr/jnr-constants/archive/refs/tags/" version ".tar.gz"))
+;        (file-name (string-append name "-" version ".tar.gz"))
+;        (sha256 (base32 "1bj45843skcn6nwp6cwqyzfq6r4d8jmzd7h2pwfa86r5g81h9lnf"))
+;        (modules '((guix build utils)))
+;        (snippet '(begin ; TODO: Java files in this repo are pregenerated, should they be regenerated before build?
+;                    (for-each delete-file
+;                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+;                    #t))))
+;    (build-system ant-build-system)
+;    (arguments
+;      `(#:make-flags
+;         ,#~(list
+;              (string-append "-Ddist.jar=" #$output "/share/java/jnr-constants.jar")
+;              (string-append
+;                 "-Dlibs.junit_4.classpath="
+;                 #$java-junit "/lib/m2/junit/junit/" #$(package-version java-junit) "/junit-" #$(package-version java-junit) ".jar"
+;                 ":" #$java-hamcrest-all "/share/java/hamcrest-all.jar"))
+;         #:test-target "test"
+;         #:phases (modify-phases %standard-phases
+;           (delete 'install))))
+;    (home-page "https://github.com/jnr/jnr-constants")
+;    (synopsis "Java Native Runtime constants")
+;    (description "This project contains Java enums for common POSIX constants. It is predominately used to make calls into jnr-posix far simpler.")
+;    (license (list license:expat))))
+;
+;(define java-jnr-jffi-0.6
+;  (package
+;    (name "java-jnr-jffi")
+;    (version "0.6.5")
+;    (source
+;      (origin
+;        (method url-fetch)
+;        (uri (string-append "https://github.com/jnr/jffi/archive/refs/tags/" version ".tar.gz"))
+;        (file-name (string-append name "-" version ".tar.gz"))
+;        (sha256 (base32 "1wm1h6zmv3jnv4mg7zk38ryxfphbwfgmkha1qawrpi0djpi6hnr4"))
+;        (modules '((guix build utils)))
+;        (patches '("patches/java-jnr-jffi-build.patch"))
+;        (snippet '(begin
+;                    (for-each delete-file
+;                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+;                    #t))))
+;    (build-system ant-build-system)
+;    (native-inputs (list libffi pkg-config))
+;    (arguments
+;      `(#:test-target "test"
+;        #:make-flags ,#~(list "-Duse.system.libffi=1"
+;                           "-Dmkdist.disabled=true"
+;                           (string-append "-Dcomplete.jar=" #$output "/share/java/jnr-jffi.jar")
+;                           (string-append
+;                             "-Dlibs.junit_4.classpath="
+;                             #$java-junit "/lib/m2/junit/junit/" #$(package-version java-junit)
+;                             "/junit-" #$(package-version java-junit) ".jar"
+;                             ":" #$java-hamcrest-all "/share/java/hamcrest-all.jar"))
+;        #:phases (modify-phases %standard-phases
+;                    (add-before 'build 'setup-gnu-build-env
+;                      (lambda _
+;                        (substitute* '("jni/GNUmakefile" "libtest/GNUmakefile")
+;                          (("(:.+)\\$\\(LIBFFI_LIBS\\)" all before) before)
+;                          (("-mimpure-text") ""))
+;                        (setenv "CC" "gcc")
+;                        (setenv "MAKE" "make")))
+;                    (delete 'install)))) ; complete.jar property already takes care of installing the jar
+;    (home-page "https://github.com/jnr/jnr-jffi")
+;    (synopsis "Java Foreign Function Interface")
+;    (description "Java wrapper around libffi.")
+;    (license (list license:lgpl3))))
+;
+;(define java-jnr-ffi
+;  (package
+;    (name "java-jnr-ffi")
+;    (version "0.4.1")
+;    (source
+;      (origin
+;        (method url-fetch)
+;        (uri (string-append "https://github.com/jnr/jnr-ffi/archive/0462926916f8bf93e0a029248c3bfe9107bb99aa.tar.gz"))
+;        (file-name (string-append name "-" version ".tar.gz"))
+;        (sha256 (base32 "0lj0l8jyp36z2qx5d8gc31vck4m5gbsljrbminfnacqmgh3xarlk"))
+;        (patches '("patches/java-jnr-ffi-asm.patch" "patches/java-jnr-ffi-generics.patch"))
+;        (modules '((guix build utils)))
+;        (snippet '(begin
+;                    (for-each delete-file
+;                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+;                    #t))))
+;    (build-system ant-build-system)
+;    (propagated-inputs (list java-asm java-jnr-jffi-0.6 java-native-access))
+;    (arguments
+;      `(#:test-target "test"
+;         #:make-flags ,#~(list "-Duse.system.libffi=1"
+;                               (string-append "-Ddist.jar=" #$output "/share/java/jnr-ffi.jar")
+;                               (string-append "-Dfile.reference.asm-3.2.jar=" #$java-asm "/lib/m2/org/ow2/asm/asm/"
+;                                 #$(package-version java-asm) "/asm-" #$(package-version java-asm) ".jar")
+;                               (string-append "-Dreference.JNA_Library.jar=" #$java-native-access "/share/java/jna.jar")
+;                               (string-append
+;                                 "-Dlibs.junit_4.classpath="
+;                                 #$java-junit "/lib/m2/junit/junit/" #$(package-version java-junit) "/junit-" #$(package-version java-junit) ".jar"
+;                                 ":" #$java-hamcrest-all "/share/java/hamcrest-all.jar")
+;                               (string-append "-Dfile.reference.jffi-complete.jar=" #$java-jnr-jffi-0.6 "/share/java/jnr-jffi.jar"))
+;         #:phases (modify-phases %standard-phases
+;                    (add-before 'build 'setup-gnu-build-env
+;                      (lambda _
+;                        (substitute* "libtest/GNUmakefile"
+;                          (("-mimpure-text") ""))
+;                        (setenv "CC" "gcc")
+;                        (setenv "MAKE" "make")))
+;                    (add-before 'build 'remove-nb-dependency
+;                      (lambda _
+;                        (substitute* "nbproject/build-impl.xml"
+;                          ((",-do-jar-with-libraries[^,\"']+") ""))))
+;                    (delete 'install)))) ; dist.jar property already takes care of installing the jar
+;    (home-page "https://github.com/jnr/jnr-ffi")
+;    (synopsis "Java Abstracted Foreign Function Layer")
+;    (description "JNR-FFI is a Java library for loading native libraries without writing JNI code by hand, or using tools such as SWIG.")
+;    (license (list license:expat))))
+;
+;(define java-jnr-posix
+;  (package
+;    (name "java-jnr-posix")
+;    (version "1.0.8")
+;    (source
+;      (origin
+;        (method url-fetch)
+;        (uri (string-append "https://github.com/jnr/jnr-posix/archive/refs/tags/" version ".tar.gz"))
+;        (file-name (string-append name "-" version ".tar.gz"))
+;        (sha256 (base32 "1lrrislf8rzw9dz751721pki6wn92p36prb4hqd20rxgkjbqp2my"))
+;        (modules '((guix build utils)))
+;        (snippet '(begin
+;                    (for-each delete-file
+;                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+;                    #t))))
+;    (build-system ant-build-system)
+;    (propagated-inputs (list coreutils-minimal java-jnr-constants java-jnr-ffi))
+;    (arguments
+;      `(#:make-flags
+;         ,#~(list
+;           "-Dno.dependencies=true"
+;           (string-append "-Ddist.jar=" #$output "/share/java/jnr-posix.jar")
+;           (string-append "-Dreference.constantine.jar=" #$java-jnr-constants "/share/java/jnr-constants.jar")
+;           (string-append "-Dreference.jaffl.jar=" #$java-jnr-ffi "/share/java/jnr-ffi.jar")
+;           (string-append
+;             "-Dlibs.junit_4.classpath="
+;             #$java-junit "/lib/m2/junit/junit/" #$(package-version java-junit) "/junit-" #$(package-version java-junit) ".jar"
+;             ":" #$java-hamcrest-all "/share/java/hamcrest-all.jar"))
+;         #:test-target "test"
+;         #:tests? #f ; TODO: fix libc related tests
+;         #:phases ,#~(modify-phases %standard-phases
+;                    (add-before 'build 'patch-bin-paths
+;                      (lambda _
+;                        (substitute* (find-files "src" ".*\\.java$")
+;                          (("\"/usr/bin/") (string-append "\"" #$coreutils-minimal "/bin/")))))
+;                    (delete 'install))))
+;    (home-page "https://github.com/jnr/jnr-posix")
+;    (synopsis "Java Posix layer")
+;    (description "jnr-posix is a lightweight cross-platform POSIX emulation layer for Java, written in Java.")
+;    (license (list license:cpl1.0 license:gpl2+ license:lgpl2.1+))))
+
+(define java-fastutil-7
+  (package
+    (name "java-fastutil")
+    (version "7.2.1")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/vigna/fastutil/archive/refs/tags/" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "06adanl4h1rhih54s3288m26jn603sj0phgjnrzgrak06zzz7pyl"))
+        (patches '("patches/java-fastutil-7-junit.patch"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (build-system ant-build-system)
+    (native-inputs (list java-junit))
+    (arguments
+      `(#:make-flags (list "-Dbuild.sysclasspath=last")
+         #:test-target "junit"
+         #:phases ,#~(modify-phases %standard-phases
+                    (add-before 'build 'generate-sources
+                      (lambda _
+                        (setenv "CC" "gcc")
+                        (invoke "make" "sources")))
+                    (add-before 'check 'create-reports-dir
+                      (lambda _
+                        (mkdir-p "reports")))
+                    (add-before 'install 'prepare-pom.xml
+                      (lambda _
+                        (substitute* "makefile"
+                          (("; ant stage") ""))))
+                    (replace 'install
+                      (install-from-pom "pom.xml")))))
+    (home-page "https://fastutil.di.unimi.it/")
+    (synopsis "fastutil: Fast & compact type-specific collections for Java")
+    (description "fastutil extends the Java™ Collections Framework by providing type-specific maps, sets, lists and queues with a small memory footprint and fast access and insertion; provides also big (64-bit) arrays, sets and lists, and fast, practical I/O classes for binary and text files.")
+    (license (list license:asl2.0))))
+
+(define java-jatl
+  (package
+    (name "java-jatl")
+    (version "0.2.3")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/agentgt/jatl/archive/refs/tags/jatl-" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "0z3s4zpq97rwwn2gcfkhf28sib60d1sczg682fskyq1nfdxnlvgb"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (build-system ant-build-system)
+    (native-inputs (list java-junit))
+    (arguments
+      `(#:jar-name "jatl.jar"
+         #:phases ,#~(modify-phases %standard-phases
+                      (add-after 'build 'copy-resources
+                        (lambda _
+                          (copy-recursively "src/etc" "build/classes")))
+                      (replace 'install
+                        (install-from-pom "pom.xml")))))
+    (home-page "https://github.com/agentgt/jatl")
+    (synopsis "JATL: Java Anti-Template Language")
+    (description "JATL is an extremely lightweight efficient Java library that generates XHTML or XML by using an a elegant fluent styled micro DSL.")
+    (license (list license:asl2.0))))
+
+(define java-jul-to-slf4j
+  (package
+    (inherit java-slf4j-api)
+    (name "java-jul-to-slf4j")
+    (build-system ant-build-system)
+    (propagated-inputs (list java-slf4j-api))
+    (arguments
+      `(#:jar-name "jul-to-slf4j.jar"
+         #:source-dir "jul-to-slf4j/src/main"
+         #:tests? #f ; tests require a newer version of java-log4j-1.2-api 2.17.2
+         #:phases ,#~(modify-phases %standard-phases
+                      (add-after 'build 'copy-resources
+                        (lambda _
+                          (copy-recursively "jul-to-slf4j/src/main/resources" "build/classes")))
+                      (replace 'install
+                        (install-from-pom "jul-to-slf4j/pom.xml")))))
+    (home-page "https://www.slf4j.org/legacy.html")
+    (synopsis "java.util.logging to Simple logging facade for Java bridge")))
+
+(define java-native-platform-0.14
+  (package
+    (name "java-native-platform")
+    (version "0.14")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/gradle/native-platform/archive/refs/tags/" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "1if8h1lz8rh6gv6rrych63j2a03cfcqshb5c2973xsfs7jfrvbrr"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (build-system ant-build-system)
+    (arguments
+      `(#:jar-name "native-platform.jar"
+        #:source-dir "src/main/java"
+        #:tests? #f ; TODO
+        #:phases ,#~(modify-phases %standard-phases
+                       (add-after 'build 'generate-headers ; TODO: add native build phase
+                         (lambda _
+                           (invoke "javah"
+                             "-o" "build/classes/nativeHeaders/native.h"
+                             "-classpath" "build/classes" 
+                             "net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.PosixFileFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.PosixFileSystemFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.PosixProcessFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.TerminfoFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.WindowsHandleFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.WindowsRegistryFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.WindowsFileFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.FileEventFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.MemoryFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.OsxMemoryFunctions"
+                             ))))))
+    (home-page "https://github.com/gradle/native-platform/")
+    (synopsis "Native-platform: Java bindings for various native APIs")
+    (description
+      "A collection of cross-platform Java APIs for various native APIs. Supports OS X, Linux, Solaris and Windows. These APIs support Java 5 and later. Some of these APIs overlap with APIs available in later Java versions.")
+    (license license:asl2.0)))
+
+(define gradle-bootstrap
+  (package
+    (name "gradle")
+    (version "4.5.1")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/gradle/gradle/archive/refs/tags/v" version ".tar.gz"))
         (file-name (string-append "gradle-" version ".tar.gz"))
-        (sha256 (base32 "0fdbnxrk12s40z8i1njjkqai3zgrvpcb6x8pwcpm3x0qsj92wv01"))
-        (patches '("patches/gradle-0.0.0-355-default-parameters.patch" "patches/gradle-0.0.0-355-java.patch"
-                    "patches/gradle-0.0.0-355-remove-svn.patch" "patches/gradle-0.0.0-355-offline-script.patch"
-                    "patches/gradle-0.0.0-355-includeAntRuntime.patch" "patches/gradle-0.0.0-355-reproducibility.patch"))
+        (sha256 (base32 "03yaq6kkdk5akjl5is0rmkdqhg1jfhp1mbv9jzpmjrs53z1hsxlw"))
+        (patches '("patches/gradle-4.5.1-groovy.patch"
+                   "patches/gradle-4.5.1-kryo.patch" "patches/gradle-boostrap-4.5.1-remove-dependencies.patch"
+                   "patches/gradle-4.5.1-type-inference-fix.patch"))
         (modules '((guix build utils)))
         (snippet '(begin
                     (for-each delete-file
@@ -128,32 +528,110 @@
                     #t))))
     (build-system ant-build-system)
     (propagated-inputs
-      (list apache-ivy-2.0-beta2 java-commons-cli java-commons-httpclient java-commons-io java-commons-lang java-junit
-            java-logback-classic java-logback-core java-slf4j-api groovy-all))
+      (list java-apache-ivy java-commons-cli java-commons-httpclient java-commons-io java-commons-lang java-junit
+            java-httpcomponents-httpclient java-httpcomponents-httpcore maven-artifact java-eclipse-sisu-plexus
+            java-guava java-native-access java-native-access-platform maven-model maven-settings java-commons-collections
+            maven-settings-builder maven-compat java-native-platform-0.14 java-kryo-2 java-jarjar java-slf4j-api
+            java-logback-classic java-logback-core java-slf4j-api groovy java-testng java-sonatype-aether-api
+            java-sonatype-aether-impl java-sonatype-aether-util java-jansi-1 maven-resolver-api java-guava
+            java-commons-compress java-gson java-bouncycastle java-jgit java-fastutil-7 java-jatl java-jul-to-slf4j))
     (arguments
       `(#:jdk ,openjdk9 ; same as groovy
          #:jar-name "gradle.jar"
-         #:source-dir "src/main"
-         #:tests? #f ; depends on groovy test classes not present in Guix
+         #:source-dir "merged-src/src/main"
+         #:tests? #f ; disable tests in this partial bootstrap build
          #:phases ,#~(modify-phases %standard-phases
-                    (add-before 'build 'remove-slide-webdav
-                      ; Avoid dependency on WebDAV client from the retired Jakarta Slide project
+                    (add-after 'unpack 'prepare-merged-sources
                       (lambda _
-                        (delete-file "src/main/groovy/org/gradle/api/internal/dependencies/WebdavRepository.java")
-                        (delete-file "src/main/groovy/org/gradle/api/internal/dependencies/WebdavResolver.java")
-                        ))
-                    (add-before 'build 'copy-resources
+                        (copy-recursively "subprojects/base-services" "merged-src")
+                        (copy-recursively "subprojects/base-services-groovy" "merged-src")
+                        (copy-recursively "subprojects/build-cache" "merged-src")
+;                        (copy-recursively "subprojects/build-init" "merged-src")
+                        (copy-recursively "subprojects/build-option" "merged-src")
+                        (copy-recursively "subprojects/cli" "merged-src")
+;                        (copy-recursively "subprojects/code-quality" "merged-src")
+                        (copy-recursively "subprojects/core" "merged-src")
+;                        (copy-recursively "subprojects/composite-builds" "merged-src")
+                        (copy-recursively "subprojects/core-api" "merged-src")
+                        (copy-recursively "subprojects/core-impl" "merged-src")
+                        (copy-recursively "subprojects/dependency-management" "merged-src")
+                        (copy-recursively "subprojects/diagnostics" "merged-src")
+;                        (copy-recursively "subprojects/docs" "merged-src")
+;                        (copy-recursively "subprojects/ear" "merged-src")
+;                        (copy-recursively "subprojects/installation-beacon" "merged-src")
+                        (copy-recursively "subprojects/javascript" "merged-src")
+                        (copy-recursively "subprojects/jvm-services" "merged-src")
+                        (copy-recursively "subprojects/language-groovy" "merged-src")
+                        (copy-recursively "subprojects/language-java" "merged-src")
+                        (copy-recursively "subprojects/language-jvm" "merged-src")
+;                        (copy-recursively "subprojects/launcher" "merged-src")
+                        (copy-recursively "subprojects/logging" "merged-src")
+;                        (copy-recursively "subprojects/maven" "merged-src")
+                        (copy-recursively "subprojects/messaging" "merged-src")
+                        (copy-recursively "subprojects/model-core" "merged-src")
+                        (copy-recursively "subprojects/model-groovy" "merged-src")
+                        (copy-recursively "subprojects/native" "merged-src")
+                        (copy-recursively "subprojects/persistent-cache" "merged-src")
+                        (copy-recursively "subprojects/platform-base" "merged-src")
+                        (copy-recursively "subprojects/platform-jvm" "merged-src")
+;                        (copy-recursively "subprojects/plugin-development" "merged-src")
+;                        (copy-recursively "subprojects/plugin-use" "merged-src")
+                        (copy-recursively "subprojects/plugins" "merged-src")
+                        (copy-recursively "subprojects/process-services" "merged-src")
+                        (copy-recursively "subprojects/reporting" "merged-src")
+                        (copy-recursively "subprojects/resources" "merged-src")
+                        (copy-recursively "subprojects/resources-http" "merged-src")
+;                        (copy-recursively "subprojects/runtime-api-info" "merged-src")
+;                        (copy-recursively "subprojects/test-kit" "merged-src")
+                        (copy-recursively "subprojects/testing-base" "merged-src")
+                        (copy-recursively "subprojects/testing-jvm" "merged-src")
+;                        (copy-recursively "subprojects/tooling-api" "merged-src")
+                        (copy-recursively "subprojects/version-control" "merged-src")
+                        (copy-recursively "subprojects/workers" "merged-src")))
+                    (add-after 'prepare-merged-sources 'unshade-imports
                       (lambda _
-                        (copy-recursively "src/main/resources" "build/classes")))
+                        (substitute* (find-files "merged-src" ".*\\.(java|groovy)$")
+                          (("groovyjarjarasm\\.asm") "org.objectweb.asm")
+                          (("org\\.gradle\\.mvn3.") ""))))
+                    (add-after 'prepare-merged-sources 'patch-for-newer-guava
+                      (lambda _
+                        (substitute* (find-files "merged-src" ".*\\.(java|groovy)$")
+                          (("import static com.google.common.collect.Iterators.emptyIterator;")
+                            "import static java.util.Collections.emptyIterator;")
+                          (("CharMatcher.JAVA_ISO_CONTROL") "CharMatcher.javaIsoControl()")
+                          (("Iterators.emptyIterator\\(\\)") "java.util.Collections.emptyIterator()")
+                          (("Objects.toStringHelper") "com.google.common.base.MoreObjects.toStringHelper"))))
                     (add-before 'build 'patch-build.xml
                       (lambda _
                         (substitute* "build.xml"
-                          (("<javac ([^>]+)/>" all args) (string-append
+                          (("<javac ([^>]+)>" all args) (string-append
                                                   "<taskdef name=\"groovyc\" classname=\"org.codehaus.groovy.ant.Groovyc\" classpath=\"@refidclasspath\"/>"
-                                                  "<groovyc " args " fork=\"true\">"
-                                                  all
-                                                  "</groovyc>"))
+                                                  "<groovyc " args " fork=\"true\"><classpath refid=\"classpath\"/>"
+                                                  "<javac " args ">"))
+                          (("</javac>" all) (string-append all "</groovyc>"))
                           (("classpath=\"@refidclasspath\"") "classpathref=\"classpath\""))))
+                    (add-before 'build 'remove-dependencies
+                      (lambda _
+                        (substitute* (find-files "merged-src" ".*\\.java$")
+                          (("import net\\.jcip\\.annotations\\.(Not)?ThreadSafe;|@(Not)?ThreadSafe") ""))
+                        (delete-file-recursively
+                          "merged-src/src/main/java/org/gradle/internal/resource/transport/http/ntlm")
+;                        (delete-file-recursively
+;                          "merged-src/src/main/java/org/gradle/api/publication/maven")
+;                        (delete-file-recursively
+;                          "merged-src/src/main/java/org/gradle/api/publish/maven")
+                        (delete-file-recursively
+                          "merged-src/src/main/java/org/gradle/internal/resource/transport/http")
+
+                        ; Gradle only depends on javascript-base plugin, everything else can be removed
+                        (delete-file-recursively "merged-src/src/main/java/org/gradle/plugins/javascript/coffeescript")
+                        (delete-file-recursively "merged-src/src/main/java/org/gradle/plugins/javascript/envjs")
+                        (delete-file-recursively "merged-src/src/main/java/org/gradle/plugins/javascript/jshint")
+                        (delete-file-recursively "merged-src/src/main/java/org/gradle/plugins/javascript/rhino")
+
+                        (delete-file
+                          "merged-src/src/main/java/org/gradle/internal/nativeintegration/console/WindowsConsoleDetector.java")
+                        ))
                     (add-after 'install 'copy-configs
                       (lambda _
                         (copy-recursively "src/toplevel" (string-append #$output "/share/java")))))))
@@ -170,7 +648,7 @@
       `(#:modules ((guix build ant-build-system) (guix build utils) (ice-9 ftw) (srfi srfi-1) (ice-9 string-fun)
                   (srfi srfi-26))
       ,@(substitute-keyword-arguments (package-arguments gradle-bootstrap)
-        ((#:phases phases)
+        ((#:phases phases) ; TODO: verify gradle and gradle-wrapper hashes against well-known ones
           `(modify-phases %standard-phases
                     (add-before 'build 'remove-src-tests
                       (lambda _ ; remove tests as they depend on groovy test classes not present in Guix

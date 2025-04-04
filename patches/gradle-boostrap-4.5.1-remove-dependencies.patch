@@ -1,0 +1,44 @@
+--- a/subprojects/dependency-management/src/main/java/org/gradle/internal/resolve/ResolveExceptionAnalyzer.java
++++ b/subprojects/dependency-management/src/main/java/org/gradle/internal/resolve/ResolveExceptionAnalyzer.java
+@@ -19,7 +19,6 @@
+ package org.gradle.internal.resolve;
+ 
+ import org.apache.commons.lang.exception.ExceptionUtils;
+-import org.gradle.internal.resource.transport.http.HttpErrorStatusCodeException;
+ 
+ import java.io.InterruptedIOException;
+ import java.util.Collection;
+@@ -45,6 +44,6 @@
+     }
+ 
+     private static boolean isUnrecoverable5xxStatusCode(Throwable rootCause) {
+-        return rootCause instanceof HttpErrorStatusCodeException && ((HttpErrorStatusCodeException) rootCause).isServerError();
++        return false;
+     }
+ }
+\ No newline at end of file
+--- a/subprojects/native/src/main/java/org/gradle/internal/nativeintegration/services/NativeServices.java
++++ b/subprojects/native/src/main/java/org/gradle/internal/nativeintegration/services/NativeServices.java
+@@ -33,7 +33,6 @@
+ import org.gradle.internal.nativeintegration.console.ConsoleDetector;
+ import org.gradle.internal.nativeintegration.console.NativePlatformConsoleDetector;
+ import org.gradle.internal.nativeintegration.console.NoOpConsoleDetector;
+-import org.gradle.internal.nativeintegration.console.WindowsConsoleDetector;
+ import org.gradle.internal.nativeintegration.filesystem.FileMetadataAccessor;
+ import org.gradle.internal.nativeintegration.filesystem.services.FallbackFileMetadataAccessor;
+ import org.gradle.internal.nativeintegration.filesystem.services.FileSystemServices;
+@@ -171,14 +170,6 @@
+                 LOGGER.debug("Unable to load from native-platform backed ConsoleDetector. Continuing with fallback. Failure: {}", format(ex));
+             }
+ 
+-            try {
+-                if (operatingSystem.isWindows()) {
+-                    return new WindowsConsoleDetector();
+-                }
+-            } catch (LinkageError e) {
+-                // Thrown when jna cannot initialize the native stuff
+-                LOGGER.debug("Unable to load native library. Continuing with fallback. Failure: {}", format(e));
+-            }
+         }
+ 
+         return new NoOpConsoleDetector();
