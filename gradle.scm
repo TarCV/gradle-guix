@@ -638,7 +638,8 @@
     (home-page "https://gradle.org/")
     (synopsis "Open-source build automation tool with an extensible declarative build language")
     (description
-      "Gradle Build Tool is a fast, dependable, and adaptable open-source build automation tool with an elegant and extensible declarative build language.")
+      "Gradle Build Tool is a fast, dependable, and adaptable open-source build automation tool with an elegant and extensible declarative build language.
+      NOTE: To keep up to date with the current version of Groovy in Guix, this build backports migration to Groovy 3 in Gradle 7.0 and thus partially breaks compatibility with the upstream. To see how it may affect your scripts you can check Groovy-related sections at https://docs.gradle.org/7.0/userguide/upgrading_version_6.html#changes_to_groovy_and_groovy_dsl")
     (license license:asl2.0)))
 
 (define gradle
