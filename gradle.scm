@@ -518,9 +518,12 @@
         (uri (string-append "https://github.com/gradle/gradle/archive/refs/tags/v" version ".tar.gz"))
         (file-name (string-append "gradle-" version ".tar.gz"))
         (sha256 (base32 "03yaq6kkdk5akjl5is0rmkdqhg1jfhp1mbv9jzpmjrs53z1hsxlw"))
-        (patches '("patches/gradle-4.5.1-groovy.patch"
-                   "patches/gradle-4.5.1-kryo.patch" "patches/gradle-boostrap-4.5.1-remove-dependencies.patch"
-                   "patches/gradle-4.5.1-type-inference-fix.patch"))
+        (patches '("patches/gradle-4.5.1-asm.patch" "patches/gradle-4.5.1-groovy.patch"
+                   "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
+                   "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"
+
+                   "patches/gradle-bootstrap-4.5.1-remove-dependencies.patch"
+                   "patches/gradle-bootstrap-4.5.1-single-jar.patch"))
         (modules '((guix build utils)))
         (snippet '(begin
                     (for-each delete-file
@@ -532,7 +535,7 @@
             java-httpcomponents-httpclient java-httpcomponents-httpcore maven-artifact java-eclipse-sisu-plexus
             java-guava java-native-access java-native-access-platform maven-model maven-settings java-commons-collections
             maven-settings-builder maven-compat java-native-platform-0.14 java-kryo-2 java-jarjar java-slf4j-api
-            java-logback-classic java-logback-core java-slf4j-api groovy java-testng java-sonatype-aether-api
+            java-logback-core java-slf4j-api groovy java-testng java-sonatype-aether-api
             java-sonatype-aether-impl java-sonatype-aether-util java-jansi-1 maven-resolver-api java-guava
             java-commons-compress java-gson java-bouncycastle java-jgit java-fastutil-7 java-jatl java-jul-to-slf4j))
     (arguments
@@ -540,54 +543,77 @@
          #:jar-name "gradle.jar"
          #:source-dir "merged-src/src/main"
          #:tests? #f ; disable tests in this partial bootstrap build
-         #:phases ,#~(modify-phases %standard-phases
-                    (add-after 'unpack 'prepare-merged-sources
+         #:phases (modify-phases %standard-phases
+                    (add-after 'unpack 'delete-services
                       (lambda _
-                        (copy-recursively "subprojects/base-services" "merged-src")
-                        (copy-recursively "subprojects/base-services-groovy" "merged-src")
-                        (copy-recursively "subprojects/build-cache" "merged-src")
-;                        (copy-recursively "subprojects/build-init" "merged-src")
-                        (copy-recursively "subprojects/build-option" "merged-src")
-                        (copy-recursively "subprojects/cli" "merged-src")
-;                        (copy-recursively "subprojects/code-quality" "merged-src")
-                        (copy-recursively "subprojects/core" "merged-src")
-;                        (copy-recursively "subprojects/composite-builds" "merged-src")
-                        (copy-recursively "subprojects/core-api" "merged-src")
-                        (copy-recursively "subprojects/core-impl" "merged-src")
-                        (copy-recursively "subprojects/dependency-management" "merged-src")
-                        (copy-recursively "subprojects/diagnostics" "merged-src")
-;                        (copy-recursively "subprojects/docs" "merged-src")
-;                        (copy-recursively "subprojects/ear" "merged-src")
-;                        (copy-recursively "subprojects/installation-beacon" "merged-src")
-                        (copy-recursively "subprojects/javascript" "merged-src")
-                        (copy-recursively "subprojects/jvm-services" "merged-src")
-                        (copy-recursively "subprojects/language-groovy" "merged-src")
-                        (copy-recursively "subprojects/language-java" "merged-src")
-                        (copy-recursively "subprojects/language-jvm" "merged-src")
-;                        (copy-recursively "subprojects/launcher" "merged-src")
-                        (copy-recursively "subprojects/logging" "merged-src")
-;                        (copy-recursively "subprojects/maven" "merged-src")
-                        (copy-recursively "subprojects/messaging" "merged-src")
-                        (copy-recursively "subprojects/model-core" "merged-src")
-                        (copy-recursively "subprojects/model-groovy" "merged-src")
-                        (copy-recursively "subprojects/native" "merged-src")
-                        (copy-recursively "subprojects/persistent-cache" "merged-src")
-                        (copy-recursively "subprojects/platform-base" "merged-src")
-                        (copy-recursively "subprojects/platform-jvm" "merged-src")
-;                        (copy-recursively "subprojects/plugin-development" "merged-src")
-;                        (copy-recursively "subprojects/plugin-use" "merged-src")
-                        (copy-recursively "subprojects/plugins" "merged-src")
-                        (copy-recursively "subprojects/process-services" "merged-src")
-                        (copy-recursively "subprojects/reporting" "merged-src")
-                        (copy-recursively "subprojects/resources" "merged-src")
-                        (copy-recursively "subprojects/resources-http" "merged-src")
-;                        (copy-recursively "subprojects/runtime-api-info" "merged-src")
-;                        (copy-recursively "subprojects/test-kit" "merged-src")
-                        (copy-recursively "subprojects/testing-base" "merged-src")
-                        (copy-recursively "subprojects/testing-jvm" "merged-src")
-;                        (copy-recursively "subprojects/tooling-api" "merged-src")
-                        (copy-recursively "subprojects/version-control" "merged-src")
-                        (copy-recursively "subprojects/workers" "merged-src")))
+                        (delete-file "subprojects/resources-http/src/main/resources/META-INF/services/org.gradle.internal.service.scopes.PluginServiceRegistry")))
+                    (add-after 'delete-services 'prepare-merged-sources
+                      (lambda _
+                        (for-each
+                          (lambda (d)
+                            (copy-recursively d "merged-src"
+                              #:copy-file (lambda (source target)
+                                            (if (file-exists? target)
+                                              (begin
+                                                (write (string-append "Concatenating " source " into " target))
+                                                (let ((targetPort (open-file target "a")))
+                                                  (newline targetPort)
+                                                  (call-with-input-file source
+                                                    (lambda (sourcePort)
+                                                      (let loop ((char (read-char sourcePort)))
+                                                        (if (not (eof-object? char))
+                                                          (begin
+                                                            (display char targetPort)
+                                                            (loop (read-char sourcePort)))))))
+                                                  (close targetPort)))
+                                              (copy-file source target)))))
+                          (list
+                            "subprojects/base-services"
+                            "subprojects/base-services-groovy"
+                            "subprojects/build-cache"
+                            ;                        "subprojects/build-init"
+                            "subprojects/build-option"
+                            "subprojects/cli"
+                            ;                        "subprojects/code-quality"
+                            "subprojects/core"
+                            "subprojects/composite-builds"
+                            "subprojects/core-api"
+                            "subprojects/core-impl"
+                            "subprojects/dependency-management"
+                            "subprojects/diagnostics"
+                            ;                        "subprojects/docs"
+                            ;                        "subprojects/ear"
+                            ;                        "subprojects/installation-beacon"
+                            "subprojects/javascript"
+                            "subprojects/jvm-services"
+                            "subprojects/language-groovy"
+                            "subprojects/language-java"
+                            "subprojects/language-jvm"
+                            "subprojects/launcher"
+                            "subprojects/logging"
+                            ;                        "subprojects/maven"
+                            "subprojects/messaging"
+                            "subprojects/model-core"
+                            "subprojects/model-groovy"
+                            "subprojects/native"
+                            "subprojects/persistent-cache"
+                            "subprojects/platform-base"
+                            "subprojects/platform-jvm"
+                            ;                        "subprojects/plugin-development"
+                            ;                        "subprojects/plugin-use"
+                            "subprojects/plugins"
+                            "subprojects/process-services"
+                            "subprojects/reporting"
+                            "subprojects/resources"
+                            "subprojects/resources-http"
+                            ;                        "subprojects/runtime-api-info"
+                            ;                        "subprojects/test-kit"
+                            "subprojects/testing-base"
+                            "subprojects/testing-jvm"
+                            "subprojects/tooling-api"
+                            "subprojects/version-control"
+                            "subprojects/workers"
+                            ))))
                     (add-after 'prepare-merged-sources 'unshade-imports
                       (lambda _
                         (substitute* (find-files "merged-src" ".*\\.(java|groovy)$")
@@ -629,17 +655,35 @@
                         (delete-file-recursively "merged-src/src/main/java/org/gradle/plugins/javascript/jshint")
                         (delete-file-recursively "merged-src/src/main/java/org/gradle/plugins/javascript/rhino")
 
-                        (delete-file
-                          "merged-src/src/main/java/org/gradle/internal/nativeintegration/console/WindowsConsoleDetector.java")
-                        ))
-                    (add-after 'install 'copy-configs
+                        (for-each delete-file
+                          (list
+                            "merged-src/src/main/java/org/gradle/internal/nativeintegration/console/WindowsConsoleDetector.java"
+
+                            ; Only used in Tooling API and tests
+                            "merged-src/src/main/java/org/gradle/tooling/internal/consumer/ConnectorServices.java"
+                            "merged-src/src/main/java/org/gradle/tooling/internal/consumer/DistributionFactory.java"
+                            "merged-src/src/main/java/org/gradle/tooling/internal/consumer/DistributionInstaller.java"
+                            "merged-src/src/main/java/org/gradle/tooling/internal/consumer/DefaultGradleConnector.java"
+                            "merged-src/src/main/java/org/gradle/tooling/GradleConnector.java"
+                        ))))
+                    (add-before 'build 'copy-resources
                       (lambda _
-                        (copy-recursively "src/toplevel" (string-append #$output "/share/java")))))))
+                        (copy-recursively "merged-src/src/main/resources" "build/classes")))
+                    (add-after 'copy-resources 'generate-resources
+                      (lambda _
+                        (mkdir-p "build/classes/org/gradle")
+                        (with-output-to-file "build/classes/org/gradle/build-receipt.properties"
+                          (lambda _
+                            (display
+                              (string-append
+                                "commitId=0000000000000000000000000000000000000000\n"
+                                "buildTimestampIso=unknown\n"
+                                "versionNumber=" ,version "-bootstrap-0\n")))))))))
     (home-page "https://gradle.org/")
     (synopsis "Open-source build automation tool with an extensible declarative build language")
     (description
       "Gradle Build Tool is a fast, dependable, and adaptable open-source build automation tool with an elegant and extensible declarative build language.
-      NOTE: To keep up to date with the current version of Groovy in Guix, this build backports migration to Groovy 3 in Gradle 7.0 and thus partially breaks compatibility with the upstream. To see how it may affect your scripts you can check Groovy-related sections at https://docs.gradle.org/7.0/userguide/upgrading_version_6.html#changes_to_groovy_and_groovy_dsl")
+      NOTE: To keep up to date with the current version of Groovy in Guix, this build backports migration to Groovy 3 from Gradle 7.0 and thus partially breaks compatibility with the upstream. To see how it may affect your scripts you can check Groovy-related sections at https://docs.gradle.org/7.0/userguide/upgrading_version_6.html#changes_to_groovy_and_groovy_dsl")
     (license license:asl2.0)))
 
 (define gradle
@@ -651,37 +695,15 @@
       ,@(substitute-keyword-arguments (package-arguments gradle-bootstrap)
         ((#:phases phases) ; TODO: verify gradle and gradle-wrapper hashes against well-known ones
           `(modify-phases %standard-phases
-                    (add-before 'build 'remove-src-tests
-                      (lambda _ ; remove tests as they depend on groovy test classes not present in Guix
-                        (delete-file-recursively "src/test")))
-                    (add-before 'build 'remove-build-src-tests
-                      (lambda _ ; remove tests as they depend on groovy test classes not present in Guix
-                        (delete-file-recursively "buildSrc/src/test")))
-                    (add-before 'build 'create-missing-samples-dir
-                      (lambda _
-                        (mkdir-p "src/samples")))
-                    (add-before 'build 'fix-target-version
-                      (lambda _
-                        (substitute* "gradlefile"
-                          (("((source|target)Compatibility = )1.5" _ prefix)
-                            (string-append prefix "1.6")))))
-                    (add-before 'build 'remove-slide-webdav
-                      ; Avoid dependency on WebDAV client from the retired Jakarta Slide project
-                      (lambda _
-                        (delete-file "src/main/groovy/org/gradle/api/internal/dependencies/WebdavRepository.java")
-                        (delete-file "src/main/groovy/org/gradle/api/internal/dependencies/WebdavResolver.java")
-                        ))
-                    (add-before 'build 'remove-svn
-                      (lambda _
-                        (delete-file "buildSrc/src/main/groovy/org/gradle/build/release/Svn.groovy")))
-                    (add-before 'build 'fix-dependencies-call
-                      (lambda _
-                        (substitute* "gradlefile"
-                          (("dependencies\\(([^\\)]+)\\)" _ middle)
-                            (string-append "[" middle "].each { dependency(it) }")))))
+;                    (add-before 'build 'remove-src-tests
+;                      (lambda _ ; remove tests as they depend on groovy test classes not present in Guix
+;                        (delete-file-recursively "src/test")))
+;                    (add-before 'build 'remove-build-src-tests
+;                      (lambda _ ; remove tests as they depend on groovy test classes not present in Guix
+;                        (delete-file-recursively "buildSrc/src/test")))
                     (add-before 'build 'replace-versions
                       (lambda _
-                        (substitute* "gradlefile"
+                        (substitute* "build.gradle"
                           (("(org.codehaus.groovy)?(:groovy-all:)[^:'\"]+" _ _ prefix)
                             (string-append "org.codehaus.groovy" prefix ,(package-version groovy-all)))
                           (("(commons-cli)?(:commons-cli:)[^:'\"]+" _ _ prefix)
@@ -733,14 +755,6 @@
                             (delete-file
                               (string-append
                                 dir "/.gradle/m2/" groupPath "/" name "/" version "/" name "-" version ".pom")))
-
-                          (let* ((group "ch.qos.logback") (name "logback-classic")
-                                 (version ,(package-version java-logback-classic))
-                                 (groupPath (string-replace-substring group "." "/"))
-                                 (path (string-append
-                                        dir "/.gradle/m2/" groupPath "/" name "/" version "/" name "-" version ".jar")))
-                            (mkdir-p (dirname path))
-                            (symlink (string-append ,java-logback-classic "/share/java/logback-classic.jar") path))
 
                           (let* ((group "ch.qos.logback") (name "logback-core")
                                  (version ,(package-version java-logback-core))
@@ -826,14 +840,13 @@
                             "java"
                             "-classpath" (string-append (getenv "CLASSPATH")
                                            ":" ,gradle-bootstrap "/share/java/gradle.jar")
-                            (string-append "-Dgradle.home=" ,gradle-bootstrap "/share/java")
-                            (string-append "-Dtools.jar=" (getenv "JAVA_HOME") "/lib/tools.jar")
                             (string-append "-Duser.home=" dir)
-                            "org.gradle.ToolsMain"
-                            "--depInfo"
+                            "-Dorg.gradle.daemon=false"
+                            "org.gradle.launcher.Main"
+                            "--debug"
                             "--stacktrace"
-                            "--gradleUserHome" (string-append dir "/.gradle")
-                            "explodedDist"))))
+;                            "explodedDist"
+                            ))))
                     (replace 'install
                       ,#~(lambda* (#:key outputs #:allow-other-keys)
                            (copy-recursively "build/distributions/exploded" #$output)))

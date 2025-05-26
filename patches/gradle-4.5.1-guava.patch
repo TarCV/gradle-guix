@@ -1,0 +1,11 @@
+--- a/subprojects/core/src/main/java/org/gradle/internal/filewatch/jdk7/WatchServiceFileWatcherBacking.java
++++ b/subprojects/core/src/main/java/org/gradle/internal/filewatch/jdk7/WatchServiceFileWatcherBacking.java
+@@ -117,7 +117,7 @@
+                 public void onFailure(Throwable t) {
+                     running.set(false);
+                 }
+-            });
++            }, com.google.common.util.concurrent.MoreExecutors.directExecutor());
+             return fileWatcher;
+         } else {
+             throw new IllegalStateException("file watcher is started");
