@@ -87,6 +87,7 @@
         (uri (string-append "https://github.com/EsotericSoftware/reflectasm/archive/refs/tags/reflectasm-" version ".tar.gz"))
         (file-name (string-append name "-" version ".tar.gz"))
         (sha256 (base32 "06ivmq8r5rrd3cvfwzavsp7r2ddavs3m7amph5j3n5y720gb70pv"))
+        (patches '("patches/java-reflectasm-1.11.9-asm.patch"))
         (modules '((guix build utils)))
         (snippet '(begin
                     (for-each delete-file
@@ -94,7 +95,7 @@
                     #t))))
     (build-system ant-build-system)
     (native-inputs (list java-junit))
-    (propagated-inputs (list java-asm))
+    (propagated-inputs (list java-asm-9))
     (arguments
       `(#:jar-name "reflectasm.jar"
          #:source-dir "src"
@@ -464,18 +465,17 @@
                     #t))))
     (build-system ant-build-system)
     (propagated-inputs
-      (list java-apache-ivy java-commons-cli java-commons-httpclient java-commons-io java-commons-lang java-junit
-            java-httpcomponents-httpclient java-httpcomponents-httpcore maven-artifact java-eclipse-sisu-plexus
-            java-guava java-native-access java-native-access-platform maven-model maven-settings java-commons-collections
-            maven-settings-builder maven-compat java-native-platform-0.14 java-kryo-2 java-jarjar java-slf4j-api
-            java-logback-core java-slf4j-api groovy java-testng java-sonatype-aether-api
-            java-sonatype-aether-impl java-sonatype-aether-util java-jansi-1 maven-resolver-api java-guava
-            java-commons-compress java-gson java-bouncycastle java-jgit java-fastutil-7 java-jatl java-jul-to-slf4j))
+      (list groovy
+              java-asm-8 java-asm-commons-8
+            java-apache-ivy java-bouncycastle java-commons-collections
+            java-commons-io
+            java-commons-lang java-fastutil-7 java-gson java-jansi-1 java-jatl java-jgit java-jsr305 java-jul-to-slf4j
+            java-kryo-2 java-native-platform-0.14 java-slf4j-api java-testng maven-settings-builder))
     (arguments
       `(#:jdk ,openjdk9 ; same as groovy
          #:jar-name "gradle.jar"
          #:source-dir "merged-src/src/main"
-         #:tests? #f ; disable tests in this partial bootstrap build
+         #:tests? #f ; too many dependencies are removed in this partial bootstrap build for tests to work
          #:phases (modify-phases %standard-phases
                     (add-after 'unpack 'delete-services
                       (lambda _
@@ -533,7 +533,7 @@
                             "subprojects/platform-base"
                             "subprojects/platform-jvm"
                             ;                        "subprojects/plugin-development"
-                            ;                        "subprojects/plugin-use"
+                            "subprojects/plugin-use"
                             "subprojects/plugins"
                             "subprojects/process-services"
                             "subprojects/reporting"
@@ -591,6 +591,9 @@
                         (for-each delete-file
                           (list
                             "merged-src/src/main/java/org/gradle/internal/nativeintegration/console/WindowsConsoleDetector.java"
+
+                            ; avoid depending on commons-compress as it depends on a very old version of java-asm
+                            "merged-src/src/main/java/org/gradle/caching/internal/tasks/TarTaskOutputPacker.java"
 
                             ; Only used in Tooling API and tests
                             "merged-src/src/main/java/org/gradle/tooling/internal/consumer/ConnectorServices.java"
@@ -870,18 +873,29 @@
                           (mkdir-p (dirname path))
                           (symlink (string-append ,apache-ivy-2.0-beta2 "/share/java/ivy.jar") path))
 
-                        (setenv "HOME" dir)
-                        (invoke
-                          "java"
-                          "-classpath" (string-append (getenv "CLASSPATH")
-                                         ":" ,gradle-bootstrap "/share/java/gradle.jar")
-                          (string-append "-Duser.home=" dir)
-                          "-Dorg.gradle.daemon=false"
-                          "org.gradle.launcher.Main"
-                          "--debug"
-                          "--stacktrace"
-                          ;                            "explodedDist"
-                          ))))
+                        (let* ((group "org.codehaus.groovy") (name "groovy") (version ,(package-version groovy))
+                                (groupPath (string-replace-substring group "." "/"))
+                                (groovyLocalMavenPath
+                                  (string-append
+                                    dir "/.gradle/m2/" groupPath "/" name "/" version "/" name "-" version ".jar")))
+                          (mkdir-p (dirname groovyLocalMavenPath))
+                          (symlink (string-append ,groovy "/lib/groovy.jar") groovyLocalMavenPath)
+
+                          (setenv "HOME" dir)
+                          (invoke
+                            "java"
+                            "-classpath" (string-append
+                                           groovyLocalMavenPath ; Groovy version detection only accepts Maven-like file names, so add Maven copy to the classpath
+                                           ":" (getenv "CLASSPATH")
+                                           ":" ,gradle-bootstrap "/share/java/gradle.jar")
+                            (string-append "-Duser.home=" dir)
+                            "-Dorg.gradle.daemon=false"
+                            "org.gradle.launcher.Main"
+                            "--debug"
+                            "--no-build-cache"
+                            "--stacktrace"
+                            ;                            "explodedDist"
+                          )))))
                   (replace 'install
                     ,#~(lambda* (#:key outputs #:allow-other-keys)
                            (copy-recursively "build/distributions/exploded" #$output)))

@@ -1,0 +1,33 @@
+--- a/src/com/esotericsoftware/reflectasm/ConstructorAccess.java
++++ b/src/com/esotericsoftware/reflectasm/ConstructorAccess.java
+@@ -89,7 +89,7 @@
+ 					: "com/esotericsoftware/reflectasm/ConstructorAccess";
+ 
+ 				ClassWriter cw = new ClassWriter(0);
+-				cw.visit(V1_1, ACC_PUBLIC + ACC_SUPER, accessClassNameInternal, null, superclassNameInternal, null);
++				cw.visit(V1_6, ACC_PUBLIC + ACC_SUPER, accessClassNameInternal, null, superclassNameInternal, null);
+ 
+ 				insertConstructor(cw, superclassNameInternal);
+ 				insertNewInstance(cw, classNameInternal);
+--- a/src/com/esotericsoftware/reflectasm/FieldAccess.java
++++ b/src/com/esotericsoftware/reflectasm/FieldAccess.java
+@@ -147,7 +147,7 @@
+ 				String classNameInternal = className.replace('.', '/');
+ 
+ 				ClassWriter cw = new ClassWriter(0);
+-				cw.visit(V1_1, ACC_PUBLIC + ACC_SUPER, accessClassNameInternal, null, "com/esotericsoftware/reflectasm/FieldAccess",
++				cw.visit(V1_6, ACC_PUBLIC + ACC_SUPER, accessClassNameInternal, null, "com/esotericsoftware/reflectasm/FieldAccess",
+ 					null);
+ 				insertConstructor(cw);
+ 				insertGetObject(cw, classNameInternal, fields);
+--- a/src/com/esotericsoftware/reflectasm/MethodAccess.java
++++ b/src/com/esotericsoftware/reflectasm/MethodAccess.java
+@@ -121,7 +121,7 @@
+ 
+ 				ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+ 				MethodVisitor mv;
+-				cw.visit(V1_1, ACC_PUBLIC + ACC_SUPER, accessClassNameInternal, null, "com/esotericsoftware/reflectasm/MethodAccess",
++				cw.visit(V1_6, ACC_PUBLIC + ACC_SUPER, accessClassNameInternal, null, "com/esotericsoftware/reflectasm/MethodAccess",
+ 					null);
+ 				{
+ 					mv = cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);

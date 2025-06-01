@@ -42,3 +42,30 @@
          }
  
          return new NoOpConsoleDetector();
+--- a/subprojects/core/src/main/java/org/gradle/caching/internal/tasks/BuildCacheTaskServices.java
++++ b/subprojects/core/src/main/java/org/gradle/caching/internal/tasks/BuildCacheTaskServices.java
+@@ -55,7 +55,7 @@
+     private static final Path ROOT_BUILD_SRC_PATH = Path.path(":" + BuildSourceBuilder.BUILD_SRC);
+ 
+     TaskOutputPacker createTaskResultPacker(FileSystem fileSystem, StreamHasher fileHasher, StringInterner stringInterner) {
+-        return new GZipTaskOutputPacker(new TarTaskOutputPacker(fileSystem, fileHasher, stringInterner));
++        return new GZipTaskOutputPacker(null);
+     }
+ 
+     TaskOutputOriginFactory createTaskOutputOriginFactory(
+--- a/subprojects/dependency-management/src/main/java/org/gradle/api/internal/artifacts/DependencyManagementBuildScopeServices.java
++++ b/subprojects/dependency-management/src/main/java/org/gradle/api/internal/artifacts/DependencyManagementBuildScopeServices.java
+@@ -237,11 +237,8 @@
+         return new ExternalResourceFileStore(artifactCacheMetaData.getExternalResourcesStoreDirectory(), new TmpDirTemporaryFileProvider());
+     }
+ 
+-    TextResourceLoader createTextResourceLoader(ExternalResourceFileStore resourceFileStore, RepositoryTransportFactory repositoryTransportFactory) {
+-        HashSet<String> schemas = Sets.newHashSet("https", "http");
+-        RepositoryTransport transport = repositoryTransportFactory.createTransport(schemas, "http auth", Collections.<Authentication>emptyList());
+-        ExternalResourceAccessor externalResourceAccessor = new DefaultExternalResourceAccessor(resourceFileStore, transport.getResourceAccessor());
+-        return new DefaultUriTextResourceLoader(externalResourceAccessor, schemas);
++    TextResourceLoader createTextResourceLoader() {
++        return new org.gradle.internal.resource.BasicTextResourceLoader();
+     }
+ 
+     MavenSettingsProvider createMavenSettingsProvider() {
