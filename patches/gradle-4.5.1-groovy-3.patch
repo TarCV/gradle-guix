@@ -662,7 +662,13 @@ index a70109fcadcfd..44ec9e1c5114d 100644
  
  /**
   * Excludes everything from a script except statements that are satisfied by a given predicate, and imports for accessible classes.
-@@ -59,10 +59,11 @@ public void call(SourceUnit source) throws CompilationFailedException {
+@@ -54,15 +54,16 @@ First 5 lines of the chunk are not needed once Groovy is 3.0.6+
+ 
+         // Filter imported classes which are not available yet
+ 
+-        Iterator<ImportNode> iter = source.getAST().getImports().iterator();
++        Iterator<ImportNode> iter = new ArrayList<ImportNode>(source.getAST().getImports()).iterator();
+         while (iter.hasNext()) {
              ImportNode importedClass = iter.next();
              if (!AstUtils.isVisible(source, importedClass.getClassName())) {
                  try {
@@ -676,7 +682,21 @@ index a70109fcadcfd..44ec9e1c5114d 100644
                  } catch (Exception e) {
                      throw UncheckedException.throwAsUncheckedException(e);
                  }
-
+@@ -104,7 +105,13 @@ This chunk is not needed once Groovy is 3.0.6+
+             }
+         }
+ 
+-        source.getAST().getMethods().clear();
++        try {
++            Field field = ModuleNode.class.getDeclaredField("methods");
++            field.setAccessible(true);
++            ((List<?>) field.get(source.getAST())).clear();
++        } catch (Exception e) {
++            throw UncheckedException.throwAsUncheckedException(e);
++        }
+     }
+ 
+ }
 From 9d8991dd8d7a5ba46ff1502bbc542264b09f5ba8 Mon Sep 17 00:00:00 2001
 From: Benjamin Muskalla <bmuskalla@gradle.com>
 Date: Wed, 17 Feb 2021 15:56:01 +0100

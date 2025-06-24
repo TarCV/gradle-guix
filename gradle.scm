@@ -24,9 +24,13 @@
   #:use-module (gnu packages compression)
   #:use-module (gnu packages groovy)
   #:use-module (gnu packages java)
+  #:use-module (gnu packages java-compression)
+  #:use-module (gnu packages java-xml)
   #:use-module (gnu packages libffi)
   #:use-module (gnu packages maven)
+  #:use-module (gnu packages maven-parent-pom)
   #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages web)
   #:use-module (guix build utils)
   #:use-module (guix build-system ant)
   #:use-module (guix build-system maven)
@@ -45,6 +49,27 @@
                "/apache-ivy-" version "-src.tar.gz"))
         (sha256 (base32 "14nvi5hnjy4hdk42lyy959x3fp5khyyfvd9r3g8rbl97vpak3h0x"))
         (patches '())))))
+
+; Avoid pack200 as it depends on old version of ASM library
+(define java-commons-compress-no-pack200 ; TODO: patch package instead
+  (package
+    (inherit java-commons-compress)
+    (propagated-inputs
+      (list java-brotli
+            java-osgi-core
+            java-xz
+            java-zstd
+            apache-commons-parent-pom-52))
+    (arguments
+      (substitute-keyword-arguments (package-arguments java-commons-compress)
+        ((#:phases phases)
+          `(modify-phases ,phases
+             (add-before 'build 'remove-pack200
+               (lambda _
+                 (delete-file-recursively "src/main/java/org/apache/commons/compress/compressors/pack200")
+                 (delete-file-recursively "src/main/java/org/apache/commons/compress/harmony")
+                 (delete-file "src/main/java/org/apache/commons/compress/compressors/CompressorStreamFactory.java")
+                 (delete-file "src/main/java/org/apache/commons/compress/java/util/jar/Pack200.java")))))))))
 
 (define java-minlog
   (package
@@ -95,7 +120,7 @@
                     #t))))
     (build-system ant-build-system)
     (native-inputs (list java-junit))
-    (propagated-inputs (list java-asm-9))
+    (propagated-inputs (list java-asm-9)) ; TODO: should it be 9 here?
     (arguments
       `(#:jar-name "reflectasm.jar"
          #:source-dir "src"
@@ -376,6 +401,34 @@
     (description "JATL is an extremely lightweight efficient Java library that generates XHTML or XML by using an a elegant fluent styled micro DSL.")
     (license (list license:asl2.0))))
 
+(define java-jhighlight
+  (package
+    (name "java-jhighlight")
+    (version "1.1.0") ; TODO: compare with uwyn jhighlight
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/codelibs/jhighlight/archive/refs/tags/jhighlight-" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "1p0pavvkmrmaljk89aadq9a861dvssiv9iv4gzklgbwxmgf15r19"))
+        (patches '("patches/java-jhighlight-1.1.0-new-servlet-api.patch"))))
+    (build-system ant-build-system) ; because java-javaee-servletapi is not mavenized
+    (native-inputs (list java-javaee-servletapi ; not propagated because servletapi is supposed to be provided
+                         java-junit))
+    (propagated-inputs (list java-commons-io))
+    (arguments
+      `(#:jar-name "jhighlight.jar"
+        #:phases (modify-phases %standard-phases
+                   (add-before 'build 'copy-resources
+                     (lambda _
+                       (copy-recursively "src/main/resources" "build/classes"))))))
+    (home-page "https://github.com/codelibs/jhighlight")
+    (synopsis "Embeddable pure Java syntax highlighting library")
+    (description "JHighlight is an embeddable pure Java syntax highlighting library that supports Java, HTML, XHTML,
+     XML and LZX languages and outputs to XHTML. It also supports RIFE templates tags and highlights them clearly so
+      that you can easily identify the difference between your RIFE markup and the actual marked up source.")
+    (license (list license:cddl1.0 license:lgpl2.1+))))
+
 (define java-jul-to-slf4j
   (package
     (inherit java-slf4j-api)
@@ -442,6 +495,123 @@
       "A collection of cross-platform Java APIs for various native APIs. Supports OS X, Linux, Solaris and Windows. These APIs support Java 5 and later. Some of these APIs overlap with APIs available in later Java versions.")
     (license license:asl2.0)))
 
+(define java-parboiled-core-1.1
+  (package
+    (name "java-parboiled-core")
+    (version "1.1.8")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/sirthias/parboiled/archive/refs/tags/" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "0jq2xydc5mp3nnnvns4vhfnbbf0rw318bsmh5w6xa0c8ip8hj47z"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (build-system ant-build-system)
+    (native-inputs (list java-testng))
+    (arguments
+      `(#:jar-name "parboiled-core.jar"
+        #:make-flags (list "-Dant.build.javac.target" "1.5"
+                           "-Dant.build.javac.source" "1.5")
+        #:source-dir "parboiled-core/src/main/java"
+        #:test-dir "parboiled-core/src/test"
+        #:phases (modify-phases %standard-phases
+                   (add-before 'check 'remove-scala-test-dependents
+                     (lambda _
+                       (delete-file "parboiled-core/src/test/java/CoreTest.java")))
+                   (add-before 'check 'add-testng
+                     (lambda _
+                       (substitute* "build.xml"
+                         (("<junit [^>]+>") "<taskdef resource=\"testngtasks\" classpathref=\"classpath\"/><testng haltonfailure=\"true\">")
+                         (("<batchtest[^>]*><fileset[^>]*>.*</fileset></batchtest>")
+                           "<classfileset dir=\"${test.classes.dir}\"><include name=\"**/*Test.class\" /><exclude name=\"**/Abstract*.class\" /></classfileset>")
+                         (("</junit>") "</testng>"))
+                       (substitute* "build.xml"
+                         (("(<testng[^>]*>.*)<formatter[^>]*/>(.*</testng>)" _ prefix suffix)
+                           (string-append prefix suffix)))))
+                   (add-before 'install 'create-pom
+                     (generate-pom.xml "pom.xml" "org.parboiled" "parboiled-core" ,version))
+                   (replace 'install
+                     (install-from-pom "pom.xml")))))
+    (home-page "https://github.com/sirthias/parboiled/")
+    (synopsis "Parboiled parsing library - Core module")
+    (description "Elegant parsing in Java and Scala - lightweight, easy-to-use, powerful.")
+    (license license:asl2.0)))
+
+(define java-parboiled-1.1
+  (package
+    (inherit java-parboiled-core-1.1)
+    (name "java-parboiled")
+    (propagated-inputs (list java-asm java-parboiled-core-1.1))
+    (arguments
+      (substitute-keyword-arguments (package-arguments java-parboiled-core-1.1)
+        ((#:jar-name _) "parboiled.jar")
+        ((#:source-dir _) "parboiled-java/src/main/java")
+        ((#:test-dir _) "parboiled-java/src/test")
+        ((#:phases phases) `(modify-phases ,phases
+                             (replace 'remove-scala-test-dependents
+                               (lambda _
+                                 (delete-file "parboiled-java/src/test/java/JavaTest.java")))
+                             (add-before 'check 'enable-debug-for-compile-tests
+                               (lambda _
+                                 (substitute* "build.xml"
+                                   (("(<target [^>]*name=\"compile-tests\">.*<javac [^>]*)(>.*</target><target [^>]*name=\"check\")" _ prefix suffix)
+                                     (string-append prefix " debug=\"true\" " suffix)))))
+                             (replace 'create-pom
+                               (generate-pom.xml "pom.xml" "org.parboiled" "parboiled-java" ,(package-version java-parboiled-core-1.1)))))))
+    (synopsis "Parboiled parsing library")))
+
+(define java-pegdown
+  (package
+    (name "java-parboiled-core")
+    (version "1.6.0")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/sirthias/pegdown/archive/refs/tags/" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "18y97gvsvpqc9i7wvrq5zs2ir8ycd7f1igz6qgibrhw14i118xmx"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (build-system ant-build-system)
+    (propagated-inputs (list java-parboiled-1.1))
+    (arguments
+      `(#:jar-name "pegdown.jar"
+         #:make-flags (list "-Dant.build.javac.target" "1.6"
+                            "-Dant.build.javac.source" "1.6")
+         #:source-dir "src/main/java"
+         #:tests? #f ; Tests depend on Scala
+         #:phases (modify-phases %standard-phases
+                    (add-before 'build 'enable-debug-symbols
+                      (lambda _
+                        (substitute* "build.xml"
+                          (("(<javac [^>]*)(>)" _ prefix suffix) (string-append prefix " debug=\"true\" " suffix)))))
+                    (add-before 'install 'create-pom
+                      (generate-pom.xml "pom.xml" "org.pegdown" "pegdown" ,version))
+                    (replace 'install
+                      (install-from-pom "pom.xml")))))
+    (home-page "https://github.com/sirthias/pegdown/")
+    (synopsis "Java 1.6+ library providing a clean and lightweight markdown processor")
+    (description "pegdown is a pure Java library for clean and lightweight Markdown processing based on a parboiled PEG parser.
+pegdown is nearly 100% compatible with the original Markdown specification and fully passes the original Markdown test suite.")
+    (license license:asl2.0)))
+
+(define groovy-ant-patched
+  (let ((original-groovy-ant (lookup-package-input groovy "groovy-ant")))
+    (package
+      (inherit original-groovy-ant)
+      (source (origin
+                (inherit (package-source original-groovy-ant))
+                (patches
+                  (append (origin-patches (package-source original-groovy-ant))
+                    (list "patches/groovy-fix-groovyc-classpath.patch"))))))))
+
 (define gradle-bootstrap
   (package
     (name "gradle")
@@ -452,7 +622,9 @@
         (uri (string-append "https://github.com/gradle/gradle/archive/refs/tags/v" version ".tar.gz"))
         (file-name (string-append "gradle-" version ".tar.gz"))
         (sha256 (base32 "03yaq6kkdk5akjl5is0rmkdqhg1jfhp1mbv9jzpmjrs53z1hsxlw"))
-        (patches '("patches/gradle-4.5.1-asm.patch" "patches/gradle-4.5.1-groovy.patch"
+        (patches '("patches/gradle-4.5.1-asm.patch"
+                    "patches/gradle-4.5.1-groovy-2.4.patch" "patches/gradle-4.5.1-groovy-2.5.patch"
+                    "patches/gradle-4.5.1-groovy-3.patch"
                     "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
                     "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"
 
@@ -465,11 +637,12 @@
                     #t))))
     (build-system ant-build-system)
     (propagated-inputs
-      (list groovy
-              java-asm-8 java-asm-commons-8
-            java-apache-ivy java-bouncycastle java-commons-collections
-            java-commons-io
-            java-commons-lang java-fastutil-7 java-gson java-jansi-1 java-jatl java-jgit java-jsr305 java-jul-to-slf4j
+      (list groovy-ant-patched groovy
+              java-asm-9 java-asm-commons-9
+            java-apache-ivy java-bouncycastle java-commons-collections java-commons-compress-no-pack200
+            java-commons-io java-commons-lang java-commons-logging-minimal
+            java-fastutil-7 java-gson java-jansi-1 java-jatl java-jgit java-jsr305 java-jul-to-slf4j
+            java-httpcomponents-httpclient java-httpcomponents-httpcore
             java-kryo-2 java-native-platform-0.14 java-slf4j-api java-testng maven-settings-builder))
     (arguments
       `(#:jdk ,openjdk9 ; same as groovy
@@ -477,10 +650,7 @@
          #:source-dir "merged-src/src/main"
          #:tests? #f ; too many dependencies are removed in this partial bootstrap build for tests to work
          #:phases (modify-phases %standard-phases
-                    (add-after 'unpack 'delete-services
-                      (lambda _
-                        (delete-file "subprojects/resources-http/src/main/resources/META-INF/services/org.gradle.internal.service.scopes.PluginServiceRegistry")))
-                    (add-after 'delete-services 'prepare-merged-sources
+                    (add-after 'unpack 'prepare-merged-sources
                       (lambda _
                         (for-each
                           (lambda (d)
@@ -532,7 +702,7 @@
                             "subprojects/persistent-cache"
                             "subprojects/platform-base"
                             "subprojects/platform-jvm"
-                            ;                        "subprojects/plugin-development"
+                            "subprojects/plugin-development"
                             "subprojects/plugin-use"
                             "subprojects/plugins"
                             "subprojects/process-services"
@@ -552,6 +722,10 @@
                         (substitute* (find-files "merged-src" ".*\\.(java|groovy)$")
                           (("groovyjarjarasm\\.asm") "org.objectweb.asm")
                           (("org\\.gradle\\.mvn3.") ""))))
+;                    (add-after 'prepare-merged-sources 'update-asm
+;                      (lambda _
+;                        (substitute* (find-files "merged-src" ".*\\.(java|groovy)$")
+;                          (("ASM6") "ASM8"))))
                     (add-after 'prepare-merged-sources 'patch-for-newer-guava
                       (lambda _
                         (substitute* (find-files "merged-src" ".*\\.(java|groovy)$")
@@ -564,11 +738,10 @@
                       (lambda _
                         (substitute* "build.xml"
                           (("<javac ([^>]+)>" all args) (string-append
-                                                          "<taskdef name=\"groovyc\" classname=\"org.codehaus.groovy.ant.Groovyc\" classpath=\"@refidclasspath\"/>"
+                                                          "<taskdef name=\"groovyc\" classname=\"org.codehaus.groovy.ant.Groovyc\" classpathref=\"classpath\"/>"
                                                           "<groovyc " args " fork=\"true\"><classpath refid=\"classpath\"/>"
-                                                          "<javac " args ">"))
-                          (("</javac>" all) (string-append all "</groovyc>"))
-                          (("classpath=\"@refidclasspath\"") "classpathref=\"classpath\""))))
+                                                          "<javac debug=\"true\" " args ">"))
+                          (("</javac>" all) (string-append all "</groovyc>")))))
                     (add-before 'build 'remove-dependencies
                       (lambda _
                         (substitute* (find-files "merged-src" ".*\\.java$")
@@ -579,8 +752,6 @@
                         ;                          "merged-src/src/main/java/org/gradle/api/publication/maven")
                         ;                        (delete-file-recursively
                         ;                          "merged-src/src/main/java/org/gradle/api/publish/maven")
-                        (delete-file-recursively
-                          "merged-src/src/main/java/org/gradle/internal/resource/transport/http")
 
                         ; Gradle only depends on javascript-base plugin, everything else can be removed
                         (delete-file-recursively "merged-src/src/main/java/org/gradle/plugins/javascript/coffeescript")
@@ -591,9 +762,9 @@
                         (for-each delete-file
                           (list
                             "merged-src/src/main/java/org/gradle/internal/nativeintegration/console/WindowsConsoleDetector.java"
-
-                            ; avoid depending on commons-compress as it depends on a very old version of java-asm
-                            "merged-src/src/main/java/org/gradle/caching/internal/tasks/TarTaskOutputPacker.java"
+                            "merged-src/src/main/java/org/gradle/internal/resource/transport/http/ApacheDirectoryListingParser.java"
+                            "merged-src/src/main/java/org/gradle/plugin/devel/plugins/IvyPluginPublishingRules.java"
+                            "merged-src/src/main/java/org/gradle/plugin/devel/plugins/MavenPluginPublishingRules.java"
 
                             ; Only used in Tooling API and tests
                             "merged-src/src/main/java/org/gradle/tooling/internal/consumer/ConnectorServices.java"
@@ -737,6 +908,19 @@
 (define gradle
   (package
     (inherit gradle-bootstrap)
+    (source (origin
+              (inherit (package-source gradle-bootstrap))
+              (patches '("patches/gradle-4.5.1-asm.patch"
+                         "patches/gradle-4.5.1-groovy-2.4.patch" "patches/gradle-4.5.1-groovy-2.5.patch"
+                         "patches/gradle-4.5.1-groovy-3.patch"
+                         "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
+                         "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"
+
+                         "patches/gradle-4.5.1-dekotlinize-build-files.patch"
+                         "patches/gradle-4.5.1-local-repository.patch" "patches/gradle-4.5.1-no-remote-cache.patch"
+                         "patches/gradle-4.5.1-remove-complex-dependencies.patch"))))
+    (native-inputs (list
+                     java-jsoup java-pegdown))
     (arguments
       `(#:modules ((guix build ant-build-system) (guix build utils) (ice-9 ftw) (srfi srfi-1) (ice-9 string-fun)
                     (srfi srfi-26))
@@ -749,34 +933,47 @@
                   ;                    (add-before 'build 'remove-build-src-tests
                   ;                      (lambda _ ; remove tests as they depend on groovy test classes not present in Guix
                   ;                        (delete-file-recursively "buildSrc/src/test")))
-                  (add-before 'build 'replace-versions
+
+                  (add-before 'build 'unshade-imports ; TODO: how to use the same lambda here and in the -bootstrap?
                     (lambda _
-                      (substitute* "build.gradle"
-                        (("(commons-cli)?(:commons-cli:)[^:'\"]+" _ _ prefix)
-                          (string-append "commons-cli" prefix ,(package-version java-commons-cli)))
-                        (("(commons-io)?(:commons-io:)[^:'\"]+" _ _ prefix)
-                          (string-append "commons-io" prefix ,(package-version java-commons-io)))
-                        (("(commons-lang)?(:commons-lang:)[^:'\"]+" _ _ prefix)
-                          (string-append "commons-lang" prefix ,(package-version java-commons-lang)))
-                        (("(commons-httpclient)?(:commons-httpclient:)[^:'\"]+" _ _ prefix)
-                          (string-append "commons-httpclient" prefix ,(package-version java-commons-httpclient)))
-                        (("(ch.qos.logback)?(:logback-classic:)[^:'\"]+" _ _ prefix)
-                          (string-append "ch.qos.logback" prefix ,(package-version java-logback-classic)))
-                        (("(ch.qos.logback)?(:logback-core:)[^:'\"]+" _ _ prefix)
-                          (string-append "ch.qos.logback" prefix ,(package-version java-logback-core)))
-                        (("(org.apache.ant)?(:ant-launcher:)[^:'\"]+" _ _ prefix)
-                          (string-append "org.apache.ant" prefix ,(package-version ant)))
-                        (("(junit)?(:junit:)[^:'\"]+" _ _ prefix)
-                          (string-append "junit" prefix ,(package-version java-junit)))
-                        (("(org.apache.ant)?(:ant:)[^:'\"]+" _ _ prefix)
-                          (string-append "org.apache.ant" prefix ,(package-version ant)))
-                        (("(org.apache.ant)?(:ant-junit:)[^'\"]+" _ _ prefix) ; intentionally missing colon here
-                          (string-append "org.apache.ant" prefix ,(package-version ant-junit)))
-                        (("(org.apache.ivy)?(:ivy:)[^:'\"]+" _ _ prefix)
-                          (string-append "org.apache.ivy" prefix ,(package-version apache-ivy-2.0-beta2)))
-                        (("(org.slf4j)?(:slf4j-api:)[^:'\"]+" _ _ prefix)
-                          (string-append "org.slf4j" prefix ,(package-version java-slf4j-api)))
-                        )))
+                      (substitute* (find-files "." ".*\\.(java|groovy)$")
+                        (("groovyjarjarantlr\\.") "antlr."))))
+
+                  ;; Remove online dependencies, dependency loops and other too complex dependencies
+                  (add-before 'build 'remove-complex-dependencies
+                    (lambda _
+                      (for-each delete-file
+                        (list
+                          "buildSrc/src/main/groovy/org/gradle/build/docs/CacheableAsciidoctorTask.groovy" ; depends on JRuby which is not packaged in Guix
+                          "buildSrc/src/main/groovy/org/gradle/testing/DistributedPerformanceTest.groovy" ; depends on a remote CI system
+                          "buildSrc/src/main/groovy/org/gradle/testing/PerformanceTest.java" ; dependends on previous versions of Gradle
+                          ))
+                      (delete-file-recursively "buildSrc/src/main/groovy/org/gradle/binarycompatibility") ; dependends on previous versions of Gradle
+                      (delete-file-recursively "buildSrc/src/main/groovy/org/gradle/testing/performance") ; dependends on previous versions of Gradle
+                      (delete-file-recursively "buildSrc/src/test"))) ; has dependency loops back to Gradle (spock)
+                  (add-before 'build 'patch-versions
+                    (lambda _ ; TODO: add code to gradle/dependencies.gradle instead
+                      (substitute* "gradle/dependencies.gradle"
+                        (("(com.google.guava:)guava-jdk5" _ prefix)
+                          (string-append prefix "guava"))
+                        (("([:'\"])([0-9][0-9.]+)([:'@\"])" _ prefix main-version suffix)
+                          (string-append prefix "[" main-version ",)" suffix)))
+
+                      (substitute* '("buildSrc/build.gradle" "subprojects/docs/src/transforms/release-notes.gradle")
+                        (("(com.google.guava:)guava-jdk5" _ prefix)
+                          (string-append prefix "guava"))
+                        (("(:)([0-9][0-9.]+)([:'@\"])" _ prefix main-version suffix)
+                          (string-append prefix "[" main-version ",)" suffix)))))
+
+                  ;; This phase ensures any .gradle.kts not in the dekotlinize patch fails the build
+                  (add-before 'build 'rename-kts-build-files
+                    (lambda _
+                      (for-each
+                        (lambda (f)
+                          (rename-file
+                            f
+                            (string-drop-right f 4)))
+                        (find-files "." ".*\\.gradle\\.kts"))))
                   (replace 'build
                     (lambda* (#:key inputs #:allow-other-keys)
                       (let* ((dir (string-append (getenv "TMP") "/" (mkdtemp "build-home.XXXXXX")))
@@ -787,113 +984,69 @@
                               (m2-roots (map
                                           (lambda (input) (string-append (cdr input) "/lib/m2"))
                                           m2-packages)))
-                        (mkdir-p (string-append dir "/.gradle/m2"))
+                        (mkdir-p (string-append dir "/.m2/repository"))
                         (for-each
                           (lambda (m2-root)
                             (copy-recursively
                               m2-root
-                              (string-append dir "/.gradle/m2")))
+                              (string-append dir "/.m2/repository")))
                           m2-roots)
 
-                        (let* ((group "commons-cli") (name "commons-cli") (version ,(package-version java-commons-cli))
-                                (groupPath (string-replace-substring group "." "/")))
-                          ; Gradle doesn't like this POM file
-                          (delete-file
-                            (string-append
-                              dir "/.gradle/m2/" groupPath "/" name "/" version "/" name "-" version ".pom")))
+                        (use-modules (ice-9 regex)) ; for string-match
+                        (let* (
+                                (mavenize-package (lambda (pkg version group name path-to-jar) 
+                                                    (let* ((groupPath (string-replace-substring group "." "/"))
+                                                            (path 
+                                                              (string-append
+                                                                dir "/.m2/repository/"
+                                                                groupPath "/" name "/" version "/"
+                                                                name "-" version ".jar")))
+                                                      (mkdir-p (dirname path))
+                                                      (symlink (string-append pkg path-to-jar) path)
+                                                      path)))
 
-                        (let* ((group "ch.qos.logback") (name "logback-core")
-                                (version ,(package-version java-logback-core))
-                                (groupPath (string-replace-substring group "." "/"))
-                                (path
-                                  (string-append
-                                    dir "/.gradle/m2/" groupPath "/" name "/" version "/" name "-" version ".jar")))
-                          (mkdir-p (dirname path))
-                          (symlink (string-append ,java-logback-core "/share/java/logback.jar") path))
-
-                        (let* ((group "commons-lang") (name "commons-lang")
-                                (version ,(package-version java-commons-lang))
-                                (groupPath (string-replace-substring group "." "/"))
-                                (path
-                                  (string-append
-                                    dir "/.gradle/m2/" groupPath "/" name "/" version "/" name "-" version ".jar")))
-                          (mkdir-p (dirname path))
-                          (symlink
-                            (string-append ,java-commons-lang "/share/java/commons-lang-" version ".jar")
-                            path))
-
-                        (let* ((group "commons-httpclient") (name "commons-httpclient")
-                                (version ,(package-version java-commons-httpclient))
-                                (groupPath (string-replace-substring group "." "/"))
-                                (path
-                                  (string-append
-                                    dir "/.gradle/m2/" groupPath "/" name "/" version "/" name "-" version ".jar")))
-                          (mkdir-p (dirname path))
-                          (symlink
-                            (string-append ,java-commons-httpclient "/share/java/commons-httpclient.jar")
-                            path))
-
-                        (let* ((group "junit") (name "junit") (version ,(package-version ant-junit))
-                                (groupPath (string-replace-substring group "." "/"))
-                                (path
-                                  (string-append
-                                    dir "/.gradle/m2/" groupPath "/" name "/" version "/" name "-" version ".jar")))
-                          (mkdir-p (dirname path))
-                          (symlink (string-append ,ant-junit "/share/java/ant-junit.jar") path))
-
-                        (let* ((group "org.apache.ant") (name "ant") (version ,(package-version ant))
-                                (groupPath (string-replace-substring group "." "/"))
-                                (path
-                                  (string-append
-                                    dir "/.gradle/m2/" groupPath "/" name "/" version "/" name "-" version ".jar")))
-                          (mkdir-p (dirname path))
-                          (symlink (string-append ,ant "/lib/ant.jar") path))
-
-                        (let* ((group "org.apache.ant") (name "ant-junit") (version ,(package-version ant-junit))
-                                (groupPath (string-replace-substring group "." "/"))
-                                (path
-                                  (string-append
-                                    dir "/.gradle/m2/" groupPath "/" name "/" version "/" name "-" version ".jar")))
-                          (mkdir-p (dirname path))
-                          (symlink (string-append ,ant-junit "/share/java/ant-junit.jar") path))
-
-                        (let* ((group "org.apache.ant") (name "ant-launcher") (version ,(package-version ant))
-                                (groupPath (string-replace-substring group "." "/"))
-                                (path
-                                  (string-append
-                                    dir "/.gradle/m2/" groupPath "/" name "/" version "/" name "-" version ".jar")))
-                          (mkdir-p (dirname path))
-                          (symlink (string-append ,ant "/lib/ant-launcher.jar") path))
-
-                        (let* ((group "org.apache.ivy") (name "ivy") (version ,(package-version apache-ivy-2.0-beta2))
-                                (groupPath (string-replace-substring group "." "/"))
-                                (path
-                                  (string-append
-                                    dir "/.gradle/m2/" groupPath "/" name "/" version "/" name "-" version ".jar")))
-                          (mkdir-p (dirname path))
-                          (symlink (string-append ,apache-ivy-2.0-beta2 "/share/java/ivy.jar") path))
-
-                        (let* ((group "org.codehaus.groovy") (name "groovy") (version ,(package-version groovy))
-                                (groupPath (string-replace-substring group "." "/"))
                                 (groovyLocalMavenPath
-                                  (string-append
-                                    dir "/.gradle/m2/" groupPath "/" name "/" version "/" name "-" version ".jar")))
-                          (mkdir-p (dirname groovyLocalMavenPath))
-                          (symlink (string-append ,groovy "/lib/groovy.jar") groovyLocalMavenPath)
+                                  (mavenize-package ,groovy ,(package-version groovy)
+                                    "org.codehaus.groovy" "groovy" "/lib/groovy.jar"))
+                                (asmMavenPath
+                                  (mavenize-package ,java-asm-9 ,(package-version java-asm-9)
+                                    "org.ow2.asm" "asm" "/share/java/asm9.jar"))
+                                (asmCommonsMavenPath
+                                  (mavenize-package ,java-asm-commons-9 ,(package-version java-asm-commons-9)
+                                    "org.ow2.asm" "asm-commons" "/share/java/asm-commons8.jar"))
 
+                                (classpathWithoutAsm
+                                  (string-join
+                                    (filter
+                                      (lambda (path) (not (string-match ".*[^[:alpha:]]asm[^[:alpha:]].*" path)))
+                                      (string-split (getenv "CLASSPATH") #\:))
+                                    ":")))
+
+                          (mavenize-package ,java-commons-lang ,(package-version java-commons-lang)
+                            "commons-lang" "commons-lang"
+                            (string-append "/share/java/commons-lang-" ,(package-version java-commons-lang) ".jar"))
+                          (mavenize-package ,java-jhighlight ,(package-version java-jhighlight)
+                            "com.uwyn" "jhighlight" "/share/java/jhighlight.jar")
+                          (mavenize-package ,java-jsoup ,(package-version java-jsoup)
+                            "org.jsoup" "jsoup" "/share/java/jsoup.jar")
+
+                          (setenv "CLASSPATH"
+                            (string-append
+                              asmMavenPath ":" asmCommonsMavenPath ; Only the correct version of ASM must be on the classpath
+                              ":" groovyLocalMavenPath ; Groovy version detection only accepts Maven-like file names, so add a mavenized copy to the beginning
+                              ":" classpathWithoutAsm
+                              ":" ,gradle-bootstrap "/share/java/gradle.jar"))
                           (setenv "HOME" dir)
                           (invoke
                             "java"
-                            "-classpath" (string-append
-                                           groovyLocalMavenPath ; Groovy version detection only accepts Maven-like file names, so add Maven copy to the classpath
-                                           ":" (getenv "CLASSPATH")
-                                           ":" ,gradle-bootstrap "/share/java/gradle.jar")
                             (string-append "-Duser.home=" dir)
                             "-Dorg.gradle.daemon=false"
                             "org.gradle.launcher.Main"
-                            "--debug"
+;                            "--debug"
+                            "--init-script" "init.gradle"
                             "--no-build-cache"
-                            "--stacktrace"
+;                            "--offline"
+;                            "--stacktrace"
                             ;                            "explodedDist"
                           )))))
                   (replace 'install
