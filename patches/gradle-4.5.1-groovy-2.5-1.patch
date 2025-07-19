@@ -1,4 +1,6 @@
-Backported commits from the PR #6682 updating Groovy to version 2.5
+Backported commits from the PR #6682 (this patch), #6799 and #7245 updating Groovy to version 2.5. Skipped #6903, #7376,
+ #7763, #7796 as they consist of Groovy version bumps only. Skipped #6844 as it reverts a workaround that was already
+ skipped.
 From 85a6b397822aa9bc138b0d453a2c8c90e658ac34 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
 Date: Fri, 7 Sep 2018 16:21:16 +0200
@@ -29,19 +31,6 @@ index c96b1f6e62a2a..8ad89e5adbedc 100755
  libraries.commons_io = "commons-io:commons-io:${versions.commons_io}"
  libraries.commons_lang = 'commons-lang:commons-lang:2.6'
  libraries.commons_collections = 'commons-collections:commons-collections:3.2.2'
-@@ -69,7 +69,11 @@
-     guava: 'com.google.guava:guava-jdk5:17.0',
-     kryo: 'com.esotericsoftware.kryo:kryo:2.20',
-     jsr305: 'com.google.code.findbugs:jsr305:1.3.9',
--    groovy: "org.codehaus.groovy:groovy-all:${versions.groovy}",
-+    groovy: "org.codehaus.groovy:groovy:${versions.groovy}",
-+    groovy_ant: "org.codehaus.groovy:groovy-ant:${versions.groovy}",
-+    groovy_json: "org.codehaus.groovy:groovy-json:${versions.groovy}",
-+    groovy_templates: "org.codehaus.groovy:groovy-templates:${versions.groovy}",
-+    groovy_xml: "org.codehaus.groovy:groovy-xml:${versions.groovy}",
-     jaxen: 'jaxen:jaxen:1.1',
-     jcip: "net.jcip:jcip-annotations:1.0",
-     junit: 'junit:junit:4.12',
 @@ -77,7 +81,7 @@
      equalsVerifier: 'nl.jqno.equalsverifier:equalsverifier:2.1.6',
      xbean: 'org.apache.xbean:xbean-reflect:3.4', //required by maven3 classes
@@ -63,20 +52,6 @@ index 50bdccc5b6aff..4dbb003921ac2 100644
  
      implementation libraries.ant
      implementation libraries.commons_io
-diff --git a/subprojects/core/core.gradle b/subprojects/core/core.gradle
-index e0b75b1c3d30e..bb56a154f4ca4 100755
---- a/subprojects/core/core.gradle
-+++ b/subprojects/core/core.gradle
-@@ -57,6 +57,9 @@ dependencies {
-     implementation libraries.commons_collections
-     implementation libraries.commons_io
-     implementation libraries.commons_lang
-+    implementation libraries.groovy_json
-+    implementation libraries.groovy_templates
-+    implementation libraries.groovy_xml
-     implementation libraries.jcip
-     implementation libraries.nativePlatform
-     implementation libraries.commons_compress
 diff --git a/subprojects/core/src/test/groovy/org/gradle/api/internal/file/archive/TarCopyActionSpec.groovy b/subprojects/core/src/test/groovy/org/gradle/api/internal/file/archive/TarCopyActionSpec.groovy
 index b5831605a166d..1e34bd686d2a6 100644
 --- a/subprojects/core/src/test/groovy/org/gradle/api/internal/file/archive/TarCopyActionSpec.groovy
@@ -209,17 +184,17 @@ Subject: [PATCH 02/56] Upgrade Spock to Groovy 2.5-compatible variant
 
 diff --git a/gradle/testDependencies.gradle b/gradle/testDependencies.gradle
 index 4b5e026b6b44e..52310d7330069 100755
---- a/gradle/testDependencies.gradle
-+++ b/gradle/testDependencies.gradle
-@@ -19,7 +19,7 @@ ext {
- }
+--- a/gradle/dependencies.gradle
++++ b/gradle/dependencies.gradle
+@@ -96,7 +96,7 @@ ext {
+ libraries.maven3 = "org.apache.maven:maven-core:${versions.maven}"
  
- // Test classpath libraries
--testLibraries.spock =   'org.spockframework:spock-core:1.2-RC2-groovy-2.4'
-+testLibraries.spock =   'org.spockframework:spock-core:1.2-RC2-groovy-2.5'
- testLibraries.jsoup =   'org.jsoup:jsoup:1.6.3'
- testLibraries.xmlunit = 'xmlunit:xmlunit:1.3'
- testLibraries.jetty =   'org.mortbay.jetty:jetty:6.1.26'
+ libraries.spock = [
+-    'org.spockframework:spock-core:1.0-groovy-2.4',
++    'org.spockframework:spock-core:1.2-RC2-groovy-2.5',
+     libraries.groovy,
+     libraries.objenesis,
+     libraries.cglib
 diff --git a/subprojects/dependency-management/src/test/groovy/org/gradle/internal/rules/DefaultRuleActionValidatorTest.groovy b/subprojects/dependency-management/src/test/groovy/org/gradle/internal/rules/DefaultRuleActionValidatorTest.groovy
 index 30374bb960b01..52c2b73276c53 100644
 --- a/subprojects/dependency-management/src/test/groovy/org/gradle/internal/rules/DefaultRuleActionValidatorTest.groovy
@@ -251,50 +226,6 @@ index 30374bb960b01..52c2b73276c53 100644
          def ruleAction = Stub(RuleAction) {
              getInputTypes() >> { [ String, Integer ] }
          }
-diff --git a/subprojects/docs/docs.gradle b/subprojects/docs/docs.gradle
-index dd45bf4d8b914..5c8db5c4a0315 100755
---- a/subprojects/docs/docs.gradle
-+++ b/subprojects/docs/docs.gradle
-@@ -72,7 +72,9 @@ dependencies {
- 
-     testCompile "org.pegdown:pegdown:1.1.0"
-     testCompile testLibraries.jsoup
--    testCompile "org.gebish:geb-spock:2.2"
-+    testCompile("org.gebish:geb-spock:2.2") {
-+        exclude module: "groovy-all"
-+    }
-     testCompile('org.seleniumhq.selenium:selenium-htmlunit-driver:2.42.2')
-     testCompile libraries.commons_httpclient
-     testCompile "org.apache.httpcomponents:httpmime:${libraries.commons_httpclient.version}"
-diff --git a/subprojects/integ-test/integ-test.gradle b/subprojects/integ-test/integ-test.gradle
-index b3115176569b0..f5cfcc25663d9 100644
---- a/subprojects/integ-test/integ-test.gradle
-+++ b/subprojects/integ-test/integ-test.gradle
-@@ -12,7 +12,9 @@ dependencies {
-     integTestCompile libraries.groovy
-     integTestCompile libraries.ant
-     integTestCompile testLibraries.jsoup
--    integTestCompile testLibraries.sampleCheck
-+    integTestCompile(testLibraries.sampleCheck) {
-+        exclude group: "org.codehaus.groovy", module: "groovy-all"
-+    }
- 
-     integTestRuntime allTestRuntimeDependencies
- 
-diff --git a/subprojects/internal-integ-testing/internal-integ-testing.gradle.kts b/subprojects/internal-integ-testing/internal-integ-testing.gradle.kts
-index c98be4bc5dbcd..ba5c0a23509c5 100644
---- a/subprojects/internal-integ-testing/internal-integ-testing.gradle.kts
-+++ b/subprojects/internal-integ-testing/internal-integ-testing.gradle.kts
-@@ -40,7 +40,9 @@ dependencies {
-     compile(library("jansi"))
-     compile(library("commons_collections"))
-     compile("org.apache.mina:mina-core")
--    compile(testLibrary("sampleCheck"))
-+    compile(testLibrary("sampleCheck")) {
-+        exclude(module = "groovy-all")
-+    }
- 
-     implementation(project(":dependencyManagement"))
  
 
 From 78fba94d8e1b46a65ef5d071fce17ed33522f4e2 Mon Sep 17 00:00:00 2001
@@ -311,20 +242,6 @@ diff --git a/subprojects/core/src/main/java/org/gradle/groovy/scripts/internal/F
 index 7dc2b3283bfe3..784eefd11cd7c 100644
 --- a/subprojects/core/src/main/java/org/gradle/groovy/scripts/internal/FileCacheBackedScriptClassCompiler.java
 +++ b/subprojects/core/src/main/java/org/gradle/groovy/scripts/internal/FileCacheBackedScriptClassCompiler.java
-@@ -21,12 +21,12 @@
- import org.gradle.api.Action;
- import org.gradle.api.internal.initialization.loadercache.ClassLoaderCache;
- import org.gradle.api.internal.initialization.loadercache.ClassLoaderId;
--import org.gradle.internal.classanalysis.AsmConstants;
- import org.gradle.cache.CacheRepository;
- import org.gradle.cache.CacheValidator;
- import org.gradle.cache.PersistentCache;
- import org.gradle.groovy.scripts.ScriptSource;
- import org.gradle.internal.UncheckedException;
-+import org.gradle.internal.classanalysis.AsmConstants;
- import org.gradle.internal.classloader.ClassLoaderHierarchyHasher;
- import org.gradle.internal.hash.HashCode;
- import org.gradle.internal.hash.HashUtil;
 @@ -53,6 +53,7 @@
   * A {@link ScriptClassCompiler} which compiles scripts to a cache directory, and loads them from there.
   */
@@ -402,60 +319,6 @@ index 6302445733f1d..7f8040d854292 100644
       */
 +    @Nullable
      ClassPath findClassPath(String name);
- }
-diff --git a/subprojects/core/src/main/java/org/gradle/api/internal/DependencyClassPathProvider.java b/subprojects/core/src/main/java/org/gradle/api/internal/DependencyClassPathProvider.java
-index d9e88f2067105..802eca23f881a 100644
---- a/subprojects/core/src/main/java/org/gradle/api/internal/DependencyClassPathProvider.java
-+++ b/subprojects/core/src/main/java/org/gradle/api/internal/DependencyClassPathProvider.java
-@@ -21,6 +21,7 @@
- import org.gradle.api.internal.classpath.PluginModuleRegistry;
- import org.gradle.internal.classpath.ClassPath;
- 
-+import javax.annotation.Nullable;
- import java.util.Arrays;
- 
- import static org.gradle.api.internal.artifacts.dsl.dependencies.DependencyFactory.ClassPathNotation.GRADLE_API;
-@@ -28,16 +29,22 @@
- import static org.gradle.api.internal.artifacts.dsl.dependencies.DependencyFactory.ClassPathNotation.LOCAL_GROOVY;
- 
- public class DependencyClassPathProvider implements ClassPathProvider {
-+    private static final String[] LOCAL_GROOVY_MODULES = {
-+        "groovy", "groovy-ant", /*"groovy-groovydoc",*/ "groovy-json", "groovy-templates", "groovy-xml"
-+    };
-     private final ModuleRegistry moduleRegistry;
-     private final PluginModuleRegistry pluginModuleRegistry;
- 
-     private ClassPath gradleApi;
-+    private ClassPath localGroovy;
- 
-     public DependencyClassPathProvider(ModuleRegistry moduleRegistry, PluginModuleRegistry pluginModuleRegistry) {
-         this.moduleRegistry = moduleRegistry;
-         this.pluginModuleRegistry = pluginModuleRegistry;
-     }
- 
-+    @Nullable
-+    @Override
-     public ClassPath findClassPath(String name) {
-         if (name.equals(GRADLE_API.name())) {
-             return gradleApi();
-@@ -76,6 +83,17 @@ private ClassPath gradleTestKit() {
-     }
- 
-     private ClassPath localGroovy() {
--        return moduleRegistry.getExternalModule("groovy-all").getClasspath();
-+        if (localGroovy == null) {
-+            localGroovy = initLocalGroovy();
-+        }
-+        return localGroovy;
-+    }
-+
-+    private ClassPath initLocalGroovy() {
-+        ClassPath classpath = ClassPath.EMPTY;
-+        for (String groovyModule : LOCAL_GROOVY_MODULES) {
-+            classpath = classpath.plus(moduleRegistry.getExternalModule(groovyModule).getClasspath());
-+        }
-+        return classpath;
-     }
  }
 diff --git a/subprojects/plugins/src/main/java/org/gradle/api/tasks/GroovyRuntime.java b/subprojects/plugins/src/main/java/org/gradle/api/tasks/GroovyRuntime.java
 index 2a8aad5141b66..2aefb996ec66d 100644
@@ -597,26 +460,12 @@ index 2aefb996ec66d..57e4eeec28889 100644
  import java.io.File;
  import java.util.List;
  
-@@ -75,7 +74,12 @@ public GroovyRuntime(Project project) {
-      * @param classpath a class path containing Groovy Jars
-      * @return a corresponding class path for executing Groovy tools such as the Groovy compiler and Groovydoc tool
-      */
--    public FileCollection inferGroovyClasspath(final Iterable<File> classpath) {
-+    @Deprecated
-+    public FileCollection inferGroovyClasspath(@Nullable Iterable<File> classpath) {
-+        return inferGroovyClasspath(classpath, true);
-+    }
-+
-+    public FileCollection inferGroovyClasspath(@Nullable final Iterable<File> classpath, final boolean requireGroovydocJars) {
-         // alternatively, we could return project.getLayout().files(Runnable)
-         // would differ in at least the following ways: 1. live 2. no autowiring
-         return new LazilyInitializedFileCollection() {
 @@ -91,8 +95,8 @@ public FileCollection createDelegate() {
                      throw new GradleException(String.format("Cannot infer Groovy class path because no Groovy Jar was found on class path: %s", Iterables.toString(classpath)));
                  }
  
 -                if (groovyJar.isGroovyAll()) {
--                    return Cast.cast(FileCollectionInternal.class, project.getLayout().files(groovyJar.getFile()));
+-                    return Cast.cast(FileCollectionInternal.class, project.files(groovyJar.getFile()));
 +                if (!requireGroovydocJars || groovyJar.isGroovyAll()) {
 +                    return project.getLayout().files(groovyJar.getFile());
                  }
@@ -682,10 +531,10 @@ Subject: [PATCH 08/56] Fix CompositeDynamicObjectTest
  .../internal/metaobject/CompositeDynamicObjectTest.groovy     | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/subprojects/base-services-groovy/src/test/groovy/org/gradle/internal/metaobject/CompositeDynamicObjectTest.groovy b/subprojects/base-services-groovy/src/test/groovy/org/gradle/internal/metaobject/CompositeDynamicObjectTest.groovy
+diff --git a/subprojects/core/src/test/groovy/org/gradle/internal/metaobject/CompositeDynamicObjectTest.groovy b/subprojects/core/src/test/groovy/org/gradle/internal/metaobject/CompositeDynamicObjectTest.groovy
 index d6002c9742e41..e76eed98d314c 100644
---- a/subprojects/base-services-groovy/src/test/groovy/org/gradle/internal/metaobject/CompositeDynamicObjectTest.groovy
-+++ b/subprojects/base-services-groovy/src/test/groovy/org/gradle/internal/metaobject/CompositeDynamicObjectTest.groovy
+--- a/subprojects/core/src/test/groovy/org/gradle/internal/metaobject/CompositeDynamicObjectTest.groovy
++++ b/subprojects/core/src/test/groovy/org/gradle/internal/metaobject/CompositeDynamicObjectTest.groovy
 @@ -155,7 +155,7 @@ class CompositeDynamicObjectTest extends Specification {
          obj.invokeMethod("m", "value")
  
@@ -751,43 +600,6 @@ Subject: [PATCH 10/56] Expose groovy-test as dependency
  .../devel/impldeps/BaseGradleImplDepsIntegrationTest.groovy     | 2 +-
  4 files changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
-index 8ad89e5adbedc..ae9536a525576 100755
---- a/gradle/dependencies.gradle
-+++ b/gradle/dependencies.gradle
-@@ -50,6 +50,7 @@ libraries.groovy =              [coordinates: 'org.codehaus.groovy:groovy', vers
- libraries.groovy_ant =          [coordinates: 'org.codehaus.groovy:groovy-ant', version: '2.5.2']
- libraries.groovy_json =         [coordinates: 'org.codehaus.groovy:groovy-json', version: '2.5.2']
- libraries.groovy_templates =    [coordinates: 'org.codehaus.groovy:groovy-templates', version: '2.5.2']
-+libraries.groovy_test =         [coordinates: 'org.codehaus.groovy:groovy-test', version: '2.5.2']
- libraries.groovy_xml =          [coordinates: 'org.codehaus.groovy:groovy-xml', version: '2.5.2']
- libraries.gson =                [coordinates: 'com.google.code.gson:gson', version: '2.7']
- libraries.guava =               [coordinates: 'com.google.guava:guava-jdk5', version: '17.0']
-diff --git a/subprojects/core/core.gradle b/subprojects/core/core.gradle
-index bb56a154f4ca4..62e3343319066 100755
---- a/subprojects/core/core.gradle
-+++ b/subprojects/core/core.gradle
-@@ -59,6 +59,7 @@ dependencies {
-     implementation libraries.commons_lang
-     implementation libraries.groovy_json
-     implementation libraries.groovy_templates
-+    implementation libraries.groovy_test
-     implementation libraries.groovy_xml
-     implementation libraries.jcip
-     implementation libraries.nativePlatform
-diff --git a/subprojects/core/src/main/java/org/gradle/api/internal/DependencyClassPathProvider.java b/subprojects/core/src/main/java/org/gradle/api/internal/DependencyClassPathProvider.java
-index 802eca23f881a..913198afb62b8 100644
---- a/subprojects/core/src/main/java/org/gradle/api/internal/DependencyClassPathProvider.java
-+++ b/subprojects/core/src/main/java/org/gradle/api/internal/DependencyClassPathProvider.java
-@@ -30,7 +30,7 @@
- 
- public class DependencyClassPathProvider implements ClassPathProvider {
-     private static final String[] LOCAL_GROOVY_MODULES = {
--        "groovy", "groovy-ant", /*"groovy-groovydoc",*/ "groovy-json", "groovy-templates", "groovy-xml"
-+        "groovy", "groovy-ant", /*"groovy-groovydoc",*/ "groovy-json", "groovy-templates", "groovy-test", "groovy-xml"
-     };
-     private final ModuleRegistry moduleRegistry;
-     private final PluginModuleRegistry pluginModuleRegistry;
 diff --git a/subprojects/plugin-development/src/integTest/groovy/org/gradle/plugin/devel/impldeps/BaseGradleImplDepsIntegrationTest.groovy b/subprojects/plugin-development/src/integTest/groovy/org/gradle/plugin/devel/impldeps/BaseGradleImplDepsIntegrationTest.groovy
 index 1a4f5ceba99a3..ede16d704772c 100644
 --- a/subprojects/plugin-development/src/integTest/groovy/org/gradle/plugin/devel/impldeps/BaseGradleImplDepsIntegrationTest.groovy
@@ -850,41 +662,6 @@ index c6cc0f2c3b2f5..b82521f3b5996 100644
  
          when:
          fails("changeField")
-
-From e209892da253768e5983a3610651ec8634e91b66 Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
-Date: Fri, 7 Sep 2018 23:52:13 +0200
-Subject: [PATCH 13/56] Do not expose SLF4J Simple from sample-check
-
----
- subprojects/integ-test/integ-test.gradle                         | 1 +
- .../internal-integ-testing/internal-integ-testing.gradle.kts     | 1 +
- 2 files changed, 2 insertions(+)
-
-diff --git a/subprojects/integ-test/integ-test.gradle b/subprojects/integ-test/integ-test.gradle
-index f5cfcc25663d9..e5ccc216bc7e7 100644
---- a/subprojects/integ-test/integ-test.gradle
-+++ b/subprojects/integ-test/integ-test.gradle
-@@ -14,6 +14,7 @@ dependencies {
-     integTestCompile testLibraries.jsoup
-     integTestCompile(testLibraries.sampleCheck) {
-         exclude group: "org.codehaus.groovy", module: "groovy-all"
-+        exclude module: "slf4j-simple"
-     }
- 
-     integTestRuntime allTestRuntimeDependencies
-diff --git a/subprojects/internal-integ-testing/internal-integ-testing.gradle.kts b/subprojects/internal-integ-testing/internal-integ-testing.gradle.kts
-index ba5c0a23509c5..1f390708edbda 100644
---- a/subprojects/internal-integ-testing/internal-integ-testing.gradle.kts
-+++ b/subprojects/internal-integ-testing/internal-integ-testing.gradle.kts
-@@ -42,6 +42,7 @@ dependencies {
-     compile("org.apache.mina:mina-core")
-     compile(testLibrary("sampleCheck")) {
-         exclude(module = "groovy-all")
-+        exclude(module = "slf4j-simple")
-     }
- 
-     implementation(project(":dependencyManagement"))
 
 From fbc9aa0d64802d5a02b7e97110727cedbd4e997e Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
@@ -1186,29 +963,6 @@ index 1ef609f17d55e..58d8ab62fd32a 100644
              }
          """
 
-From e55482f8450ed62e3feee4c69bb6ba1dbdd11c07 Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
-Date: Sat, 8 Sep 2018 01:40:44 +0200
-Subject: [PATCH 19/56] Fix lib jar count
-
----
- .../groovy/org/gradle/DistributionIntegrationSpec.groovy        | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/subprojects/distributions/src/integTest/groovy/org/gradle/DistributionIntegrationSpec.groovy b/subprojects/distributions/src/integTest/groovy/org/gradle/DistributionIntegrationSpec.groovy
-index 3dfc171d195a7..aa37a6d6052eb 100644
---- a/subprojects/distributions/src/integTest/groovy/org/gradle/DistributionIntegrationSpec.groovy
-+++ b/subprojects/distributions/src/integTest/groovy/org/gradle/DistributionIntegrationSpec.groovy
-@@ -41,7 +41,7 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
-     abstract String getDistributionLabel()
- 
-     int getLibJarsCount() {
--        198
-+        206
-     }
- 
-     def "no duplicate entries"() {
-
 From 8278809d23cbd11b517c6d8ba86a5b0fb42818e3 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
 Date: Sat, 8 Sep 2018 01:42:22 +0200
@@ -1309,127 +1063,19 @@ diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
 index ae9536a525576..3fd6b8b1371cf 100755
 --- a/gradle/dependencies.gradle
 +++ b/gradle/dependencies.gradle
-@@ -18,6 +18,8 @@ ext {
+@@ -19,9 +19,11 @@ ext {
      libraries = [:]
  }
  
 +def groovyVersion = '2.5.2'
 +
- // All libraries that are required to compile and run Gradle are listed here.
- // Most of them are also part of the distribution as they are declared as dependencies in one of Gradle's subprojects.
- // Everything that's in 'libraries' is added as a dependency constraints with a 'strict' version requirement (see distributions-dependencies.gradle).
-@@ -46,12 +48,12 @@ libraries.commons_lang =        [coordinates: 'commons-lang:commons-lang', versi
- libraries.commons_math =        [coordinates: 'org.apache.commons:commons-math3', version: '3.6.1']
- libraries.fastutil =            [coordinates: 'it.unimi.dsi:fastutil', version: '7.2.1']
- libraries.gcs =                 [coordinates: 'com.google.apis:google-api-services-storage', version: 'v1-rev116-1.23.0']
--libraries.groovy =              [coordinates: 'org.codehaus.groovy:groovy', version: '2.5.2']
--libraries.groovy_ant =          [coordinates: 'org.codehaus.groovy:groovy-ant', version: '2.5.2']
--libraries.groovy_json =         [coordinates: 'org.codehaus.groovy:groovy-json', version: '2.5.2']
--libraries.groovy_templates =    [coordinates: 'org.codehaus.groovy:groovy-templates', version: '2.5.2']
--libraries.groovy_test =         [coordinates: 'org.codehaus.groovy:groovy-test', version: '2.5.2']
--libraries.groovy_xml =          [coordinates: 'org.codehaus.groovy:groovy-xml', version: '2.5.2']
-+libraries.groovy =              [coordinates: 'org.codehaus.groovy:groovy', version: groovyVersion]
-+libraries.groovy_ant =          [coordinates: 'org.codehaus.groovy:groovy-ant', version: groovyVersion]
-+libraries.groovy_json =         [coordinates: 'org.codehaus.groovy:groovy-json', version: groovyVersion]
-+libraries.groovy_templates =    [coordinates: 'org.codehaus.groovy:groovy-templates', version: groovyVersion]
-+libraries.groovy_test =         [coordinates: 'org.codehaus.groovy:groovy-test', version: groovyVersion]
-+libraries.groovy_xml =          [coordinates: 'org.codehaus.groovy:groovy-xml', version: groovyVersion]
- libraries.gson =                [coordinates: 'com.google.code.gson:gson', version: '2.7']
- libraries.guava =               [coordinates: 'com.google.guava:guava-jdk5', version: '17.0']
- libraries.inject =              [coordinates: 'javax.inject:javax.inject', version: '1']
-
-From c160815578b26b8409019fd55727cc27c0b1d54b Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
-Date: Sat, 8 Sep 2018 20:47:07 +0200
-Subject: [PATCH 23/56] Ignore JUnitPlatformTestFrameworkIntegrationTest for
- now
-
-It seems that somehow the failure message is now swallowed for JUnit 5.
----
- .../JUnitPlatformTestFrameworkIntegrationTest.groovy          | 4 ++++
- 1 file changed, 4 insertions(+)
-
-diff --git a/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/junitplatform/JUnitPlatformTestFrameworkIntegrationTest.groovy b/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/junitplatform/JUnitPlatformTestFrameworkIntegrationTest.groovy
-index 93415d7a31209..ddef5a8a36afc 100644
---- a/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/junitplatform/JUnitPlatformTestFrameworkIntegrationTest.groovy
-+++ b/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/junitplatform/JUnitPlatformTestFrameworkIntegrationTest.groovy
-@@ -19,8 +19,12 @@ package org.gradle.testing.junitplatform
- import org.gradle.testing.AbstractTestFrameworkIntegrationTest
- import org.gradle.util.Requires
- import org.gradle.util.TestPrecondition
-+import spock.lang.Ignore
-+
- import static org.gradle.testing.fixture.JUnitCoverage.LATEST_JUPITER_VERSION
- 
-+// TODO:lptr
-+@Ignore("For JUnit 5 there is a problem with swallowing the assertion message in 'test results show passing and failing tests'")
- @Requires(TestPrecondition.JDK8_OR_LATER)
- class JUnitPlatformTestFrameworkIntegrationTest extends AbstractTestFrameworkIntegrationTest {
- 
-
-From 50ce91e42b38cf9034b6e79b85cb1ca9b748bf6b Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
-Date: Mon, 10 Sep 2018 11:08:20 +0200
-Subject: [PATCH 24/56] Downgrade Opentest4j to fix
- JUnitPlatformTestFrameworkIntegrationTest
-
-We'll need to upgrade to 1.1.1 once https://github.com/ota4j-team/opentest4j/issues/49 is fixed.
----
- .../DependenciesMetadataRulesPlugin.kt           | 16 ++++++++++++++++
- ...itPlatformTestFrameworkIntegrationTest.groovy |  3 ---
- 2 files changed, 16 insertions(+), 3 deletions(-)
-
-diff --git a/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt b/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-index c3824c5cbb989..a354d0222f47e 100644
---- a/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-+++ b/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-@@ -57,6 +57,8 @@ open class DependenciesMetadataRulesPlugin : Plugin<Project> {
-                 withModule("org.codehaus.groovy:groovy", DowngradeIvyRule::class.java)
-                 withModule("org.codehaus.groovy:groovy", DowngradeTestNGRule::class.java)
- 
-+                withModule("org.junit.platform:junit-platform-engine", DowngradeOpentest4jRule::class.java)
-+
-                 withModule("jaxen:jaxen", DowngradeXmlApisRule::class.java)
-                 withModule("jdom:jdom", DowngradeXmlApisRule::class.java)
-                 withModule("xalan:xalan", DowngradeXmlApisRule::class.java)
-@@ -256,6 +258,20 @@ open class DowngradeTestNGRule : ComponentMetadataRule {
- }
- 
- 
-+open class DowngradeOpentest4jRule : ComponentMetadataRule {
-+    override fun execute(context: ComponentMetadataContext) {
-+        context.details.allVariants {
-+            withDependencies {
-+                filter { it.group == "org.opentest4j" }.forEach {
-+                    it.version { strictly("1.0.0") }
-+                    it.because("1.1.0 has has issue https://github.com/ota4j-team/opentest4j/issues/49")
-+                }
-+            }
-+        }
-+    }
-+}
-+
-+
- open class DowngradeXmlApisRule : ComponentMetadataRule {
-     override fun execute(context: ComponentMetadataContext) {
-         context.details.allVariants {
-diff --git a/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/junitplatform/JUnitPlatformTestFrameworkIntegrationTest.groovy b/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/junitplatform/JUnitPlatformTestFrameworkIntegrationTest.groovy
-index ddef5a8a36afc..fe968085e9b1d 100644
---- a/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/junitplatform/JUnitPlatformTestFrameworkIntegrationTest.groovy
-+++ b/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/junitplatform/JUnitPlatformTestFrameworkIntegrationTest.groovy
-@@ -19,12 +19,9 @@ package org.gradle.testing.junitplatform
- import org.gradle.testing.AbstractTestFrameworkIntegrationTest
- import org.gradle.util.Requires
- import org.gradle.util.TestPrecondition
--import spock.lang.Ignore
- 
- import static org.gradle.testing.fixture.JUnitCoverage.LATEST_JUPITER_VERSION
- 
--// TODO:lptr
--@Ignore("For JUnit 5 there is a problem with swallowing the assertion message in 'test results show passing and failing tests'")
- @Requires(TestPrecondition.JDK8_OR_LATER)
- class JUnitPlatformTestFrameworkIntegrationTest extends AbstractTestFrameworkIntegrationTest {
- 
+ versions.gradle_kotlin_dsl = '0.14.2'
+ versions.commons_io = '2.2'
+-versions.groovy = '2.4.15'
++versions.groovy = groovyVersion
+ versions.bouncycastle = '1.58'
+ versions.maven = '3.0.4'
+ versions.httpclient = '4.4.1'
 
 From ffff9437602c9abfd4b16e4fa6310288cbeb127b Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
@@ -1515,35 +1161,6 @@ diff --git a/subprojects/plugins/src/main/java/org/gradle/api/tasks/GroovyRuntim
 index dd9226cb46dd3..6c26f394736f5 100644
 --- a/subprojects/plugins/src/main/java/org/gradle/api/tasks/GroovyRuntime.java
 +++ b/subprojects/plugins/src/main/java/org/gradle/api/tasks/GroovyRuntime.java
-@@ -74,12 +74,24 @@ public GroovyRuntime(Project project) {
-      * @param classpath a class path containing Groovy Jars
-      * @return a corresponding class path for executing Groovy tools such as the Groovy compiler and Groovydoc tool
-      */
--    @Deprecated
--    public FileCollection inferGroovyClasspath(@Nullable Iterable<File> classpath) {
--        return inferGroovyClasspath(classpath, true);
-+    public FileCollection inferGroovyClasspath(Iterable<File> classpath) {
-+        return inferGroovyClasspath(classpath, false);
-     }
- 
--    public FileCollection inferGroovyClasspath(@Nullable final Iterable<File> classpath, final boolean requireGroovydocJars) {
-+    /**
-+     * Searches the specified class path for Groovy Jars ({@code groovy(-indy)}, {@code groovy-all(-indy)}) and returns a corresponding class path for executing Groovy tools such as the Groovy
-+     * compiler and Groovydoc tool. The tool versions will match those of the Groovy Jars found. If no Groovy Jars are found on the specified class path, a class path with the contents of the {@code
-+     * groovy} configuration will be returned.
-+     *
-+     * <p>The returned class path may be empty, or may fail to resolve when asked for its contents.
-+     *
-+     * @param classpath a class path containing Groovy Jars
-+     * @param groovyJarOnly whether we the Groovy JAR itself is enough (otherwise return either a groovy-all JAR or all dependencies of groovy-ant and groovy-template).
-+     * @return a corresponding class path for executing Groovy tools such as the Groovy compiler and Groovydoc tool
-+     *
-+     * @since 5.0
-+     */
-+    public FileCollection inferGroovyClasspath(final Iterable<File> classpath, final boolean groovyJarOnly) {
-         // alternatively, we could return project.getLayout().files(Runnable)
-         // would differ in at least the following ways: 1. live 2. no autowiring
-         return new LazilyInitializedFileCollection() {
 @@ -95,7 +107,7 @@ public FileCollection createDelegate() {
                      throw new GradleException(String.format("Cannot infer Groovy class path because no Groovy Jar was found on class path: %s", Iterables.toString(classpath)));
                  }
@@ -1652,84 +1269,6 @@ index 70652c91148a0..de73f5584301f 100644
      }
  }
 
-From f882da73000c8a8094f77ddcb34a960a01826eb9 Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
-Date: Mon, 10 Sep 2018 14:36:53 +0200
-Subject: [PATCH 29/56] Prevent Spock from polluting downstream stuff with
- weird dependencies
-
-This also means that we have to explicitly declare dependencies on groovy-json and groovy-xml where needed.
----
- .../dependencies/DependenciesMetadataRulesPlugin.kt            | 3 +++
- .../org/gradle/gradlebuild/test/fixtures/TestFixturesPlugin.kt | 1 +
- subprojects/docs/docs.gradle                                   | 1 +
- .../internal-integ-testing/internal-integ-testing.gradle.kts   | 1 +
- subprojects/internal-testing/internal-testing.gradle.kts       | 1 +
- 5 files changed, 7 insertions(+)
-
-diff --git a/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt b/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-index a354d0222f47e..334f0a74e8022 100644
---- a/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-+++ b/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-@@ -49,6 +49,9 @@ open class DependenciesMetadataRulesPlugin : Plugin<Project> {
-                 readCapabilitiesFromJson()
- 
-                 withModule("org.spockframework:spock-core", ReplaceCglibNodepWithCglibRule::class.java)
-+                // Prevent Spock from pulling in Groovy and third-party dependencies - see https://github.com/spockframework/spock/issues/899
-+                withLibraryDependencies("org.spockframework:spock-core", DependencyRemovalByNameRule::class,
-+                    setOf("groovy-groovysh", "groovy-json", "groovy-macro", "groovy-nio", "groovy-sql", "groovy-templates", "groovy-test", "groovy-xml"))
-                 withModule("org.jmock:jmock-legacy", ReplaceCglibNodepWithCglibRule::class.java)
- 
-                 //TODO check if we can upgrade the following dependencies and remove the rules
-diff --git a/buildSrc/subprojects/integration-testing/src/main/kotlin/org/gradle/gradlebuild/test/fixtures/TestFixturesPlugin.kt b/buildSrc/subprojects/integration-testing/src/main/kotlin/org/gradle/gradlebuild/test/fixtures/TestFixturesPlugin.kt
-index 9b9691898f8ec..d387408188f9b 100644
---- a/buildSrc/subprojects/integration-testing/src/main/kotlin/org/gradle/gradlebuild/test/fixtures/TestFixturesPlugin.kt
-+++ b/buildSrc/subprojects/integration-testing/src/main/kotlin/org/gradle/gradlebuild/test/fixtures/TestFixturesPlugin.kt
-@@ -100,6 +100,7 @@ open class TestFixturesPlugin : Plugin<Project> {
-             testFixturesUsageCompile(project(path))
-             testFixturesCompile(library("junit"))
-             testFixturesCompile(testLibrary("spock"))
-+            testFixturesCompile(library("groovy_test"))
-             testLibraries("jmock").forEach { testFixturesCompile(it) }
- 
-             components {
-diff --git a/subprojects/docs/docs.gradle b/subprojects/docs/docs.gradle
-index 5c8db5c4a0315..7dabb645a1aa5 100755
---- a/subprojects/docs/docs.gradle
-+++ b/subprojects/docs/docs.gradle
-@@ -75,6 +75,7 @@ dependencies {
-     testCompile("org.gebish:geb-spock:2.2") {
-         exclude module: "groovy-all"
-     }
-+    testCompile libraries.groovy_json
-     testCompile('org.seleniumhq.selenium:selenium-htmlunit-driver:2.42.2')
-     testCompile libraries.commons_httpclient
-     testCompile "org.apache.httpcomponents:httpmime:${libraries.commons_httpclient.version}"
-diff --git a/subprojects/internal-integ-testing/internal-integ-testing.gradle.kts b/subprojects/internal-integ-testing/internal-integ-testing.gradle.kts
-index 1f390708edbda..0f7ffe1eb0c80 100644
---- a/subprojects/internal-integ-testing/internal-integ-testing.gradle.kts
-+++ b/subprojects/internal-integ-testing/internal-integ-testing.gradle.kts
-@@ -19,6 +19,7 @@ import java.util.Properties
- 
- dependencies {
-     compile(library("groovy"))
-+    compile(library("groovy_json"))
-     compile(project(":internalTesting"))
-     compile(project(":cli"))
-     compile(project(":launcher"))
-diff --git a/subprojects/internal-testing/internal-testing.gradle.kts b/subprojects/internal-testing/internal-testing.gradle.kts
-index 5c0aee0f86fb4..e9df90b829c98 100644
---- a/subprojects/internal-testing/internal-testing.gradle.kts
-+++ b/subprojects/internal-testing/internal-testing.gradle.kts
-@@ -25,6 +25,7 @@ plugins {
- 
- dependencies {
-     compile(library("groovy"))
-+    compile(library("groovy_xml"))
- 
-     compile(project(":baseServices"))
-     compile(project(":native"))
-
 From f68ab18b55345c1de234b8f8f08dcab6c6f625ba Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
 Date: Mon, 10 Sep 2018 15:08:05 +0200
@@ -1761,29 +1300,6 @@ index c91e42396cd4b..c568f953094dc 100644
                  }
              }
  """
-
-From 9584cba9a0d3c8e88b42fece15f7949f8b7507bf Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
-Date: Mon, 10 Sep 2018 15:44:49 +0200
-Subject: [PATCH 31/56] Remove now unnecessary component metadata rules
-
----
- .../gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt | 2 --
- 1 file changed, 2 deletions(-)
-
-diff --git a/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt b/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-index 334f0a74e8022..1dcfad19e940c 100644
---- a/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-+++ b/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-@@ -55,8 +55,6 @@ open class DependenciesMetadataRulesPlugin : Plugin<Project> {
-                 withModule("org.jmock:jmock-legacy", ReplaceCglibNodepWithCglibRule::class.java)
- 
-                 //TODO check if we can upgrade the following dependencies and remove the rules
--                withModule("org.codehaus.groovy:groovy-all", DowngradeIvyRule::class.java)
--                withModule("org.codehaus.groovy:groovy-all", DowngradeTestNGRule::class.java)
-                 withModule("org.codehaus.groovy:groovy", DowngradeIvyRule::class.java)
-                 withModule("org.codehaus.groovy:groovy", DowngradeTestNGRule::class.java)
- 
 
 From 8c7bdb2993cd6b597068c87839091301dc37aa43 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
@@ -1840,10 +1356,10 @@ index b1815fd5b96ee..236e84497dc28 100644
 -import com.sun.jdi.VirtualMachine
 -import com.sun.jdi.VirtualMachineManager
 -import com.sun.jdi.connect.AttachingConnector
- import org.gradle.util.ports.DefaultPortDetector
- import org.junit.Assume
  import org.junit.rules.TestRule
-@@ -33,11 +28,11 @@ import org.junit.runners.model.Statement
+ import org.junit.runner.Description
+ import org.junit.runners.model.Statement
+@@ -31,10 +26,11 @@ import org.junit.runners.model.Statement
  class JDWPUtil implements TestRule {
      String host
      Integer port
@@ -1852,12 +1368,12 @@ index b1815fd5b96ee..236e84497dc28 100644
  
      JDWPUtil(Integer port) {
 +        this("127.0.0.1", port)
-         Assume.assumeTrue(new DefaultPortDetector().isAvailable(port))
++        Assume.assumeTrue(new DefaultPortDetector().isAvailable(port))
 -        this.port = port
      }
  
      JDWPUtil(String host, Integer port) {
-@@ -56,25 +51,29 @@ class JDWPUtil implements TestRule {
+@@ -56,25 +52,29 @@ class JDWPUtil implements TestRule {
          }
      }
  
@@ -1929,10 +1445,10 @@ Subject: [PATCH 35/56] Fix test in buildSrc
  .../build/UpdateReleasedVersionsTest.groovy    | 18 +++++++++---------
  1 file changed, 9 insertions(+), 9 deletions(-)
 
-diff --git a/buildSrc/subprojects/build/src/test/groovy/org/gradle/build/UpdateReleasedVersionsTest.groovy b/buildSrc/subprojects/build/src/test/groovy/org/gradle/build/UpdateReleasedVersionsTest.groovy
+diff --git a/buildSrc/src/test/groovy/org/gradle/build/UpdateReleasedVersionsTest.groovy b/buildSrc/src/test/groovy/org/gradle/build/UpdateReleasedVersionsTest.groovy
 index db64aba231d80..de2f82e650c13 100644
---- a/buildSrc/subprojects/build/src/test/groovy/org/gradle/build/UpdateReleasedVersionsTest.groovy
-+++ b/buildSrc/subprojects/build/src/test/groovy/org/gradle/build/UpdateReleasedVersionsTest.groovy
+--- a/buildSrc/src/test/groovy/org/gradle/build/UpdateReleasedVersionsTest.groovy
++++ b/buildSrc/src/test/groovy/org/gradle/build/UpdateReleasedVersionsTest.groovy
 @@ -43,7 +43,7 @@ class UpdateReleasedVersionsTest extends Specification {
      def "final releases are sorted by version"() {
          def snapshot = snapshot('4.3')
@@ -2064,66 +1580,7 @@ diff --git a/subprojects/plugins/src/main/java/org/gradle/api/tasks/GroovyRuntim
 index 6c26f394736f5..cc59294f86c58 100644
 --- a/subprojects/plugins/src/main/java/org/gradle/api/tasks/GroovyRuntime.java
 +++ b/subprojects/plugins/src/main/java/org/gradle/api/tasks/GroovyRuntime.java
-@@ -17,15 +17,19 @@
- 
- import com.google.common.collect.Iterables;
- import com.google.common.collect.Lists;
-+import groovy.lang.GroovySystem;
- import org.gradle.api.Buildable;
- import org.gradle.api.GradleException;
- import org.gradle.api.Incubating;
- import org.gradle.api.Project;
- import org.gradle.api.artifacts.Dependency;
- import org.gradle.api.file.FileCollection;
-+import org.gradle.api.internal.classpath.ModuleRegistry;
- import org.gradle.api.internal.file.collections.LazilyInitializedFileCollection;
- import org.gradle.api.internal.plugins.GroovyJarFile;
- import org.gradle.api.internal.tasks.TaskDependencyResolveContext;
-+import org.gradle.internal.classpath.ClassPath;
-+import org.gradle.internal.classpath.DefaultClassPath;
- import org.gradle.util.VersionNumber;
- 
- import javax.annotation.Nullable;
-@@ -59,9 +63,11 @@ public class GroovyRuntime {
-     private static final VersionNumber GROOVY_VERSION_WITH_SEPARATE_ANT = VersionNumber.parse("2.0");
-     private static final VersionNumber GROOVY_VERSION_REQUIRING_TEMPLATES = VersionNumber.parse("2.5");
-     private final Project project;
-+    private final ModuleRegistry moduleRegistry;
- 
--    public GroovyRuntime(Project project) {
-+    public GroovyRuntime(Project project, ModuleRegistry moduleRegistry) {
-         this.project = project;
-+        this.moduleRegistry = moduleRegistry;
-     }
- 
-     /**
-@@ -74,24 +80,7 @@ public GroovyRuntime(Project project) {
-      * @param classpath a class path containing Groovy Jars
-      * @return a corresponding class path for executing Groovy tools such as the Groovy compiler and Groovydoc tool
-      */
--    public FileCollection inferGroovyClasspath(Iterable<File> classpath) {
--        return inferGroovyClasspath(classpath, false);
--    }
--
--    /**
--     * Searches the specified class path for Groovy Jars ({@code groovy(-indy)}, {@code groovy-all(-indy)}) and returns a corresponding class path for executing Groovy tools such as the Groovy
--     * compiler and Groovydoc tool. The tool versions will match those of the Groovy Jars found. If no Groovy Jars are found on the specified class path, a class path with the contents of the {@code
--     * groovy} configuration will be returned.
--     *
--     * <p>The returned class path may be empty, or may fail to resolve when asked for its contents.
--     *
--     * @param classpath a class path containing Groovy Jars
--     * @param groovyJarOnly whether we the Groovy JAR itself is enough (otherwise return either a groovy-all JAR or all dependencies of groovy-ant and groovy-template).
--     * @return a corresponding class path for executing Groovy tools such as the Groovy compiler and Groovydoc tool
--     *
--     * @since 5.0
--     */
--    public FileCollection inferGroovyClasspath(final Iterable<File> classpath, final boolean groovyJarOnly) {
-+    public FileCollection inferGroovyClasspath(final Iterable<File> classpath) {
-         // alternatively, we could return project.getLayout().files(Runnable)
-         // would differ in at least the following ways: 1. live 2. no autowiring
-         return new LazilyInitializedFileCollection() {
-@@ -107,10 +96,20 @@ public FileCollection createDelegate() {
+@@ -107,7 +96,7 @@ public FileCollection createDelegate() {
                      throw new GradleException(String.format("Cannot infer Groovy class path because no Groovy Jar was found on class path: %s", Iterables.toString(classpath)));
                  }
  
@@ -2132,69 +1589,6 @@ index 6c26f394736f5..cc59294f86c58 100644
                      return project.getLayout().files(groovyJar.getFile());
                  }
  
-+                // If we can serve Groovy from the runtime, let's do that
-+                if (groovyJar.getVersion().equals(VersionNumber.parse(GroovySystem.getVersion()))) {
-+                    // TODO:lptr Provide full Groovy classpath here like in DependencyClassPathProvider
-+                    ClassPath result = DefaultClassPath.of(groovyJar.getFile());
-+                    result = result.plus(moduleRegistry.getExternalModule("groovy-ant").getClasspath());
-+                    result = result.plus(moduleRegistry.getExternalModule("groovy-groovydoc").getClasspath());
-+                    result = result.plus(moduleRegistry.getExternalModule("groovy-templates").getClasspath());
-+                    return project.getLayout().files(result.getAsFiles());
-+                }
-+
-                 if (project.getRepositories().isEmpty()) {
-                     throw new GradleException("Cannot infer Groovy class path because no repository is declared for the project.");
-                 }
-
-From 3b275cc82aad9cabfe4fa601da2a0ce86b2d465b Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
-Date: Tue, 11 Sep 2018 18:40:16 +0200
-Subject: [PATCH 38/56] Fix binary compatibility
-
----
- .../src/changes/accepted-public-api-changes.json             | 5 +++++
- 1 file changed, 5 insertions(+)
-
-diff --git a/subprojects/distributions/src/changes/accepted-public-api-changes.json b/subprojects/distributions/src/changes/accepted-public-api-changes.json
-index 3046f9edb21c4..c2bf58439ba0d 100644
---- a/subprojects/distributions/src/changes/accepted-public-api-changes.json
-+++ b/subprojects/distributions/src/changes/accepted-public-api-changes.json
-@@ -45,6 +45,11 @@
-             "changes": [
-                 "Method added to interface"
-             ]
-+        },
-+        {
-+            "type": "org.gradle.api.tasks.GroovyRuntime",
-+            "member": "Constructor org.gradle.api.tasks.GroovyRuntime(org.gradle.api.Project,org.gradle.api.internal.classpath.ModuleRegistry)",
-+            "acceptation": "Changed constructor of incubating type that users should not instantiate themselves"
-         }
-     ]
- }
-
-From 4036d87b7d8ffde0946a1af15b8b83d4f2278510 Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
-Date: Tue, 11 Sep 2018 21:23:47 +0200
-Subject: [PATCH 39/56] Downgrade Opentest4j via
- org.junit.jupiter:junit-jupiter-api
-
-This fixes the Gradleception build
----
- .../gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt  | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt b/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-index 1dcfad19e940c..f8719184cc28b 100644
---- a/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-+++ b/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-@@ -58,6 +58,7 @@ open class DependenciesMetadataRulesPlugin : Plugin<Project> {
-                 withModule("org.codehaus.groovy:groovy", DowngradeIvyRule::class.java)
-                 withModule("org.codehaus.groovy:groovy", DowngradeTestNGRule::class.java)
- 
-+                withModule("org.junit.jupiter:junit-jupiter-api", DowngradeOpentest4jRule::class.java)
-                 withModule("org.junit.platform:junit-platform-engine", DowngradeOpentest4jRule::class.java)
- 
-                 withModule("jaxen:jaxen", DowngradeXmlApisRule::class.java)
 
 From c2947abfe2622a1702ab7797071e874fcd9ca10c Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
@@ -2216,128 +1610,6 @@ Subject: [PATCH 40/56] Depend on groovy-all
  subprojects/testing-jvm/testing-jvm.gradle    |  1 -
  12 files changed, 23 insertions(+), 22 deletions(-)
 
-diff --git a/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt b/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-index f8719184cc28b..bfd32752497ce 100644
---- a/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-+++ b/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-@@ -55,8 +55,8 @@ open class DependenciesMetadataRulesPlugin : Plugin<Project> {
-                 withModule("org.jmock:jmock-legacy", ReplaceCglibNodepWithCglibRule::class.java)
- 
-                 //TODO check if we can upgrade the following dependencies and remove the rules
--                withModule("org.codehaus.groovy:groovy", DowngradeIvyRule::class.java)
--                withModule("org.codehaus.groovy:groovy", DowngradeTestNGRule::class.java)
-+                withModule("org.codehaus.groovy:groovy-testng", DowngradeTestNGRule::class.java)
-+                withModule("org.testng:testng", UpgradeBshRule::class.java)
- 
-                 withModule("org.junit.jupiter:junit-jupiter-api", DowngradeOpentest4jRule::class.java)
-                 withModule("org.junit.platform:junit-platform-engine", DowngradeOpentest4jRule::class.java)
-@@ -249,7 +249,7 @@ open class DowngradeIvyRule : ComponentMetadataRule {
- open class DowngradeTestNGRule : ComponentMetadataRule {
-     override fun execute(context: ComponentMetadataContext) {
-         context.details.allVariants {
--            withDependencyConstraints {
-+            withDependencies {
-                 filter { it.group == "org.testng" }.forEach {
-                     it.version { prefer("6.3.1") }
-                     it.because("6.3.1 is required by Gradle and part of the distribution")
-@@ -260,6 +260,21 @@ open class DowngradeTestNGRule : ComponentMetadataRule {
- }
- 
- 
-+open class UpgradeBshRule : ComponentMetadataRule {
-+    override fun execute(context: ComponentMetadataContext) {
-+        context.details.allVariants {
-+            withDependencies {
-+                filter { it.group == "org.beanshell" }.forEach {
-+                    add("org.apache-extras.beanshell:bsh:2.0b6")
-+                    it.because("Workaround for late conflict resolution with org.apache-extras.beanshell:bsh in core")
-+                }
-+                removeAll { it.group == "org.beanshell" }
-+            }
-+        }
-+    }
-+}
-+
-+
- open class DowngradeOpentest4jRule : ComponentMetadataRule {
-     override fun execute(context: ComponentMetadataContext) {
-         context.details.allVariants {
-diff --git a/buildSrc/subprojects/integration-testing/src/main/kotlin/org/gradle/gradlebuild/test/fixtures/TestFixturesPlugin.kt b/buildSrc/subprojects/integration-testing/src/main/kotlin/org/gradle/gradlebuild/test/fixtures/TestFixturesPlugin.kt
-index d387408188f9b..9b9691898f8ec 100644
---- a/buildSrc/subprojects/integration-testing/src/main/kotlin/org/gradle/gradlebuild/test/fixtures/TestFixturesPlugin.kt
-+++ b/buildSrc/subprojects/integration-testing/src/main/kotlin/org/gradle/gradlebuild/test/fixtures/TestFixturesPlugin.kt
-@@ -100,7 +100,6 @@ open class TestFixturesPlugin : Plugin<Project> {
-             testFixturesUsageCompile(project(path))
-             testFixturesCompile(library("junit"))
-             testFixturesCompile(testLibrary("spock"))
--            testFixturesCompile(library("groovy_test"))
-             testLibraries("jmock").forEach { testFixturesCompile(it) }
- 
-             components {
-diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
-index 3fd6b8b1371cf..fb8312548221d 100755
---- a/gradle/dependencies.gradle
-+++ b/gradle/dependencies.gradle
-@@ -50,10 +50,7 @@ libraries.fastutil =            [coordinates: 'it.unimi.dsi:fastutil', version:
- libraries.gcs =                 [coordinates: 'com.google.apis:google-api-services-storage', version: 'v1-rev116-1.23.0']
- libraries.groovy =              [coordinates: 'org.codehaus.groovy:groovy', version: groovyVersion]
- libraries.groovy_ant =          [coordinates: 'org.codehaus.groovy:groovy-ant', version: groovyVersion]
--libraries.groovy_json =         [coordinates: 'org.codehaus.groovy:groovy-json', version: groovyVersion]
--libraries.groovy_templates =    [coordinates: 'org.codehaus.groovy:groovy-templates', version: groovyVersion]
--libraries.groovy_test =         [coordinates: 'org.codehaus.groovy:groovy-test', version: groovyVersion]
--libraries.groovy_xml =          [coordinates: 'org.codehaus.groovy:groovy-xml', version: groovyVersion]
-+libraries.groovy_all =          [coordinates: 'org.codehaus.groovy:groovy-all', version: groovyVersion]
- libraries.gson =                [coordinates: 'com.google.code.gson:gson', version: '2.7']
- libraries.guava =               [coordinates: 'com.google.guava:guava-jdk5', version: '17.0']
- libraries.inject =              [coordinates: 'javax.inject:javax.inject', version: '1']
-diff --git a/gradle/wrapper/gradle-wrapper.properties b/gradle/wrapper/gradle-wrapper.properties
-index 115e6ac0aaba1..8bcc709ed3e01 100644
---- a/gradle/wrapper/gradle-wrapper.properties
-+++ b/gradle/wrapper/gradle-wrapper.properties
-@@ -1,5 +1,5 @@
- distributionBase=GRADLE_USER_HOME
- distributionPath=wrapper/dists
--distributionUrl=https\://services.gradle.org/distributions/gradle-4.10-bin.zip
-+distributionUrl=https\://services.gradle.org/distributions-snapshots/gradle-5.0-20180912002106+0000-bin.zip
- zipStoreBase=GRADLE_USER_HOME
- zipStorePath=wrapper/dists
-diff --git a/subprojects/core/core.gradle b/subprojects/core/core.gradle
-index b976bd61208bf..b12613dfa0f0b 100755
---- a/subprojects/core/core.gradle
-+++ b/subprojects/core/core.gradle
-@@ -45,7 +45,7 @@ dependencies {
-     api project(":processServices")
-     api project(":jvmServices")
-     api project(":modelCore")
--    api libraries.groovy
-+    api libraries.groovy_all
-     api libraries.ant
-     api libraries.guava
-     api libraries.inject
-@@ -57,10 +57,6 @@ dependencies {
-     implementation libraries.commons_collections
-     implementation libraries.commons_io
-     implementation libraries.commons_lang
--    implementation libraries.groovy_json
--    implementation libraries.groovy_templates
--    implementation libraries.groovy_test
--    implementation libraries.groovy_xml
-     implementation libraries.jcip
-     implementation libraries.nativePlatform
-     implementation libraries.commons_compress
-diff --git a/subprojects/core/src/main/java/org/gradle/api/internal/DependencyClassPathProvider.java b/subprojects/core/src/main/java/org/gradle/api/internal/DependencyClassPathProvider.java
-index 913198afb62b8..324a9744e5959 100644
---- a/subprojects/core/src/main/java/org/gradle/api/internal/DependencyClassPathProvider.java
-+++ b/subprojects/core/src/main/java/org/gradle/api/internal/DependencyClassPathProvider.java
-@@ -30,7 +30,7 @@
- 
- public class DependencyClassPathProvider implements ClassPathProvider {
-     private static final String[] LOCAL_GROOVY_MODULES = {
--        "groovy", "groovy-ant", /*"groovy-groovydoc",*/ "groovy-json", "groovy-templates", "groovy-test", "groovy-xml"
-+        "groovy", "groovy-ant", "groovy-groovydoc", "groovy-json", "groovy-templates", "groovy-test", "groovy-xml"
-     };
-     private final ModuleRegistry moduleRegistry;
-     private final PluginModuleRegistry pluginModuleRegistry;
 diff --git a/subprojects/diagnostics/diagnostics.gradle b/subprojects/diagnostics/diagnostics.gradle
 index 2d2e4d9127bcc..7d2e98aba980b 100644
 --- a/subprojects/diagnostics/diagnostics.gradle
@@ -2350,44 +1622,6 @@ index 2d2e4d9127bcc..7d2e98aba980b 100644
      implementation libraries.jatl
      implementation libraries.commons_collections
      implementation libraries.commons_lang
-diff --git a/subprojects/docs/docs.gradle b/subprojects/docs/docs.gradle
-index 7dabb645a1aa5..5c8db5c4a0315 100755
---- a/subprojects/docs/docs.gradle
-+++ b/subprojects/docs/docs.gradle
-@@ -75,7 +75,6 @@ dependencies {
-     testCompile("org.gebish:geb-spock:2.2") {
-         exclude module: "groovy-all"
-     }
--    testCompile libraries.groovy_json
-     testCompile('org.seleniumhq.selenium:selenium-htmlunit-driver:2.42.2')
-     testCompile libraries.commons_httpclient
-     testCompile "org.apache.httpcomponents:httpmime:${libraries.commons_httpclient.version}"
-diff --git a/subprojects/internal-integ-testing/internal-integ-testing.gradle.kts b/subprojects/internal-integ-testing/internal-integ-testing.gradle.kts
-index 9c40cde1a7ed6..68b322a20a38b 100644
---- a/subprojects/internal-integ-testing/internal-integ-testing.gradle.kts
-+++ b/subprojects/internal-integ-testing/internal-integ-testing.gradle.kts
-@@ -19,7 +19,6 @@ import java.util.Properties
- 
- dependencies {
-     compile(library("groovy"))
--    compile(library("groovy_json"))
-     compile(project(":internalTesting"))
-     compile(project(":cli"))
-     compile(project(":launcher"))
-diff --git a/subprojects/internal-testing/internal-testing.gradle.kts b/subprojects/internal-testing/internal-testing.gradle.kts
-index e9df90b829c98..7b6ab2d62b0ab 100644
---- a/subprojects/internal-testing/internal-testing.gradle.kts
-+++ b/subprojects/internal-testing/internal-testing.gradle.kts
-@@ -24,8 +24,7 @@ plugins {
- }
- 
- dependencies {
--    compile(library("groovy"))
--    compile(library("groovy_xml"))
-+    compile(library("groovy_all"))
- 
-     compile(project(":baseServices"))
-     compile(project(":native"))
 diff --git a/subprojects/plugins/plugins.gradle b/subprojects/plugins/plugins.gradle
 index c65c0a9362f8d..809bc7214c538 100644
 --- a/subprojects/plugins/plugins.gradle
@@ -2400,126 +1634,6 @@ index c65c0a9362f8d..809bc7214c538 100644
      compile libraries.slf4j_api
  
      runtime libraries.commons_cli
-diff --git a/subprojects/testing-jvm/testing-jvm.gradle b/subprojects/testing-jvm/testing-jvm.gradle
-index b46cdaa610a58..6ebdadbcc9114 100644
---- a/subprojects/testing-jvm/testing-jvm.gradle
-+++ b/subprojects/testing-jvm/testing-jvm.gradle
-@@ -29,7 +29,6 @@ dependencies {
- 
-     implementation libraries.asm
-     implementation libraries.commons_io
--    implementation libraries.groovy_xml
-     implementation libraries.junit
-     implementation libraries.testng
-     implementation libraries.bsh
-
-From 76caaef52d8cadf908cdd69f523a6cbf0f3b746e Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
-Date: Wed, 12 Sep 2018 17:23:26 +0200
-Subject: [PATCH 41/56] Remove Groovy third-party dependencies altogether
-
-This is not nice, but we need to emulate the old groovy-all behavior.
----
- .../DependenciesMetadataRulesPlugin.kt        | 49 +++++++------------
- 1 file changed, 17 insertions(+), 32 deletions(-)
-
-diff --git a/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt b/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-index bfd32752497ce..1b6609c3f2761 100644
---- a/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-+++ b/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-@@ -54,9 +54,7 @@ open class DependenciesMetadataRulesPlugin : Plugin<Project> {
-                     setOf("groovy-groovysh", "groovy-json", "groovy-macro", "groovy-nio", "groovy-sql", "groovy-templates", "groovy-test", "groovy-xml"))
-                 withModule("org.jmock:jmock-legacy", ReplaceCglibNodepWithCglibRule::class.java)
- 
--                //TODO check if we can upgrade the following dependencies and remove the rules
--                withModule("org.codehaus.groovy:groovy-testng", DowngradeTestNGRule::class.java)
--                withModule("org.testng:testng", UpgradeBshRule::class.java)
-+                all(RemoveGroovyThirdPartyDependenciesRule::class.java)
- 
-                 withModule("org.junit.jupiter:junit-jupiter-api", DowngradeOpentest4jRule::class.java)
-                 withModule("org.junit.platform:junit-platform-engine", DowngradeOpentest4jRule::class.java)
-@@ -194,6 +192,22 @@ open class DependencyRemovalByNameRule @Inject constructor(
- }
- 
- 
-+open class RemoveGroovyThirdPartyDependenciesRule : ComponentMetadataRule {
-+    override fun execute(context: ComponentMetadataContext) {
-+        if (context.details.id.group == "org.codehaus.groovy") {
-+            context.details.allVariants {
-+                withDependencies {
-+                    removeAll { it.group != "org.codehaus.groovy" }
-+                }
-+                withDependencyConstraints {
-+                    removeAll { it.group != "org.codehaus.groovy" }
-+                }
-+            }
-+        }
-+    }
-+}
-+
-+
- open class DependencyRemovalByGroupRule @Inject constructor(
-     val groupsToRemove: Set<String>
- ) : ComponentMetadataRule {
-@@ -246,35 +260,6 @@ open class DowngradeIvyRule : ComponentMetadataRule {
- }
- 
- 
--open class DowngradeTestNGRule : ComponentMetadataRule {
--    override fun execute(context: ComponentMetadataContext) {
--        context.details.allVariants {
--            withDependencies {
--                filter { it.group == "org.testng" }.forEach {
--                    it.version { prefer("6.3.1") }
--                    it.because("6.3.1 is required by Gradle and part of the distribution")
--                }
--            }
--        }
--    }
--}
--
--
--open class UpgradeBshRule : ComponentMetadataRule {
--    override fun execute(context: ComponentMetadataContext) {
--        context.details.allVariants {
--            withDependencies {
--                filter { it.group == "org.beanshell" }.forEach {
--                    add("org.apache-extras.beanshell:bsh:2.0b6")
--                    it.because("Workaround for late conflict resolution with org.apache-extras.beanshell:bsh in core")
--                }
--                removeAll { it.group == "org.beanshell" }
--            }
--        }
--    }
--}
--
--
- open class DowngradeOpentest4jRule : ComponentMetadataRule {
-     override fun execute(context: ComponentMetadataContext) {
-         context.details.allVariants {
-
-From df8281dc2692feaed57930dac60f4240ae30ed7c Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
-Date: Wed, 12 Sep 2018 22:00:01 +0200
-Subject: [PATCH 42/56] Update lib count
-
----
- .../groovy/org/gradle/DistributionIntegrationSpec.groovy        | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/subprojects/distributions/src/integTest/groovy/org/gradle/DistributionIntegrationSpec.groovy b/subprojects/distributions/src/integTest/groovy/org/gradle/DistributionIntegrationSpec.groovy
-index aa37a6d6052eb..cab9402a965d7 100644
---- a/subprojects/distributions/src/integTest/groovy/org/gradle/DistributionIntegrationSpec.groovy
-+++ b/subprojects/distributions/src/integTest/groovy/org/gradle/DistributionIntegrationSpec.groovy
-@@ -41,7 +41,7 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
-     abstract String getDistributionLabel()
- 
-     int getLibJarsCount() {
--        206
-+        219
-     }
- 
-     def "no duplicate entries"() {
 
 From 7ec5ec5456812669f7cc9029a94845bfd1348d02 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
@@ -2541,42 +1655,6 @@ See https://github.com/gradle/gradle-groovy-all
  ...leImplDepsGenerationIntegrationTest.groovy |  9 ++-------
  10 files changed, 25 insertions(+), 60 deletions(-)
 
-diff --git a/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt b/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-index 1b6609c3f2761..452c56df342b8 100644
---- a/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-+++ b/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-@@ -54,8 +54,6 @@ open class DependenciesMetadataRulesPlugin : Plugin<Project> {
-                     setOf("groovy-groovysh", "groovy-json", "groovy-macro", "groovy-nio", "groovy-sql", "groovy-templates", "groovy-test", "groovy-xml"))
-                 withModule("org.jmock:jmock-legacy", ReplaceCglibNodepWithCglibRule::class.java)
- 
--                all(RemoveGroovyThirdPartyDependenciesRule::class.java)
--
-                 withModule("org.junit.jupiter:junit-jupiter-api", DowngradeOpentest4jRule::class.java)
-                 withModule("org.junit.platform:junit-platform-engine", DowngradeOpentest4jRule::class.java)
- 
-@@ -192,22 +190,6 @@ open class DependencyRemovalByNameRule @Inject constructor(
- }
- 
- 
--open class RemoveGroovyThirdPartyDependenciesRule : ComponentMetadataRule {
--    override fun execute(context: ComponentMetadataContext) {
--        if (context.details.id.group == "org.codehaus.groovy") {
--            context.details.allVariants {
--                withDependencies {
--                    removeAll { it.group != "org.codehaus.groovy" }
--                }
--                withDependencyConstraints {
--                    removeAll { it.group != "org.codehaus.groovy" }
--                }
--            }
--        }
--    }
--}
--
--
- open class DependencyRemovalByGroupRule @Inject constructor(
-     val groupsToRemove: Set<String>
- ) : ComponentMetadataRule {
 diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
 index fb8312548221d..2c6e2ad5d7d50 100755
 --- a/gradle/dependencies.gradle
@@ -2590,39 +1668,9 @@ index fb8312548221d..2c6e2ad5d7d50 100755
  
 -def groovyVersion = '2.5.2'
 -
- // All libraries that are required to compile and run Gradle are listed here.
- // Most of them are also part of the distribution as they are declared as dependencies in one of Gradle's subprojects.
- // Everything that's in 'libraries' is added as a dependency constraints with a 'strict' version requirement (see distributions-dependencies.gradle).
-@@ -48,9 +47,7 @@ libraries.commons_lang =        [coordinates: 'commons-lang:commons-lang', versi
- libraries.commons_math =        [coordinates: 'org.apache.commons:commons-math3', version: '3.6.1']
- libraries.fastutil =            [coordinates: 'it.unimi.dsi:fastutil', version: '7.2.1']
- libraries.gcs =                 [coordinates: 'com.google.apis:google-api-services-storage', version: 'v1-rev116-1.23.0']
--libraries.groovy =              [coordinates: 'org.codehaus.groovy:groovy', version: groovyVersion]
--libraries.groovy_ant =          [coordinates: 'org.codehaus.groovy:groovy-ant', version: groovyVersion]
--libraries.groovy_all =          [coordinates: 'org.codehaus.groovy:groovy-all', version: groovyVersion]
-+libraries.groovy =              [coordinates: 'org.gradle.groovy:groovy-all', version: groovyVersion + '-0.3', because: 'emulating the Groovy 2.4-style groovy-all.jar, see https://github.com/gradle/gradle-groovy-all']
- libraries.gson =                [coordinates: 'com.google.code.gson:gson', version: '2.7']
- libraries.guava =               [coordinates: 'com.google.guava:guava-jdk5', version: '17.0']
- libraries.inject =              [coordinates: 'javax.inject:javax.inject', version: '1']
-diff --git a/gradle/dependency-management/capabilities.json b/gradle/dependency-management/capabilities.json
-index 66410d38f56bf..36cdc6f7992d0 100644
---- a/gradle/dependency-management/capabilities.json
-+++ b/gradle/dependency-management/capabilities.json
-@@ -44,6 +44,14 @@
-         ],
-         "selected": "org.slf4j:log4j-over-slf4j"
-     },
-+    {
-+        "name": "groovy",
-+        "providedBy": [
-+            "org.codehaus.groovy:groovy",
-+            "org.codehaus.groovy:groovy-all"
-+        ],
-+        "selected": "org.gradle.groovy:groovy-all"
-+    },
- 
-     // forced upgrade: the following modules will automatically be replaced with the selected module
-     // even if there's no conflict, and forces an upgrade to the specified version
+ versions.gradle_kotlin_dsl = '0.14.2'
+ versions.commons_io = '2.2'
+ versions.groovy = groovyVersion
 diff --git a/subprojects/core-api/core-api.gradle b/subprojects/core-api/core-api.gradle
 index 4dbb003921ac2..b856944a16e07 100644
 --- a/subprojects/core-api/core-api.gradle
@@ -2636,73 +1684,6 @@ index 4dbb003921ac2..b856944a16e07 100644
  
      implementation libraries.ant
      implementation libraries.commons_io
-diff --git a/subprojects/core/core.gradle b/subprojects/core/core.gradle
-index b12613dfa0f0b..3c91241318b6a 100755
---- a/subprojects/core/core.gradle
-+++ b/subprojects/core/core.gradle
-@@ -45,7 +45,7 @@ dependencies {
-     api project(":processServices")
-     api project(":jvmServices")
-     api project(":modelCore")
--    api libraries.groovy_all
-+    api libraries.groovy
-     api libraries.ant
-     api libraries.guava
-     api libraries.inject
-diff --git a/subprojects/core/src/main/java/org/gradle/api/internal/DependencyClassPathProvider.java b/subprojects/core/src/main/java/org/gradle/api/internal/DependencyClassPathProvider.java
-index 324a9744e5959..d9e88f2067105 100644
---- a/subprojects/core/src/main/java/org/gradle/api/internal/DependencyClassPathProvider.java
-+++ b/subprojects/core/src/main/java/org/gradle/api/internal/DependencyClassPathProvider.java
-@@ -21,7 +21,6 @@
- import org.gradle.api.internal.classpath.PluginModuleRegistry;
- import org.gradle.internal.classpath.ClassPath;
- 
--import javax.annotation.Nullable;
- import java.util.Arrays;
- 
- import static org.gradle.api.internal.artifacts.dsl.dependencies.DependencyFactory.ClassPathNotation.GRADLE_API;
-@@ -29,22 +28,16 @@
- import static org.gradle.api.internal.artifacts.dsl.dependencies.DependencyFactory.ClassPathNotation.LOCAL_GROOVY;
- 
- public class DependencyClassPathProvider implements ClassPathProvider {
--    private static final String[] LOCAL_GROOVY_MODULES = {
--        "groovy", "groovy-ant", "groovy-groovydoc", "groovy-json", "groovy-templates", "groovy-test", "groovy-xml"
--    };
-     private final ModuleRegistry moduleRegistry;
-     private final PluginModuleRegistry pluginModuleRegistry;
- 
-     private ClassPath gradleApi;
--    private ClassPath localGroovy;
- 
-     public DependencyClassPathProvider(ModuleRegistry moduleRegistry, PluginModuleRegistry pluginModuleRegistry) {
-         this.moduleRegistry = moduleRegistry;
-         this.pluginModuleRegistry = pluginModuleRegistry;
-     }
- 
--    @Nullable
--    @Override
-     public ClassPath findClassPath(String name) {
-         if (name.equals(GRADLE_API.name())) {
-             return gradleApi();
-@@ -83,17 +76,6 @@ private ClassPath gradleTestKit() {
-     }
- 
-     private ClassPath localGroovy() {
--        if (localGroovy == null) {
--            localGroovy = initLocalGroovy();
--        }
--        return localGroovy;
--    }
--
--    private ClassPath initLocalGroovy() {
--        ClassPath classpath = ClassPath.EMPTY;
--        for (String groovyModule : LOCAL_GROOVY_MODULES) {
--            classpath = classpath.plus(moduleRegistry.getExternalModule(groovyModule).getClasspath());
--        }
--        return classpath;
-+        return moduleRegistry.getExternalModule("groovy-all").getClasspath();
-     }
- }
 diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DependencyHandlerApiResolveIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DependencyHandlerApiResolveIntegrationTest.groovy
 index d6dc035860947..5f198602804f3 100644
 --- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DependencyHandlerApiResolveIntegrationTest.groovy
@@ -2733,28 +1714,15 @@ diff --git a/subprojects/docs/docs.gradle b/subprojects/docs/docs.gradle
 index 5c8db5c4a0315..e187f3e1727b4 100755
 --- a/subprojects/docs/docs.gradle
 +++ b/subprojects/docs/docs.gradle
-@@ -250,7 +250,7 @@ def userguideSinglePage = tasks.register("userguideSinglePage", AsciidoctorTask)
+@@ -377,7 +377,7 @@ def userguideSinglePage = tasks.register("userguideSinglePage", AsciidoctorTask)
  }
  
  def javaApiUrl = "https://docs.oracle.com/javase/7/docs/api"
--def groovyApiUrl = "http://docs.groovy-lang.org/docs/groovy-${libraries.groovy.version}/html/gapi"
+-def groovyApiUrl = "http://docs.groovy-lang.org/docs/groovy-${versions.groovy}/html/gapi"
 +def groovyApiUrl = "http://docs.groovy-lang.org/docs/groovy-${groovyVersion}/html/gapi"
- def mavenApiUrl = "http://maven.apache.org/ref/${libraries.maven3.version}/maven-model/apidocs"
+ def mavenApiUrl = "http://maven.apache.org/ref/${versions.maven}/maven-model/apidocs"
  
- def javadocAll = tasks.register("javadocAll", Javadoc) {
-diff --git a/subprojects/internal-testing/internal-testing.gradle.kts b/subprojects/internal-testing/internal-testing.gradle.kts
-index 7b6ab2d62b0ab..5c0aee0f86fb4 100644
---- a/subprojects/internal-testing/internal-testing.gradle.kts
-+++ b/subprojects/internal-testing/internal-testing.gradle.kts
-@@ -24,7 +24,7 @@ plugins {
- }
- 
- dependencies {
--    compile(library("groovy_all"))
-+    compile(library("groovy"))
- 
-     compile(project(":baseServices"))
-     compile(project(":native"))
+ task javadocAll(type: Javadoc) {
 diff --git a/subprojects/plugin-development/src/integTest/groovy/org/gradle/plugin/devel/impldeps/GradleImplDepsGenerationIntegrationTest.groovy b/subprojects/plugin-development/src/integTest/groovy/org/gradle/plugin/devel/impldeps/GradleImplDepsGenerationIntegrationTest.groovy
 index 58d8ab62fd32a..1ef609f17d55e 100644
 --- a/subprojects/plugin-development/src/integTest/groovy/org/gradle/plugin/devel/impldeps/GradleImplDepsGenerationIntegrationTest.groovy
@@ -2875,50 +1843,6 @@ index 5f198602804f3..20bdc7be8d174 100644
      }
  
      private String javaClassReferencingTestKit() {
-diff --git a/subprojects/distributions/src/changes/accepted-public-api-changes.json b/subprojects/distributions/src/changes/accepted-public-api-changes.json
-index c2bf58439ba0d..3046f9edb21c4 100644
---- a/subprojects/distributions/src/changes/accepted-public-api-changes.json
-+++ b/subprojects/distributions/src/changes/accepted-public-api-changes.json
-@@ -45,11 +45,6 @@
-             "changes": [
-                 "Method added to interface"
-             ]
--        },
--        {
--            "type": "org.gradle.api.tasks.GroovyRuntime",
--            "member": "Constructor org.gradle.api.tasks.GroovyRuntime(org.gradle.api.Project,org.gradle.api.internal.classpath.ModuleRegistry)",
--            "acceptation": "Changed constructor of incubating type that users should not instantiate themselves"
-         }
-     ]
- }
-diff --git a/subprojects/distributions/src/integTest/groovy/org/gradle/DistributionIntegrationSpec.groovy b/subprojects/distributions/src/integTest/groovy/org/gradle/DistributionIntegrationSpec.groovy
-index cab9402a965d7..3dfc171d195a7 100644
---- a/subprojects/distributions/src/integTest/groovy/org/gradle/DistributionIntegrationSpec.groovy
-+++ b/subprojects/distributions/src/integTest/groovy/org/gradle/DistributionIntegrationSpec.groovy
-@@ -41,7 +41,7 @@ abstract class DistributionIntegrationSpec extends AbstractIntegrationSpec {
-     abstract String getDistributionLabel()
- 
-     int getLibJarsCount() {
--        219
-+        198
-     }
- 
-     def "no duplicate entries"() {
-diff --git a/subprojects/docs/docs.gradle b/subprojects/docs/docs.gradle
-index e187f3e1727b4..f1d49c61de115 100755
---- a/subprojects/docs/docs.gradle
-+++ b/subprojects/docs/docs.gradle
-@@ -72,9 +72,7 @@ dependencies {
- 
-     testCompile "org.pegdown:pegdown:1.1.0"
-     testCompile testLibraries.jsoup
--    testCompile("org.gebish:geb-spock:2.2") {
--        exclude module: "groovy-all"
--    }
-+    testCompile("org.gebish:geb-spock:2.2")
-     testCompile('org.seleniumhq.selenium:selenium-htmlunit-driver:2.42.2')
-     testCompile libraries.commons_httpclient
-     testCompile "org.apache.httpcomponents:httpmime:${libraries.commons_httpclient.version}"
 diff --git a/subprojects/integ-test/src/integTest/groovy/org/gradle/integtests/IncrementalGroovyProjectBuildIntegrationTest.groovy b/subprojects/integ-test/src/integTest/groovy/org/gradle/integtests/IncrementalGroovyProjectBuildIntegrationTest.groovy
 index de73f5584301f..c2ef47129eab0 100644
 --- a/subprojects/integ-test/src/integTest/groovy/org/gradle/integtests/IncrementalGroovyProjectBuildIntegrationTest.groovy
@@ -2958,60 +1882,6 @@ index 29d711a57ddd4..3234b1d52a386 100644
      }
  
      private void configureCompileDefaults() {
-diff --git a/subprojects/plugins/src/main/java/org/gradle/api/tasks/GroovyRuntime.java b/subprojects/plugins/src/main/java/org/gradle/api/tasks/GroovyRuntime.java
-index cc59294f86c58..9d154ecd57135 100644
---- a/subprojects/plugins/src/main/java/org/gradle/api/tasks/GroovyRuntime.java
-+++ b/subprojects/plugins/src/main/java/org/gradle/api/tasks/GroovyRuntime.java
-@@ -17,19 +17,15 @@
- 
- import com.google.common.collect.Iterables;
- import com.google.common.collect.Lists;
--import groovy.lang.GroovySystem;
- import org.gradle.api.Buildable;
- import org.gradle.api.GradleException;
- import org.gradle.api.Incubating;
- import org.gradle.api.Project;
- import org.gradle.api.artifacts.Dependency;
- import org.gradle.api.file.FileCollection;
--import org.gradle.api.internal.classpath.ModuleRegistry;
- import org.gradle.api.internal.file.collections.LazilyInitializedFileCollection;
- import org.gradle.api.internal.plugins.GroovyJarFile;
- import org.gradle.api.internal.tasks.TaskDependencyResolveContext;
--import org.gradle.internal.classpath.ClassPath;
--import org.gradle.internal.classpath.DefaultClassPath;
- import org.gradle.util.VersionNumber;
- 
- import javax.annotation.Nullable;
-@@ -63,11 +59,9 @@ public class GroovyRuntime {
-     private static final VersionNumber GROOVY_VERSION_WITH_SEPARATE_ANT = VersionNumber.parse("2.0");
-     private static final VersionNumber GROOVY_VERSION_REQUIRING_TEMPLATES = VersionNumber.parse("2.5");
-     private final Project project;
--    private final ModuleRegistry moduleRegistry;
- 
--    public GroovyRuntime(Project project, ModuleRegistry moduleRegistry) {
-+    public GroovyRuntime(Project project) {
-         this.project = project;
--        this.moduleRegistry = moduleRegistry;
-     }
- 
-     /**
-@@ -100,16 +94,6 @@ public FileCollection createDelegate() {
-                     return project.getLayout().files(groovyJar.getFile());
-                 }
- 
--                // If we can serve Groovy from the runtime, let's do that
--                if (groovyJar.getVersion().equals(VersionNumber.parse(GroovySystem.getVersion()))) {
--                    // TODO:lptr Provide full Groovy classpath here like in DependencyClassPathProvider
--                    ClassPath result = DefaultClassPath.of(groovyJar.getFile());
--                    result = result.plus(moduleRegistry.getExternalModule("groovy-ant").getClasspath());
--                    result = result.plus(moduleRegistry.getExternalModule("groovy-groovydoc").getClasspath());
--                    result = result.plus(moduleRegistry.getExternalModule("groovy-templates").getClasspath());
--                    return project.getLayout().files(result.getAsFiles());
--                }
--
-                 if (project.getRepositories().isEmpty()) {
-                     throw new GradleException("Cannot infer Groovy class path because no repository is declared for the project.");
-                 }
 diff --git a/subprojects/plugins/src/test/groovy/org/gradle/api/tasks/GroovyRuntimeTest.groovy b/subprojects/plugins/src/test/groovy/org/gradle/api/tasks/GroovyRuntimeTest.groovy
 index 4777260ac8ae9..4966c7dbfda33 100644
 --- a/subprojects/plugins/src/test/groovy/org/gradle/api/tasks/GroovyRuntimeTest.groovy
@@ -3076,76 +1946,17 @@ Subject: [PATCH 45/56] Bump compiler memory size
 
 diff --git a/buildSrc/subprojects/ide/src/main/kotlin/org/gradle/gradlebuild/ide/IdePlugin.kt b/buildSrc/subprojects/ide/src/main/kotlin/org/gradle/gradlebuild/ide/IdePlugin.kt
 index d15f2650fb3ce..73505cff8b954 100644
---- a/buildSrc/subprojects/ide/src/main/kotlin/org/gradle/gradlebuild/ide/IdePlugin.kt
-+++ b/buildSrc/subprojects/ide/src/main/kotlin/org/gradle/gradlebuild/ide/IdePlugin.kt
-@@ -153,7 +153,7 @@ open class IdePlugin : Plugin<Project> {
-                             withJsoup { document ->
-                                 val projectElement = document.getElementsByTag("project").first()
-                                 projectElement.createOrEmptyOutChildElement("CompilerWorkspaceConfiguration")
--                                    .option("COMPILER_PROCESS_HEAP_SIZE", "2048")
-+                                    .option("COMPILER_PROCESS_HEAP_SIZE", "3072")
-                                 val runManagerComponent = projectElement.select("component[name=RunManager]")
-                                     .first()
-                                 configureJunitRunConfiguration(runManagerComponent)
-
-From 92ef725f65b1b04f5f7dbc831fe8e660344ece14 Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
-Date: Fri, 14 Sep 2018 00:50:12 +0200
-Subject: [PATCH 46/56] Raise memory available for build inside IntelliJ
-
-Groovy seems to require this
----
- .../ide/src/main/kotlin/org/gradle/gradlebuild/ide/IdePlugin.kt | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/buildSrc/subprojects/ide/src/main/kotlin/org/gradle/gradlebuild/ide/IdePlugin.kt b/buildSrc/subprojects/ide/src/main/kotlin/org/gradle/gradlebuild/ide/IdePlugin.kt
-index 2ebea2118a1d1..e47fcff4279f7 100644
---- a/buildSrc/subprojects/ide/src/main/kotlin/org/gradle/gradlebuild/ide/IdePlugin.kt
-+++ b/buildSrc/subprojects/ide/src/main/kotlin/org/gradle/gradlebuild/ide/IdePlugin.kt
-@@ -65,7 +65,7 @@ const val ideConfigurationBaseName = "ideConfiguration"
+--- a/gradle/idea.gradle
++++ b/gradle/idea.gradle
+@@ -175,7 +175,7 @@
  
+         node.append(new XmlParser().parseText('''
+             <component name="CompilerWorkspaceConfiguration">
+-              <option name="COMPILER_PROCESS_HEAP_SIZE" value="2048" />
++              <option name="COMPILER_PROCESS_HEAP_SIZE" value="''' + javaCompilerHeapSpace.toString() + '''" />
+             </component>
+         '''))
  
- private
--const val javaCompilerHeapSpace = 2048
-+const val javaCompilerHeapSpace = 3072
- 
- 
- object GradleCopyright {
-
-From 55a9e6aa02d7933ce3b2a07bebf66b2043e47c76 Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
-Date: Fri, 14 Sep 2018 00:53:11 +0200
-Subject: [PATCH 47/56] Remove unnecessary rule
-
----
- .../DependenciesMetadataRulesPlugin.kt             | 14 --------------
- 1 file changed, 14 deletions(-)
-
-diff --git a/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt b/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-index 23c35dfc20b73..710367bacdfa1 100644
---- a/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-+++ b/buildSrc/subprojects/configuration/src/main/kotlin/org/gradle/gradlebuild/dependencies/DependenciesMetadataRulesPlugin.kt
-@@ -229,20 +229,6 @@ fun ComponentMetadataHandler.withLibraryDependencies(module: String, kClass: KCl
- }
- 
- 
--open class DowngradeIvyRule : ComponentMetadataRule {
--    override fun execute(context: ComponentMetadataContext) {
--        context.details.allVariants {
--            withDependencyConstraints {
--                filter { it.group == "org.apache.ivy" }.forEach {
--                    it.version { prefer("2.2.0") }
--                    it.because("Gradle depends on ivy implementation details which changed with newer versions")
--                }
--            }
--        }
--    }
--}
--
--
- open class DowngradeOpentest4jRule : ComponentMetadataRule {
-     override fun execute(context: ComponentMetadataContext) {
-         context.details.allVariants {
 
 From b4119810ce77a61aa699f328d22385d94cf05311 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
@@ -3157,19 +1968,6 @@ Subject: [PATCH 48/56] Expose ExtensionModules better
  .../org/gradle/initialization/DefaultGradleApiSpecProvider.java | 2 ++
  2 files changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
-index 2c6e2ad5d7d50..f46fb443b4711 100755
---- a/gradle/dependencies.gradle
-+++ b/gradle/dependencies.gradle
-@@ -47,7 +47,7 @@ libraries.commons_lang =        [coordinates: 'commons-lang:commons-lang', versi
- libraries.commons_math =        [coordinates: 'org.apache.commons:commons-math3', version: '3.6.1']
- libraries.fastutil =            [coordinates: 'it.unimi.dsi:fastutil', version: '7.2.1']
- libraries.gcs =                 [coordinates: 'com.google.apis:google-api-services-storage', version: 'v1-rev116-1.23.0']
--libraries.groovy =              [coordinates: 'org.gradle.groovy:groovy-all', version: groovyVersion + '-0.3', because: 'emulating the Groovy 2.4-style groovy-all.jar, see https://github.com/gradle/gradle-groovy-all']
-+libraries.groovy =              [coordinates: 'org.gradle.groovy:groovy-all', version: groovyVersion + '-0.4', because: 'emulating the Groovy 2.4-style groovy-all.jar, see https://github.com/gradle/gradle-groovy-all']
- libraries.gson =                [coordinates: 'com.google.code.gson:gson', version: '2.7']
- libraries.guava =               [coordinates: 'com.google.guava:guava-jdk5', version: '17.0']
- libraries.inject =              [coordinates: 'javax.inject:javax.inject', version: '1']
 diff --git a/subprojects/core/src/main/java/org/gradle/initialization/DefaultGradleApiSpecProvider.java b/subprojects/core/src/main/java/org/gradle/initialization/DefaultGradleApiSpecProvider.java
 index 6c261b1d7115c..c519623cbbf48 100644
 --- a/subprojects/core/src/main/java/org/gradle/initialization/DefaultGradleApiSpecProvider.java
@@ -3202,19 +2000,6 @@ Instead of trying (and failing) to reproduce the same version number in differen
  ...ndencyHandlerApiResolveIntegrationTest.groovy | 16 +++++++++++++---
  2 files changed, 16 insertions(+), 4 deletions(-)
 
-diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
-index f46fb443b4711..4633a224d6857 100755
---- a/gradle/dependencies.gradle
-+++ b/gradle/dependencies.gradle
-@@ -19,6 +19,8 @@ ext {
-     groovyVersion = '2.5.2'
- }
- 
-+def gradleGroovyVersion = "${groovyVersion}-0.5" as String
-+
- // All libraries that are required to compile and run Gradle are listed here.
- // Most of them are also part of the distribution as they are declared as dependencies in one of Gradle's subprojects.
- // Everything that's in 'libraries' is added as a dependency constraints with a 'strict' version requirement (see distributions-dependencies.gradle).
 @@ -47,7 +49,7 @@ libraries.commons_lang =        [coordinates: 'commons-lang:commons-lang', versi
  libraries.commons_math =        [coordinates: 'org.apache.commons:commons-math3', version: '3.6.1']
  libraries.fastutil =            [coordinates: 'it.unimi.dsi:fastutil', version: '7.2.1']
@@ -3259,72 +2044,6 @@ index 20bdc7be8d174..145082a41734e 100644
  
             import org.gradle.testkit.runner.GradleRunner;
 
-From 392353fb87d6262003cc2666b655e457cf334827 Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
-Date: Fri, 14 Sep 2018 11:08:22 +0200
-Subject: [PATCH 50/56] Bump groovy-all to 0.6
-
-No change, just moved the JAR to a different repo on Artifactory
----
- gradle/dependencies.gradle | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
-index 93545eeb5c80f..c383befe2e4c3 100755
---- a/gradle/dependencies.gradle
-+++ b/gradle/dependencies.gradle
-@@ -19,7 +19,7 @@ ext {
-     groovyVersion = '2.5.2'
- }
- 
--def gradleGroovyVersion = "${groovyVersion}-0.5" as String
-+def gradleGroovyVersion = "${groovyVersion}-0.6" as String
- 
- // All libraries that are required to compile and run Gradle are listed here.
- // Most of them are also part of the distribution as they are declared as dependencies in one of Gradle's subprojects.
-
-From 991d9a6e77b919065229e86ca273d1e25086bacc Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
-Date: Fri, 14 Sep 2018 13:55:00 +0200
-Subject: [PATCH 51/56] Use our repackaged groovy-all.jar everywhere, even in
- buildSrc
-
----
- gradle/dependencies.gradle                                   | 3 ++-
- .../code-quality-configuration.gradle.kts                    | 5 +++--
- 2 files changed, 5 insertions(+), 3 deletions(-)
-
-diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
-index c383befe2e4c3..8ac80be26f372 100755
---- a/gradle/dependencies.gradle
-+++ b/gradle/dependencies.gradle
-@@ -19,7 +19,8 @@ ext {
-     groovyVersion = '2.5.2'
- }
- 
--def gradleGroovyVersion = "${groovyVersion}-0.6" as String
-+// TODO This must match the version number in code-quality-configuration.gradle.kts
-+def gradleGroovyVersion = "${groovyVersion}-0.7" as String
- 
- // All libraries that are required to compile and run Gradle are listed here.
- // Most of them are also part of the distribution as they are declared as dependencies in one of Gradle's subprojects.
-diff --git a/gradle/shared-with-buildSrc/code-quality-configuration.gradle.kts b/gradle/shared-with-buildSrc/code-quality-configuration.gradle.kts
-index 4a20a3359ad41..b3d4ad73b5905 100644
---- a/gradle/shared-with-buildSrc/code-quality-configuration.gradle.kts
-+++ b/gradle/shared-with-buildSrc/code-quality-configuration.gradle.kts
-@@ -111,8 +111,9 @@ open class CodeNarcRule : ComponentMetadataRule {
-         context.details.allVariants {
-             withDependencies {
-                 removeAll { it.group == "org.codehaus.groovy" }
--                add("org.codehaus.groovy:groovy-all") {
--                    version { prefer(groovy.lang.GroovySystem.getVersion()) }
-+                add("org.gradle.groovy:groovy-all") {
-+                    // TODO This must match the version number in dependencies.gradle
-+                    version { prefer(groovy.lang.GroovySystem.getVersion() + "-0.7") }
-                     because("We use groovy-all everywhere")
-                 }
-             }
-
 From f93c09cefa9a024418351bd553a9eb74c774b0b0 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
 Date: Mon, 17 Sep 2018 10:22:07 +0200
@@ -3338,23 +2057,18 @@ diff --git a/buildSrc/build.gradle.kts b/buildSrc/build.gradle.kts
 index da15ebc216749..205bf36341085 100644
 --- a/buildSrc/build.gradle.kts
 +++ b/buildSrc/build.gradle.kts
-@@ -149,12 +149,12 @@ fun Project.applyGroovyProjectConventions() {
- 
-     dependencies {
-         compile(localGroovy())
--        testCompile("org.spockframework:spock-core:1.2-RC2-groovy-2.4")
-+        val spockGroovyVersion = groovy.lang.GroovySystem.getVersion().substring(0, 3)
-+        testCompile("org.spockframework:spock-core:1.2-RC2-groovy-${spockGroovyVersion}") {
-+            exclude(group = "org.codehaus.groovy")
-+        }
-         testCompile("cglib:cglib:3.2.7")
-         testCompile("org.objenesis:objenesis:2.4")
--        constraints {
--            compile("org.codehaus.groovy:groovy-all:${groovy.lang.GroovySystem.getVersion()}")
--        }
+@@ -64,7 +64,10 @@ fun Project.applyGroovyProjectConventions() {
+         exclude(module = "xercesImpl")
      }
- 
-     tasks.withType<GroovyCompile>().configureEach {
+     testCompile("junit:junit:4.12@jar")
+-    testCompile("org.spockframework:spock-core:1.0-groovy-2.4@jar")
++    val spockGroovyVersion = groovy.lang.GroovySystem.getVersion().substring(0, 3)
++    testCompile("org.spockframework:spock-core:1.2-RC2-groovy-${spockGroovyVersion}") {
++        exclude(group = "org.codehaus.groovy")
++    }
+     testCompile("cglib:cglib-nodep:3.2.5")
+     testCompile("org.objenesis:objenesis:1.2")
+     testCompile("org.hamcrest:hamcrest-core:1.3")
 
 From b34cbd3b29b717ac885b692ef7e09be834c717b1 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
@@ -3408,23 +2122,25 @@ Use Gson instead to avoid classloading errors with JApiCmp plugin using the work
  .../rules/AbstractGradleViolationRule.groovy  | 29 +++++++++++------
  ...ceptedApiChangesJsonFileManagerTest.groovy |  4 +--
  6 files changed, 67 insertions(+), 26 deletions(-)
- create mode 100644 buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChange.groovy
+ create mode 100644 buildSrc/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChange.groovy
 
-diff --git a/buildSrc/subprojects/binary-compatibility/binary-compatibility.gradle.kts b/buildSrc/subprojects/binary-compatibility/binary-compatibility.gradle.kts
+diff --git a/buildSrc/build.gradle b/buildSrc/build.gradle
 index 3f60a750e008d..a31ba38a9860c 100644
---- a/buildSrc/subprojects/binary-compatibility/binary-compatibility.gradle.kts
-+++ b/buildSrc/subprojects/binary-compatibility/binary-compatibility.gradle.kts
-@@ -1,4 +1,5 @@
+--- a/buildSrc/build.gradle.kts
++++ b/buildSrc/build.gradle.kts
+@@ -51,6 +51,7 @@
+ }
+ 
  dependencies {
 +    compile("com.google.code.gson:gson:2.8.2")
-     compile("me.champeau.gradle:japicmp-gradle-plugin:0.2.4")
-     compile("org.javassist:javassist:3.23.0-GA")
-     compile("com.github.javaparser:javaparser-core:2.4.0")
-diff --git a/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChange.groovy b/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChange.groovy
+     compile("org.ow2.asm:asm:6.0")
+     compile("org.ow2.asm:asm-commons:6.0")
+     compile(gradleApi())
+diff --git a/buildSrc/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChange.groovy b/buildSrc/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChange.groovy
 new file mode 100644
 index 0000000000000..cb6a4b6fec729
 --- /dev/null
-+++ b/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChange.groovy
++++ b/buildSrc/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChange.groovy
 @@ -0,0 +1,32 @@
 +/*
 + * Copyright 2018 the original author or authors.
@@ -3458,10 +2174,10 @@ index 0000000000000..cb6a4b6fec729
 +        return new ApiChange(type, member, changes ?: [])
 +    }
 +}
-diff --git a/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChanges.groovy b/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChanges.groovy
+diff --git a/buildSrc/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChanges.groovy b/buildSrc/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChanges.groovy
 index cf96a3e3bcb2f..f17e34f60f1b2 100644
---- a/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChanges.groovy
-+++ b/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChanges.groovy
+--- a/buildSrc/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChanges.groovy
++++ b/buildSrc/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChanges.groovy
 @@ -16,8 +16,8 @@
  
  package org.gradle.binarycompatibility
@@ -3502,38 +2218,10 @@ index cf96a3e3bcb2f..f17e34f60f1b2 100644
      }
 -
  }
-diff --git a/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChangesJsonFileManager.groovy b/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChangesJsonFileManager.groovy
-index fb995c4962e06..1ec248fb11a8e 100644
---- a/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChangesJsonFileManager.groovy
-+++ b/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/AcceptedApiChangesJsonFileManager.groovy
-@@ -16,15 +16,17 @@
- 
- package org.gradle.binarycompatibility
- 
--import groovy.json.JsonBuilder
--import groovy.json.JsonSlurper
-+import com.google.gson.Gson
-+import com.google.gson.stream.JsonWriter
- 
- class AcceptedApiChangesJsonFileManager {
- 
-     void emptyAcceptedApiChanges(File jsonFile) {
--        def slurped = new JsonSlurper().parse(jsonFile)
--        JsonBuilder jsonBuilder = new JsonBuilder(slurped)
--        jsonBuilder.content.acceptedApiChanges = []
--        jsonFile.write(jsonBuilder.toPrettyString())
-+        jsonFile.withWriter { fileWriter ->
-+            def writer = new JsonWriter(fileWriter)
-+            writer.setIndent("    ")
-+            new Gson().toJson([acceptedApiChanges: []], Object, writer)
-+            writer.close()
-+        }
-     }
- }
-diff --git a/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy b/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy
+diff --git a/buildSrc/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy b/buildSrc/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy
 index 4b0cfd87c04f0..8771b2f395096 100644
---- a/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy
-+++ b/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy
+--- a/buildSrc/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy
++++ b/buildSrc/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy
 @@ -16,10 +16,11 @@
  
  package org.gradle.binarycompatibility.rules
@@ -3600,21 +2288,6 @@ index 4b0cfd87c04f0..8771b2f395096 100644
      String getCurrentVersion() {
          return context.getUserData().get("currentVersion")
      }
-diff --git a/buildSrc/subprojects/binary-compatibility/src/test/groovy/org/gradle/binarycompatibility/AcceptedApiChangesJsonFileManagerTest.groovy b/buildSrc/subprojects/binary-compatibility/src/test/groovy/org/gradle/binarycompatibility/AcceptedApiChangesJsonFileManagerTest.groovy
-index 4b45ffc51eb38..f232ef1ea127e 100644
---- a/buildSrc/subprojects/binary-compatibility/src/test/groovy/org/gradle/binarycompatibility/AcceptedApiChangesJsonFileManagerTest.groovy
-+++ b/buildSrc/subprojects/binary-compatibility/src/test/groovy/org/gradle/binarycompatibility/AcceptedApiChangesJsonFileManagerTest.groovy
-@@ -79,9 +79,7 @@ class AcceptedApiChangesJsonFileManagerTest extends Specification {
- 
-     static String nonExistentAcceptedApiChanges() {
-         """{
--    "acceptedApiChanges": [
--        
--    ]
-+    "acceptedApiChanges": []
- }"""
-     }
- }
 
 From dc1a9f11dfc749526a4683ec936cb8c33ea40d9e Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
@@ -3625,10 +2298,10 @@ Subject: [PATCH 55/56] Fix message
  .../rules/AbstractGradleViolationRule.groovy                    | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy b/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy
+diff --git a/buildSrc/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy b/buildSrc/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy
 index 8771b2f395096..acb0174da8bac 100644
---- a/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy
-+++ b/buildSrc/subprojects/binary-compatibility/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy
+--- a/buildSrc/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy
++++ b/buildSrc/src/main/groovy/org/gradle/binarycompatibility/rules/AbstractGradleViolationRule.groovy
 @@ -158,7 +158,7 @@ abstract class AbstractGradleViolationRule extends AbstractContextAwareViolation
          def acceptanceJson = new AcceptedApiChange(
              change.type,
@@ -3638,28 +2311,3 @@ index 8771b2f395096..acb0174da8bac 100644
              change.changes
          )
  
-
-From 24e8a3cfda9e22b313e9462fa16a5860de561be4 Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
-Date: Mon, 17 Sep 2018 15:36:40 +0200
-Subject: [PATCH 56/56] Stop CodeNarc from polluting things with old Groovy
-
----
- buildSrc/subprojects/buildquality/buildquality.gradle.kts | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
-
-diff --git a/buildSrc/subprojects/buildquality/buildquality.gradle.kts b/buildSrc/subprojects/buildquality/buildquality.gradle.kts
-index bb0cdefdf4456..6b2a4e919c7ba 100644
---- a/buildSrc/subprojects/buildquality/buildquality.gradle.kts
-+++ b/buildSrc/subprojects/buildquality/buildquality.gradle.kts
-@@ -14,7 +14,9 @@ dependencies {
-     implementation(project(":plugins"))
-     implementation(project(":performance"))
-     implementation("org.owasp:dependency-check-gradle:3.1.0")
--    implementation("org.codenarc:CodeNarc:1.0")
-+    implementation("org.codenarc:CodeNarc:1.0") {
-+        exclude(group = "org.codehaus.groovy")
-+    }
- }
- 
- gradlePlugin {

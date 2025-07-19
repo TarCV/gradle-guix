@@ -623,7 +623,8 @@ pegdown is nearly 100% compatible with the original Markdown specification and f
         (file-name (string-append "gradle-" version ".tar.gz"))
         (sha256 (base32 "03yaq6kkdk5akjl5is0rmkdqhg1jfhp1mbv9jzpmjrs53z1hsxlw"))
         (patches '("patches/gradle-4.5.1-asm.patch"
-                    "patches/gradle-4.5.1-groovy-2.4.patch" "patches/gradle-4.5.1-groovy-2.5.patch"
+                    "patches/gradle-4.5.1-groovy-2.4.patch" "patches/gradle-4.5.1-groovy-2.5-1.patch"
+                    "patches/gradle-4.5.1-groovy-2.5-2.patch" "patches/gradle-4.5.1-groovy-2.5-3.patch"
                     "patches/gradle-4.5.1-groovy-3.patch"
                     "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
                     "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"
@@ -911,7 +912,8 @@ pegdown is nearly 100% compatible with the original Markdown specification and f
     (source (origin
               (inherit (package-source gradle-bootstrap))
               (patches '("patches/gradle-4.5.1-asm.patch"
-                         "patches/gradle-4.5.1-groovy-2.4.patch" "patches/gradle-4.5.1-groovy-2.5.patch"
+                         "patches/gradle-4.5.1-groovy-2.4.patch" "patches/gradle-4.5.1-groovy-2.5-1.patch"
+                         "patches/gradle-4.5.1-groovy-2.5-2.patch" "patches/gradle-4.5.1-groovy-2.5-3.patch"
                          "patches/gradle-4.5.1-groovy-3.patch"
                          "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
                          "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"
