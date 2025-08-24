@@ -1,4 +1,4 @@
-Backported commits from the PR #6682 (this patch), #6799 and #7245 updating Groovy to version 2.5. Skipped #6903, #7376,
+Backported changes from the PR #6682 (this patch), #6799 and #7245 updating Groovy to version 2.5. Skipped #6903, #7376,
  #7763, #7796 as they consist of Groovy version bumps only. Skipped #6844 as it reverts a workaround that was already
  skipped.
 From 85a6b397822aa9bc138b0d453a2c8c90e658ac34 Mon Sep 17 00:00:00 2001

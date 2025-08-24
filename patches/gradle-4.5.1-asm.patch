@@ -1,11 +1,13 @@
+From the PR #9356 updating ASM to version 7.1
 --- a/subprojects/core/src/main/java/org/gradle/process/internal/worker/child/WorkerProcessClassPathProvider.java
 +++ b/subprojects/core/src/main/java/org/gradle/process/internal/worker/child/WorkerProcessClassPathProvider.java
-@@ -45,7 +45,7 @@
+@@ -46,8 +46,8 @@
+ import org.objectweb.asm.ClassVisitor;
  import org.objectweb.asm.ClassWriter;
  import org.objectweb.asm.Type;
++import org.objectweb.asm.commons.ClassRemapper;
  import org.objectweb.asm.commons.Remapper;
 -import org.objectweb.asm.commons.RemappingClassAdapter;
-+import org.objectweb.asm.commons.ClassRemapper;
  import org.slf4j.Logger;
  import org.slf4j.LoggerFactory;
  

@@ -625,7 +625,7 @@ pegdown is nearly 100% compatible with the original Markdown specification and f
         (patches '("patches/gradle-4.5.1-asm.patch"
                     "patches/gradle-4.5.1-groovy-2.4.patch" "patches/gradle-4.5.1-groovy-2.5-1.patch"
                     "patches/gradle-4.5.1-groovy-2.5-2.patch" "patches/gradle-4.5.1-groovy-2.5-3.patch"
-                    "patches/gradle-4.5.1-groovy-3.patch"
+                    "patches/gradle-4.5.1-groovy-2.5-4.patch" "patches/gradle-4.5.1-groovy-3.patch"
                     "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
                     "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"
 
@@ -914,7 +914,7 @@ pegdown is nearly 100% compatible with the original Markdown specification and f
               (patches '("patches/gradle-4.5.1-asm.patch"
                          "patches/gradle-4.5.1-groovy-2.4.patch" "patches/gradle-4.5.1-groovy-2.5-1.patch"
                          "patches/gradle-4.5.1-groovy-2.5-2.patch" "patches/gradle-4.5.1-groovy-2.5-3.patch"
-                         "patches/gradle-4.5.1-groovy-3.patch"
+                         "patches/gradle-4.5.1-groovy-2.5-4.patch" "patches/gradle-4.5.1-groovy-3.patch"
                          "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
                          "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"
 

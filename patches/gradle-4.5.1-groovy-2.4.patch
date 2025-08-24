@@ -1,4 +1,4 @@
-Backported commits from the PR #6013 updating Groovy to version 2.4
+Backported changes from the PR #6013 updating Groovy to version 2.4
 From b6e7d53cbbe144f6bccaeac4eefb09d231ee5b9a Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
 Date: Wed, 18 Jul 2018 16:08:19 +0200

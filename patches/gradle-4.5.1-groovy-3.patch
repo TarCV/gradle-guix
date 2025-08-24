@@ -1,4 +1,4 @@
-Backported commits from the PR #16193 updating Groovy to version 3 in Gradle 7:
+Backported changes from the PR #16193 updating Groovy to version 3 in Gradle 7:
 From e05457d5d40a047101506ecc6f795fbc5d4d0eb2 Mon Sep 17 00:00:00 2001
 From: Benjamin Muskalla <bmuskalla@gradle.com>
 Date: Wed, 3 Feb 2021 17:08:23 +0100
