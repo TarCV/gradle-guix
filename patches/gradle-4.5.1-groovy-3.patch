@@ -15,10 +15,10 @@ index 29d7249e2ff97..6d790e73bfddb 100644
 --- a/subprojects/plugins/src/main/java/org/gradle/api/tasks/GroovyRuntime.java
 +++ b/subprojects/plugins/src/main/java/org/gradle/api/tasks/GroovyRuntime.java
 @@ -58,6 +58,7 @@
-  */
- @Incubating
  public class GroovyRuntime {
-+    private static final org.gradle.util.VersionNumber GROOVY_VERSION_REQUIRING_JSONXML = org.gradle.util.VersionNumber.parse("3.0");
+     private static final VersionNumber GROOVY_VERSION_WITH_SEPARATE_ANT = VersionNumber.parse("2.0");
+     private static final VersionNumber GROOVY_VERSION_REQUIRING_TEMPLATES = VersionNumber.parse("2.5");
++    private static final VersionNumber GROOVY_VERSION_REQUIRING_JSONXML = VersionNumber.parse("3.0");
      private final Project project;
  
      public GroovyRuntime(Project project) {
@@ -28,17 +28,17 @@ index 29d7249e2ff97..6d790e73bfddb 100644
  
 -                if (groovyJar.isGroovyAll()) {
 +                if (groovyJar.isGroovyAll() || groovyJar.getVersion().getMajor() == 3) {
-                     return Cast.cast(FileCollectionInternal.class, project.files(groovyJar.getFile()));
+                     return project.files(groovyJar.getFile());
                  }
  
 @@ -107,6 +108,11 @@ public FileCollection createDelegate() {
-                     // add groovy-ant to bring in Groovydoc
-                     dependencies.add(project.getDependencies().create(notation.replace(":groovy:", ":groovy-ant:")));
+                     // add groovy-templates for Groovy 2.5+
+                     addGroovyDependency(notation, dependencies, "groovy-templates");
                  }
-+                if (groovyJar.getVersion().compareTo(GROOVY_VERSION_REQUIRING_JSONXML) >= 0) {
++                if (groovyVersion.compareTo(GROOVY_VERSION_REQUIRING_JSONXML) >= 0) {
 +                    // add new modules for Groovy 3+
-+                    dependencies.add(project.getDependencies().create(notation.replace(":groovy:", ":groovy-json:")));
-+                    dependencies.add(project.getDependencies().create(notation.replace(":groovy:", ":groovy-xml:")));
++                    addGroovyDependency(notation, dependencies, "groovy-json");
++                    addGroovyDependency(notation, dependencies, "groovy-xml");
 +                }
                  return project.getConfigurations().detachedConfiguration(dependencies.toArray(new Dependency[0]));
              }
@@ -59,9 +59,10 @@ index 4966c7dbfda33..46f55ac8ef5ed 100644
 +        classpath.singleFile == project.file("groovy-3.0.7.jar")
 +    }
 +
-     def "inferred Groovy class path uses repository dependency if 'groovy' Jar is found on class path (to get transitive dependencies right)"() {
+     @Unroll
+     def "inferred Groovy #groovyVersion#classifier class path uses repository dependency if 'groovy' Jar is found on class path (to get transitive dependencies right)"() {
          project.repositories {
-             mavenCentral()
+
 From c49a5537cc0df794adbc3c096e607c9e08b9329c Mon Sep 17 00:00:00 2001
 From: Benjamin Muskalla <bmuskalla@gradle.com>
 Date: Wed, 17 Feb 2021 15:39:22 +0100
@@ -80,11 +81,11 @@ index f80e49be3bac1..1338c550e99c9 100644
          exclude(module = "xercesImpl")
      }
      testCompile("junit:junit:4.12@jar")
--    testCompile("org.spockframework:spock-core:1.0-groovy-2.4@jar")
-+    testCompile("org.spockframework:spock-core:2.0-M4-groovy-3.0@jar")
+-    testCompile("org.spockframework:spock-core:1.2-groovy-2.5") {
++    testCompile("org.spockframework:spock-core:2.0-M4-groovy-3.0") {
+         exclude(group = "org.codehaus.groovy")
+     }
      testCompile("cglib:cglib-nodep:3.2.5")
-     testCompile("org.objenesis:objenesis:1.2")
-     testCompile("org.hamcrest:hamcrest-core:1.3")
 
 From 6e75b0b40de7204b87d0ee7af73112dde6f502d7 Mon Sep 17 00:00:00 2001
 From: Benjamin Muskalla <bmuskalla@gradle.com>
@@ -230,7 +231,7 @@ index 3846988bd066f..7368d0c22124c 100644
  guava=23.0
  commons-math=3.6.1
  scala=2.11
--groovy=2.4.12
+-groovy=2.5.10
 +groovy=3.0.7
  junit=4.12
 -spock=1.0-groovy-2.4
@@ -740,13 +741,11 @@ index cb835adcc641e..2802e6184dafa 100755
      api libraries.ant
      api libraries.guava
      api libraries.inject
-@@ -52,6 +59,9 @@ dependencies {
+@@ -52,6 +59,7 @@ dependencies {
      implementation libraries.nativePlatform
      implementation libraries.commons_compress
      implementation libraries.xmlApis
-+    implementation(libraries.javaParser) {
-+        because("The Groovy compiler inspects the dependencies at compile time")
-+    }
++    implementation(libraries.javaParser) // because the Groovy compiler inspects the dependencies at compile time
  
      runtimeOnly project(":docs")
  
@@ -1075,12 +1074,32 @@ diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
 index ffef7a139a4b9..92e1af6746f2c 100644
 --- a/gradle/dependencies.gradle
 +++ b/gradle/dependencies.gradle
-@@ -96,7 +96,7 @@ dependencies {
+@@ -70,7 +70,17 @@
+     guava: 'com.google.guava:guava-jdk5:17.0',
+     kryo: 'com.esotericsoftware.kryo:kryo:2.20',
+     jsr305: 'com.google.code.findbugs:jsr305:1.3.9',
+-    groovy: "org.codehaus.groovy:groovy-all:${versions.groovy}",
++    groovy: "org.codehaus.groovy:groovy:${versions.groovy}",
++    groovyAnt: "org.codehaus.groovy:groovy-ant:${versions.groovy}",
++    groovyDatetime: "org.codehaus.groovy:groovy-datetime:${versions.groovy}",
++    groovyDateUtil: "org.codehaus.groovy:groovy-dateutil:${versions.groovy}",
++    groovyDoc: "org.codehaus.groovy:groovy-groovydoc:${versions.groovy}",
++    groovyTest: "org.codehaus.groovy:groovy-test:${versions.groovy}",
++    groovyJson: "org.codehaus.groovy:groovy-json:${versions.groovy}",
++    groovyTemplates: "org.codehaus.groovy:groovy-templates:${versions.groovy}",
++    groovyTest: "org.codehaus.groovy:groovy-test:${versions.groovy}",
++    groovyXml: "org.codehaus.groovy:groovy-xml:${versions.groovy}",
++    javaParser: 'com.github.javaparser:javaparser-core:3.17.0',
+     jaxen: 'jaxen:jaxen:1.1',
+     jcip: "net.jcip:jcip-annotations:1.0",
+     junit: 'junit:junit:4.12',
+@@ -96,7 +96,8 @@
  libraries.maven3 = "org.apache.maven:maven-core:${versions.maven}"
  
  libraries.spock = [
--    'org.spockframework:spock-core:1.0-groovy-2.4',
+-    'org.spockframework:spock-core:1.2-RC2-groovy-2.5',
 +    'org.spockframework:spock-core:2.0-M4-groovy-3.0',
++    'org.spockframework:spock-junit4:2.0-M4-groovy-3.0',
      libraries.groovy,
      libraries.objenesis,
      libraries.cglib
@@ -1181,13 +1200,11 @@ diff --git a/subprojects/integ-test/integ-test.gradle b/subprojects/integ-test/i
 index 130916e9fd4dc..2e2b0655c4b11 100644
 --- a/subprojects/integ-test/integ-test.gradle
 +++ b/subprojects/integ-test/integ-test.gradle
-@@ -41,6 +41,9 @@ dependencies {
+@@ -41,6 +41,7 @@ dependencies {
      integTestCompile libraries.groovy
      integTestCompile libraries.ant
      integTestCompile libraries.jsoup
-+    integTestCompile(libraries.javaParser) {
-+        because("The Groovy compiler inspects the dependencies at compile time")
-+    }
++    integTestCompile(libraries.javaParser) // because the Groovy compiler inspects the dependencies at compile time
  
      integTestRuntime rootProject.configurations.testRuntime.allDependencies
  
@@ -1306,18 +1323,6 @@ Subject: [PATCH 26/68] Upgrade 'workers' to Groovy 3
  .../process/internal/worker/child/SerializableMockHelper.groovy | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/subprojects/workers/workers.gradle b/subprojects/workers/workers.gradle
-index 2073671c7766f..316450273fd72 100644
---- a/subprojects/workers/workers.gradle
-+++ b/subprojects/workers/workers.gradle
-@@ -37,6 +37,7 @@ dependencies {
-     compile libraries.jcip
- 
-     integTestCompile project(':internalIntegTesting')
-+    testFixturesImplementation libraries.groovyJson
- }
- 
- useTestFixtures(project: ":logging")
 diff --git a/subprojects/workers/src/test/groovy/org/gradle/process/internal/worker/child/SerializableMockHelper.groovy b/subprojects/workers/src/test/groovy/org/gradle/process/internal/worker/child/SerializableMockHelper.groovy
 index d3f7612d11f68..edd253a162bb8 100644
 --- a/subprojects/workers/src/test/groovy/org/gradle/process/internal/worker/child/SerializableMockHelper.groovy
@@ -1520,7 +1525,7 @@ index 40ca145bd8a22..4ee23cc0b314d 100644
      static String spockDependency() {
          """
              dependencies {
--                testCompile('org.spockframework:spock-core:1.0-groovy-2.4') {
+-                testCompile('org.spockframework:spock-core:1.2-RC2-groovy-2.5') {
 +                testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
                      exclude module: 'groovy-all'
                  }
@@ -1833,13 +1838,11 @@ Subject: [PATCH 40/68] Upgrade 'language-groovy' to Groovy 3
 
 diff --git a/subprojects/language-groovy/language-groovy.gradle b/subprojects/language-groovy/language-groovy.gradle
 index 5980b8b32b083..cb7f8fdb72419 100644
-@@ -35,6 +37,9 @@ dependencies {
+@@ -35,6 +37,7 @@ dependencies {
  
      // TODO - get rid of this cycle
      integTestRuntime project(':plugins')
-+    integTestImplementation(libraries.javaParser) {
-+        because("The Groovy docs inspects the dependencies at compile time")
-+    }
++    integTestImplementation(libraries.javaParser) // because the Groovy docs inspects the dependencies at compile time
  }
  
  useClassycle(exclude: ["org/gradle/api/internal/tasks/compile/**", "org/gradle/api/tasks/javadoc/**"])

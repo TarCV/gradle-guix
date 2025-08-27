@@ -1,6 +1,7 @@
-Backported changes from the PR #6682 (this patch), #6799 and #7245 updating Groovy to version 2.5. Skipped #6903, #7376,
- #7763, #7796 as they consist of Groovy version bumps only. Skipped #6844 as it reverts a workaround that was already
- skipped.
+Backported changes from the PR #6682 (this patch), #6799, #7245, and #12432 updating Groovy to version 2.5.
+Skipped most of #6903, #7376, #7763, #7796, #10241 as they consist of Groovy version bumps or changes to code not yet
+ existing in this Gradle version only. Skipped #6844 as it reverts a workaround that was already skipped.
+
 From 85a6b397822aa9bc138b0d453a2c8c90e658ac34 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
 Date: Fri, 7 Sep 2018 16:21:16 +0200
@@ -164,7 +165,7 @@ index 6ebdadbcc9114..b46cdaa610a58 100644
      compile project(':languageJava')
      compile project(':testingBase')
  
-+    compile libraries.groovy_xml
++    compile libraries.groovyXml
      compile libraries.junit
      compile libraries.testng
      compile libraries.bsh
@@ -467,7 +468,7 @@ index 2aefb996ec66d..57e4eeec28889 100644
 -                if (groovyJar.isGroovyAll()) {
 -                    return Cast.cast(FileCollectionInternal.class, project.files(groovyJar.getFile()));
 +                if (!requireGroovydocJars || groovyJar.isGroovyAll()) {
-+                    return project.getLayout().files(groovyJar.getFile());
++                    return project.files(groovyJar.getFile());
                  }
  
                  if (project.getRepositories().isEmpty()) {
@@ -1167,7 +1168,7 @@ index dd9226cb46dd3..6c26f394736f5 100644
  
 -                if (!requireGroovydocJars || groovyJar.isGroovyAll()) {
 +                if (groovyJarOnly || groovyJar.isGroovyAll()) {
-                     return project.getLayout().files(groovyJar.getFile());
+                     return project.files(groovyJar.getFile());
                  }
  
 @@ -134,10 +146,7 @@ public void visitDependencies(TaskDependencyResolveContext context) {
@@ -1586,7 +1587,7 @@ index 6c26f394736f5..cc59294f86c58 100644
  
 -                if (groovyJarOnly || groovyJar.isGroovyAll()) {
 +                if (groovyJar.isGroovyAll()) {
-                     return project.getLayout().files(groovyJar.getFile());
+                     return project.files(groovyJar.getFile());
                  }
  
 

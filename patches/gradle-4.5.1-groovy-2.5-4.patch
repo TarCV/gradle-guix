@@ -1,7 +1,8 @@
 Backported changes from the PR #6682, #6799, #7245, and #12432 (this patch) updating Groovy to version 2.5.
-Skipped #6903, #7376, #7763, #7796, #10241 as they consist of Groovy version bumps or changes to code not yet existing
- in this Gradle version only. Skipped #6844 as it reverts a workaround that was already skipped.
-Skipped [7/7] patch here as it introduces workaround for an issue already fixed in Groovy version in Guix.
+Skipped most of #6903, #7376, #7763, #7796, #10241 as they consist of Groovy version bumps or changes to code not yet
+ existing in this Gradle version only. Skipped #6844 as it reverts a workaround that was already skipped.
+Skipped [7/7] patch here as it introduces a workaround for an issue already fixed in Groovy version in Guix.
+
 From 08356d1ee2450de52137494cb967c0a7c99f6eac Mon Sep 17 00:00:00 2001
 From: Vaidotas Valuckas <vvaluckas@gradle.com>
 Date: Tue, 3 Mar 2020 15:35:17 +0200

@@ -1,6 +1,35 @@
-Backported changes from the PR #6682, #6799 (this patch) and #7245 updating Groovy to version 2.5. Skipped #6903, #7376,
- #7763, #7796 as they consist of Groovy version bumps only. Skipped #6844 as it reverts a workaround that was already
- skipped.
+Backported changes from the PR #6682, #6799 (this patch), #7245, and #12432 updating Groovy to version 2.5.
+Skipped most of #6903 (and a small chunk is in this patch), #7376, #7763, #7796, #10241 as they consist of Groovy
+ version bumps or changes to code not yet existing in this Gradle version only. Skipped #6844 as it reverts a workaround
+ that was already skipped.
+
+From 7a816ac9ae8d45acec88133f06e3ec60f46943f9 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
+Date: Wed, 26 Sep 2018 16:33:43 +0200
+Subject: [PATCH 1/4] Upgrade to Groovy 2.5.3-SNAPSHOT
+
+This is a temporary measure until Groovy 2.5.3 GA comes out to fix Java 11 incompatibilities.
+---
+ buildSrc/build.gradle.kts                                     | 3 +--
+ gradle/dependencies.gradle                                    | 4 ++--
+ .../code-quality-configuration.gradle.kts                     | 2 +-
+ 3 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/buildSrc/build.gradle.kts b/buildSrc/build.gradle.kts
+index 620d2950bbbc..759d664ac64e 100644
+--- a/buildSrc/build.gradle.kts
++++ b/buildSrc/build.gradle.kts
+@@ -65,8 +65,7 @@
+         exclude(module = "xercesImpl")
+     }
+     testCompile("junit:junit:4.12@jar")
+-    val spockGroovyVersion = groovy.lang.GroovySystem.getVersion().substring(0, 3)
+-    testCompile("org.spockframework:spock-core:1.2-RC2-groovy-${spockGroovyVersion}") {
++    testCompile("org.spockframework:spock-core:1.2-groovy-2.5") {
+         exclude(group = "org.codehaus.groovy")
+     }
+     testCompile("cglib:cglib-nodep:3.2.5")
+
 From b36b4ad7dff2a5b2e93076e1396b004a7f2fbae7 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
 Date: Tue, 18 Sep 2018 13:28:14 +0200

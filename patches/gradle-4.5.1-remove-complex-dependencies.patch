@@ -1,6 +1,6 @@
 --- a/buildSrc/build.gradle
 +++ b/buildSrc/build.gradle
-@@ -53,21 +53,9 @@
+@@ -53,23 +53,9 @@
      compile("com.google.guava:guava-jdk5:14.0.1@jar")
      compile("commons-lang:commons-lang:2.6@jar")
      compile(localGroovy())
@@ -9,7 +9,9 @@
 -        exclude(module: "xercesImpl")
 -    }
 -    testCompile("junit:junit:4.12@jar")
--    testCompile("org.spockframework:spock-core:2.0-M4-groovy-3.0@jar")
+-    testCompile("org.spockframework:spock-core:2.0-M4-groovy-3.0") {
+-        exclude(group = "org.codehaus.groovy")
+-    }
 -    testCompile("cglib:cglib-nodep:3.2.5")
 -    testCompile("org.objenesis:objenesis:1.2")
 -    testCompile("org.hamcrest:hamcrest-core:1.3")
