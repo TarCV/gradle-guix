@@ -952,7 +952,10 @@ pegdown is nearly 100% compatible with the original Markdown specification and f
                           ))
                       (delete-file-recursively "buildSrc/src/main/groovy/org/gradle/binarycompatibility") ; dependends on previous versions of Gradle
                       (delete-file-recursively "buildSrc/src/main/groovy/org/gradle/testing/performance") ; dependends on previous versions of Gradle
-                      (delete-file-recursively "buildSrc/src/test"))) ; has dependency loops back to Gradle (spock)
+                      (delete-file-recursively "buildSrc/src/test") ; has dependency loops back to Gradle (spock)
+                      (substitute* (find-files "." "\\.gradle$")
+                        ((" crossVersionTest[A-Za-z]+ " all) (string-append "// " all)) ; dependencies for tests depending on previous versions of Gradle
+                        )))
                   (add-before 'build 'patch-versions
                     (lambda _ ; TODO: add code to gradle/dependencies.gradle instead
                       (substitute* "gradle/dependencies.gradle"
@@ -1027,6 +1030,8 @@ pegdown is nearly 100% compatible with the original Markdown specification and f
                           (mavenize-package ,java-commons-lang ,(package-version java-commons-lang)
                             "commons-lang" "commons-lang"
                             (string-append "/share/java/commons-lang-" ,(package-version java-commons-lang) ".jar"))
+                          (mavenize-package ,java-gson ,(package-version java-gson)
+                            "com.google.code.gson" "gson" "/share/java/gson.jar")
                           (mavenize-package ,java-jhighlight ,(package-version java-jhighlight)
                             "com.uwyn" "jhighlight" "/share/java/jhighlight.jar")
                           (mavenize-package ,java-jsoup ,(package-version java-jsoup)

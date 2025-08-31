@@ -385,7 +385,7 @@ TODO: Call asciidoctor directly
  task buildReceiptResource(type: Copy) {
 --- a/subprojects/build-cache/build-cache.gradle
 +++ b/subprojects/build-cache/build-cache.gradle
-@@ -28,12 +28,6 @@
+@@ -28,12 +28,6 @@s
      implementation project(":logging")
  
      implementation libraries.commons_io
@@ -398,3 +398,175 @@ TODO: Call asciidoctor directly
  }
  
  useTestFixtures()
+--- a/settings.gradle
++++ b/settings.gradle
+@@ -57,10 +57,7 @@
+ include("native")
+ include("internalTesting")
+ include("internalIntegTesting")
+-include("internalPerformanceTesting")
+ include("internalAndroidPerformanceTesting")
+-include("performance")
+-include("buildScanPerformance")
+ include("javascript")
+ include("buildComparison")
+ include("reporting")
+--- a/subprojects/internal-integ-testing/internal-integ-testing.gradle
++++ b/subprojects/internal-integ-testing/internal-integ-testing.gradle
+@@ -69,4 +69,3 @@
+     }
+ }
+ 
+-apply from: "$rootDir/gradle/ideaTestSourcesWorkaround.gradle"
+--- a/subprojects/internal-performance-testing/internal-performance-testing.gradle
++++ b/subprojects/internal-performance-testing/internal-performance-testing.gradle
+@@ -50,4 +50,3 @@
+ useTestFixtures(project: ':toolingApi', sourceSet: 'main')
+ useClassycle()
+ 
+-apply from: "$rootDir/gradle/ideaTestSourcesWorkaround.gradle"
+--- a/subprojects/internal-testing/internal-testing.gradle
++++ b/subprojects/internal-testing/internal-testing.gradle
+@@ -37,4 +37,3 @@
+ 
+ useClassycle()
+ 
+-apply from: "$rootDir/gradle/ideaTestSourcesWorkaround.gradle"
+--- a/subprojects/native/native.gradle
++++ b/subprojects/native/native.gradle
+@@ -21,62 +21,3 @@
+ useTestFixtures(project: ":logging")
+ useClassycle()
+ 
+-jmh {
+-    fork = 1
+-    threads = 2
+-    warmupIterations = 10
+-    synchronizeIterations = false
+-    resultFormat = 'CSV'
+-}
+-
+-task copyJmhReport(type: Copy) {
+-    destinationDir = file("$buildDir/reports/jmh-html")
+-
+-    from 'src/jmh/html'
+-}
+-
+-task convertCSV {
+-    ext.inputFile = file("$buildDir/reports/jmh/results.csv")
+-    ext.outputFile = file("$buildDir/reports/jmh-html/data.csv")
+-    inputs.file(inputFile)
+-    outputs.file(outputFile)
+-    doLast {
+-        def benchToScenarioName = [
+-            'org.gradle.internal.nativeintegration.filesystem.FileMetadataAccessorBenchmark.stat_existing': 'Existing',
+-            'org.gradle.internal.nativeintegration.filesystem.FileMetadataAccessorBenchmark.stat_directory': 'Directory',
+-            'org.gradle.internal.nativeintegration.filesystem.FileMetadataAccessorBenchmark.stat_missing_file': 'Missing',
+-        ]
+-        boolean first = true
+-        def benchmarks = [:].withDefault { [] }
+-        inputFile.eachLine { line ->
+-            if (first) {
+-                first = false
+-            } else {
+-                def (benchmark, mode, threads, samples, score, error, unit, accessor) = line.replace('"', '').split(",")
+-                benchmarks[benchToScenarioName[benchmark]] << [accessor - 'FileMetadataAccessor', Double.valueOf(score) as int]
+-            }
+-        }
+-        outputFile.parentFile.mkdirs()
+-        Set tested = []
+-        benchmarks.each { benchmark, values ->
+-            values.each {
+-                tested << it[0]
+-            }
+-        }
+-        outputFile.withWriter { writer ->
+-            writer << "Scenario,${tested.join(',')}\n"
+-            benchmarks.each { benchmark, values ->
+-                writer << "$benchmark"
+-                tested.each { test ->
+-                    writer << ",${values.find { it[0] == test }[1]}"
+-                }
+-                writer << '\n'
+-            }
+-        }
+-        println outputFile.absolutePath
+-    }
+-}
+-
+-task jmhReport {
+-    dependsOn 'jmh', copyJmhReport, convertCSV
+-}
+--- a/subprojects/smoke-test/smoke-test.gradle
++++ b/subprojects/smoke-test/smoke-test.gradle
+@@ -46,24 +46,3 @@
+     classpath = sourceSets.smokeTest.runtimeClasspath
+     maxParallelForks = 1 // those tests are pretty expensive, we shouldn't execute them concurrently
+ }
+-
+-plugins.withType(org.gradle.plugins.ide.idea.IdeaPlugin) { // lazy as plugin not applied yet
+-    idea {
+-        module {
+-            sourceSets.smokeTest.allSource.srcDirs.each {
+-                testSourceDirs += it
+-            }
+-            scopes.TEST.plus.add(configurations.smokeTestCompile)
+-            scopes.TEST.plus.add(configurations.smokeTestRuntime)
+-        }
+-    }
+-}
+-
+-plugins.withType(org.gradle.plugins.ide.eclipse.EclipsePlugin) { // lazy as plugin not applied yet
+-    eclipse {
+-        classpath {
+-            plusConfigurations.add(configurations.smokeTestCompile)
+-            plusConfigurations.add(configurations.smokeTestRuntime)
+-        }
+-    }
+-}
+--- a/subprojects/tooling-api/tooling-api.gradle
++++ b/subprojects/tooling-api/tooling-api.gradle
+@@ -12,7 +12,7 @@
+     compile project(':messaging')
+     compile project(':wrapper')
+     compile project(':baseServices')
+-    publishCompile libraries.slf4j_api
++// TODO:   publishCompile libraries.slf4j_api
+     compile libraries.jcip
+ 
+     testFixturesCompile project(':baseServicesGroovy')
+@@ -60,30 +60,20 @@
+ 
+ apply from: 'buildship.gradle'
+ 
+-sourceJar {
++/* TODO sourceJar {
+     configurations.compile.allDependencies.withType(ProjectDependency).each {
+         from it.dependencyProject.sourceSets.main.groovy.srcDirs
+         from it.dependencyProject.sourceSets.main.java.srcDirs
+     }
+-}
+-
+-eclipse {
+-    classpath {
+-        file.whenMerged { classpath ->
+-            //**TODO
+-            classpath.entries.removeAll { it.path.contains('src/test/groovy') }
+-            classpath.entries.removeAll { it.path.contains('src/integTest/groovy') }
+-        }
+-    }
+-}
++}*/
+ 
+ artifacts {
+-    publishRuntime file: toolingApiShadedJar.archivePath, name: archivesBaseName, type: 'jar', builtBy: toolingApiShadedJar
++// TODO    publishRuntime file: toolingApiShadedJar.archivePath, name: archivesBaseName, type: 'jar', builtBy: toolingApiShadedJar
+ }
+ 
+ task publishLocalArchives(type: Upload) {
+     ext.repoBaseDir = rootProject.file('build/repo')
+-    configuration = configurations.publishRuntime
++// TODO   configuration = configurations.publishRuntime
+     uploadDescriptor = false
+     repositories {
+         ivy {
