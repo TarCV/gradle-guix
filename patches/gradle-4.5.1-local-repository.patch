@@ -15,7 +15,7 @@
 --- /dev/null
 +++ b/init.gradle
 @@ -0,0 +1,22 @@
-+gradle.projectsLoaded {
++gradle.projectsEvaluated {
 +    allprojects {
 +        buildscript {
 +            repositories {
@@ -37,8 +37,8 @@
 +        }
 +    }
 +}
---- a/subprojects/docs/src/transforms/release-notes.gradle	(revision 37007e1c012001ff09973e0bd095139239ecd3b3)
-+++ b/subprojects/docs/src/transforms/release-notes.gradle	(date 1744515963489)
+--- a/subprojects/docs/src/transforms/release-notes.gradle
++++ b/subprojects/docs/src/transforms/release-notes.gradle
 @@ -1,6 +1,6 @@
  buildscript {
      repositories {

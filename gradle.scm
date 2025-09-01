@@ -22,6 +22,7 @@
   #:use-module (gnu packages)
   #:use-module (gnu packages base)
   #:use-module (gnu packages compression)
+  #:use-module (gnu packages docbook)
   #:use-module (gnu packages groovy)
   #:use-module (gnu packages java)
   #:use-module (gnu packages java-compression)
@@ -33,10 +34,7 @@
   #:use-module (gnu packages web)
   #:use-module (guix build utils)
   #:use-module (guix build-system ant)
-  #:use-module (guix build-system maven)
-  #:use-module (srfi srfi-1)
-  )
-
+  #:use-module (guix build-system maven))
 
 (define apache-ivy-2.0-beta2
   (package
@@ -363,7 +361,8 @@
                          (add-before 'install 'prepare-pom.xml
                            (lambda _
                              (substitute* "makefile"
-                               (("; ant stage") ""))))
+                               (("; ant stage") ""))
+                             (invoke "make" "stage")))
                          (replace 'install
                            (install-from-pom "pom.xml")))))
     (home-page "https://fastutil.di.unimi.it/")
@@ -922,7 +921,7 @@ pegdown is nearly 100% compatible with the original Markdown specification and f
                          "patches/gradle-4.5.1-local-repository.patch" "patches/gradle-4.5.1-no-remote-cache.patch"
                          "patches/gradle-4.5.1-remove-complex-dependencies.patch"))))
     (native-inputs (list
-                     java-jsoup java-pegdown))
+                     java-jsoup java-pegdown zip))
     (arguments
       `(#:modules ((guix build ant-build-system) (guix build utils) (ice-9 ftw) (srfi srfi-1) (ice-9 string-fun)
                     (srfi srfi-26))
@@ -961,10 +960,13 @@ pegdown is nearly 100% compatible with the original Markdown specification and f
                       (substitute* "gradle/dependencies.gradle"
                         (("(com.google.guava:)guava-jdk5" _ prefix)
                           (string-append prefix "guava"))
+                        (("net.jcip:jcip-annotations") "com.google.code.findbugs:jsr305")
                         (("([:'\"])([0-9][0-9.]+)([:'@\"])" _ prefix main-version suffix)
                           (string-append prefix "[" main-version ",)" suffix)))
 
-                      (substitute* '("buildSrc/build.gradle" "subprojects/docs/src/transforms/release-notes.gradle")
+                      (substitute* '("buildSrc/build.gradle"
+                                      "subprojects/docs/docs.gradle"
+                                      "subprojects/docs/src/transforms/release-notes.gradle")
                         (("(com.google.guava:)guava-jdk5" _ prefix)
                           (string-append prefix "guava"))
                         (("(:)([0-9][0-9.]+)([:'@\"])" _ prefix main-version suffix)
@@ -1027,6 +1029,11 @@ pegdown is nearly 100% compatible with the original Markdown specification and f
                                       (string-split (getenv "CLASSPATH") #\:))
                                     ":")))
 
+                          (substitute* (find-files
+                                         (string-append dir "/.m2/repository/com/google/guava")
+                                         "\\.pom$")
+                            ((">[[:digit:].]+-android<") (string-append ">" ,(package-version java-guava) "-jre<")))
+
                           (mavenize-package ,java-commons-lang ,(package-version java-commons-lang)
                             "commons-lang" "commons-lang"
                             (string-append "/share/java/commons-lang-" ,(package-version java-commons-lang) ".jar"))
@@ -1036,6 +1043,20 @@ pegdown is nearly 100% compatible with the original Markdown specification and f
                             "com.uwyn" "jhighlight" "/share/java/jhighlight.jar")
                           (mavenize-package ,java-jsoup ,(package-version java-jsoup)
                             "org.jsoup" "jsoup" "/share/java/jsoup.jar")
+
+                          (let* ((version ,(package-version docbook-xsl))
+                                  (name "docbook-xsl")
+                                  (groupPath "docbook")
+                                  (path
+                                    (string-append
+                                      dir "/.m2/repository/"
+                                      groupPath "/" name "/" version "/"
+                                      name "-" version ".zip")))
+                            (mkdir-p (dirname path))
+                            (with-directory-excursion (string-append ,docbook-xsl "/xml/xsl/docbook-xsl-" version)
+                              (invoke "zip" "-0oyR"
+                                path
+                                "*")))
 
                           (setenv "CLASSPATH"
                             (string-append
