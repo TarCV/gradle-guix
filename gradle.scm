@@ -34,6 +34,7 @@
   #:use-module (gnu packages web)
   #:use-module (guix build utils)
   #:use-module (guix build-system ant)
+  #:use-module (guix build-system gnu)
   #:use-module (guix build-system maven))
 
 (define apache-ivy-2.0-beta2
@@ -601,6 +602,72 @@
 pegdown is nearly 100% compatible with the original Markdown specification and fully passes the original Markdown test suite.")
     (license license:asl2.0)))
 
+; TODO: (define js-jquery-1
+;  (package
+;    (name "js-jquery")
+;    (version "1.12.4")
+;    (source
+;      (origin
+;        (method url-fetch)
+;        (uri (string-append "https://github.com/jquery/jquery/archive/refs/tags/" version ".tar.gz"))
+;        (file-name (string-append "jquery-" version ".tar.gz"))
+;        (sha256 (base32 "0y2i2akkq2p956594q0cxn68rk1vr417z7zmijifqp44skg8najj"))
+;        (modules '((guix build utils)))
+;        (snippet '(begin
+;                    (delete-file-recursively "dist")
+;                    (delete-file-recursively "external")))))
+;    (build-system node-build-system)
+;    (home-page "https://jquery.com/")
+;    (synopsis "jQuery is a fast, small, and feature-rich JavaScript library")
+;    (description "jQuery makes things like HTML document traversal and manipulation, event handling, animation, and Ajax
+;     much simpler with an easy-to-use API that works across a multitude of browsers.")
+;    (license license:expat)))
+
+(define js-jquery-tiptip
+  (package
+    (name "js-jquery-tiptip")
+    (version "1.3")
+    (source
+      (origin
+        (method url-fetch)
+        (uri "https://github.com/drewwilson/TipTip/archive/f4d2b6c9c9503857ce56bbb354c012f72722724a.tar.gz")
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "1hra6v2pmkcq30v7lvjlkh3d8slcjnm9d6bgb0z2pw6daif4cm6p"))
+        (modules '((guix build utils)))
+        (snippet '(delete-file "jquery.tipTip.minified.js"))))
+    (native-inputs (list esbuild))
+    (build-system gnu-build-system)
+    (arguments
+      `(#:phases
+         (modify-phases %standard-phases
+           (delete 'check)
+           (delete 'configure)
+           (delete 'install)
+           (add-before 'build 'patch-header-to-be-preserved
+             (lambda _
+               (substitute* "jquery.tipTip.js"
+                 (("/\\*") "/*!"))))
+           (replace 'build
+             (lambda* (#:key inputs outputs #:allow-other-keys)
+               (let ((esbuild (string-append (assoc-ref inputs "esbuild")
+                                "/bin/esbuild"))
+                      (target (string-append (assoc-ref outputs "out")
+                                "/share/javascript/" ,name)))
+                 (invoke esbuild
+                   "--minify"
+                   "--target=chrome5,firefox3,ie8" ; Browser versions back in 2010
+                   (string-append "--outfile=" target "/jquery.tipTip.minified.js")
+                   "jquery.tipTip.js")))))))
+    (home-page "https://github.com/drewwilson/TipTip")
+    (synopsis "jQuery Plug-In for creating a custom tooltip to replace the default browser tooltip")
+    (description "This plug-in is extremely lightweight and very smart in
+that it detects the edges of the browser window and will make sure
+the tooltip stays within the current window size. As a result the
+tooltip will adjust itself to be displayed above, below, to the left 
+or to the right depending on what is necessary to stay within the
+browser window. It is completely customizable as well via CSS.")
+    (license (list license:expat license:gpl1+))))
+
 (define groovy-ant-patched
   (let ((original-groovy-ant (lookup-package-input groovy "groovy-ant")))
     (package
@@ -1084,4 +1151,5 @@ pegdown is nearly 100% compatible with the original Markdown specification and f
                   (delete 'generate-jar-indices))))))))
 
 ;gradle-bootstrap
-gradle
+;gradle
+js-jquery-tiptip
