@@ -400,12 +400,12 @@ TODO: Call asciidoctor directly
  useTestFixtures()
 --- a/settings.gradle
 +++ b/settings.gradle
-@@ -57,10 +57,7 @@
+@@ -57,10 +57,6 @@
  include("native")
  include("internalTesting")
  include("internalIntegTesting")
 -include("internalPerformanceTesting")
- include("internalAndroidPerformanceTesting")
+-include("internalAndroidPerformanceTesting")
 -include("performance")
 -include("buildScanPerformance")
  include("javascript")

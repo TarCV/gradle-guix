@@ -1,0 +1,10 @@
+--- a/buildSrc/build.gradle
++++ b/buildSrc/build.gradle
+@@ -53,6 +53,7 @@
+     compile("com.google.guava:guava-jdk5:14.0.1@jar")
+     compile("commons-lang:commons-lang:2.6@jar")
+     compile(localGroovy())
++    compile("antlr:antlr:2.7.7")
+ 
+     compile("org.pegdown:pegdown:1.6.0")
+     compile("org.jsoup:jsoup:1.6.3")

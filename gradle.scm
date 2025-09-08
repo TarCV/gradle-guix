@@ -22,6 +22,7 @@
   #:use-module (gnu packages)
   #:use-module (gnu packages base)
   #:use-module (gnu packages compression)
+  #:use-module (gnu packages cran)
   #:use-module (gnu packages docbook)
   #:use-module (gnu packages groovy)
   #:use-module (gnu packages java)
@@ -986,12 +987,13 @@ browser window. It is completely customizable as well via CSS.")
 
                          "patches/gradle-4.5.1-dekotlinize-build-files.patch"
                          "patches/gradle-4.5.1-local-repository.patch" "patches/gradle-4.5.1-no-remote-cache.patch"
-                         "patches/gradle-4.5.1-remove-complex-dependencies.patch"))))
+                         "patches/gradle-4.5.1-remove-complex-dependencies.patch"
+                         "patches/gradle-4.5.1-unshaded-groovy.patch"))))
     (native-inputs (list
                      java-jsoup java-pegdown zip))
     (arguments
-      `(#:modules ((guix build ant-build-system) (guix build utils) (ice-9 ftw) (srfi srfi-1) (ice-9 string-fun)
-                    (srfi srfi-26))
+      `(#:modules ((guix build ant-build-system) (guix build java-utils) (guix build utils) (ice-9 ftw) (srfi srfi-1)
+                    (ice-9 string-fun) (srfi srfi-26))
          ,@(substitute-keyword-arguments (package-arguments gradle-bootstrap)
              ((#:phases phases) ; TODO: verify gradle and gradle-wrapper hashes against well-known ones
                `(modify-phases %standard-phases
@@ -1022,8 +1024,10 @@ browser window. It is completely customizable as well via CSS.")
                       (substitute* (find-files "." "\\.gradle$")
                         ((" crossVersionTest[A-Za-z]+ " all) (string-append "// " all)) ; dependencies for tests depending on previous versions of Gradle
                         )))
+                  (add-before 'build 'generate-groovy-pom
+                    (generate-pom.xml "groovy-pom.xml" "org.codehaus.groovy" "groovy" ,(package-version groovy)))
                   (add-before 'build 'patch-versions
-                    (lambda _ ; TODO: add code to gradle/dependencies.gradle instead
+                    (lambda _ ; TODO: implement it in init.gradle instead and limit to the same major version
                       (substitute* "gradle/dependencies.gradle"
                         (("(com.google.guava:)guava-jdk5" _ prefix)
                           (string-append prefix "guava"))
@@ -1033,7 +1037,8 @@ browser window. It is completely customizable as well via CSS.")
 
                       (substitute* '("buildSrc/build.gradle"
                                       "subprojects/docs/docs.gradle"
-                                      "subprojects/docs/src/transforms/release-notes.gradle")
+                                      "subprojects/docs/src/transforms/release-notes.gradle"
+                                      "subprojects/reporting/reporting.gradle")
                         (("(com.google.guava:)guava-jdk5" _ prefix)
                           (string-append prefix "guava"))
                         (("(:)([0-9][0-9.]+)([:'@\"])" _ prefix main-version suffix)
@@ -1049,7 +1054,7 @@ browser window. It is completely customizable as well via CSS.")
                             (string-drop-right f 4)))
                         (find-files "." ".*\\.gradle\\.kts"))))
                   (replace 'build
-                    (lambda* (#:key inputs #:allow-other-keys)
+                    (lambda* (#:key inputs outputs #:allow-other-keys)
                       (let* ((dir (string-append (getenv "TMP") "/" (mkdtemp "build-home.XXXXXX")))
                               (m2-packages (filter
                                              (lambda (input)
@@ -1068,20 +1073,25 @@ browser window. It is completely customizable as well via CSS.")
 
                         (use-modules (ice-9 regex)) ; for string-match
                         (let* (
-                                (mavenize-package (lambda (pkg version group name path-to-jar) 
-                                                    (let* ((groupPath (string-replace-substring group "." "/"))
-                                                            (path 
+                                (mavenize-package (lambda (pkg version group name source-path)
+                                                    (let* ((source-extension-with-dot (string-drop
+                                                                                        source-path
+                                                                                        (string-rindex source-path #\.)))
+                                                            (groupPath (string-replace-substring group "." "/"))
+                                                            (path
                                                               (string-append
                                                                 dir "/.m2/repository/"
                                                                 groupPath "/" name "/" version "/"
-                                                                name "-" version ".jar")))
+                                                                name "-" version source-extension-with-dot)))
                                                       (mkdir-p (dirname path))
-                                                      (symlink (string-append pkg path-to-jar) path)
+                                                      (symlink (string-append pkg source-path) path)
                                                       path)))
 
                                 (groovyLocalMavenPath
                                   (mavenize-package ,groovy ,(package-version groovy)
                                     "org.codehaus.groovy" "groovy" "/lib/groovy.jar"))
+                                (antlrMavenPath (mavenize-package ,antlr2 ,(package-version antlr2)
+                                  "antlr" "antlr" "/lib/antlr.jar"))
                                 (asmMavenPath
                                   (mavenize-package ,java-asm-9 ,(package-version java-asm-9)
                                     "org.ow2.asm" "asm" "/share/java/asm9.jar"))
@@ -1089,10 +1099,12 @@ browser window. It is completely customizable as well via CSS.")
                                   (mavenize-package ,java-asm-commons-9 ,(package-version java-asm-commons-9)
                                     "org.ow2.asm" "asm-commons" "/share/java/asm-commons8.jar"))
 
-                                (classpathWithoutAsm
+                                (classpathWithoutAntlrAsm
                                   (string-join
                                     (filter
-                                      (lambda (path) (not (string-match ".*[^[:alpha:]]asm[^[:alpha:]].*" path)))
+                                      (lambda (path) (and
+                                                       (not (string-match ".*[^[:alpha:]]asm[^[:alpha:]].*" path))
+                                                       (not (string-match ".*/antlr\\.jar$" path))))
                                       (string-split (getenv "CLASSPATH") #\:))
                                     ":")))
 
@@ -1110,7 +1122,31 @@ browser window. It is completely customizable as well via CSS.")
                             "com.uwyn" "jhighlight" "/share/java/jhighlight.jar")
                           (mavenize-package ,java-jsoup ,(package-version java-jsoup)
                             "org.jsoup" "jsoup" "/share/java/jsoup.jar")
+                          (mavenize-package ,r-jquerylib "1.12.4" ; TODO: replace with a new js-jquery package
+                            "jquery" "jquery.min" "/site-library/jquerylib/lib/1.12.4/jquery-1.12.4.min.js")
 
+;                          (let ((pom (string-append (string-drop-right groovyLocalMavenPath 4) ".pom")))
+;                            (rename-file "groovy-pom.xml" pom)
+;                            (substitute* pom
+;                              (("<dependencies />")
+;                                (string-append
+;                                 "<dependencies><dependency>"
+;                                 "<groupId>antlr</groupId>"
+;                                 "<artifactId>antlr</artifactId>"
+;                                 "<version>" ,(package-version antlr2) "</version>"
+;                                 "</dependency></dependencies>"))))
+
+                          ; TODO: fix java-guava package instead
+                          (with-directory-excursion dir
+                            (mkdir-p "empty-dir")
+                            (with-directory-excursion "empty-dir"
+                              (invoke "zip" "-r"
+                                (string-append
+                                  dir
+                                  "/.m2/repository/com/google/guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar")
+                                "."
+                                "-i" "*")))
+                          
                           (let* ((version ,(package-version docbook-xsl))
                                   (name "docbook-xsl")
                                   (groupPath "docbook")
@@ -1128,8 +1164,9 @@ browser window. It is completely customizable as well via CSS.")
                           (setenv "CLASSPATH"
                             (string-append
                               asmMavenPath ":" asmCommonsMavenPath ; Only the correct version of ASM must be on the classpath
+                              ":" antlrMavenPath
                               ":" groovyLocalMavenPath ; Groovy version detection only accepts Maven-like file names, so add a mavenized copy to the beginning
-                              ":" classpathWithoutAsm
+                              ":" classpathWithoutAntlrAsm
                               ":" ,gradle-bootstrap "/share/java/gradle.jar"))
                           (setenv "HOME" dir)
                           (invoke
@@ -1137,19 +1174,14 @@ browser window. It is completely customizable as well via CSS.")
                             (string-append "-Duser.home=" dir)
                             "-Dorg.gradle.daemon=false"
                             "org.gradle.launcher.Main"
-;                            "--debug"
                             "--init-script" "init.gradle"
                             "--no-build-cache"
 ;                            "--offline"
-;                            "--stacktrace"
-                            ;                            "explodedDist"
+                            "--stacktrace"
+                            "install" (string-append "-Pgradle_installPath=" (assoc-ref outputs "out"))
                           )))))
-                  (replace 'install
-                    ,#~(lambda* (#:key outputs #:allow-other-keys)
-                           (copy-recursively "build/distributions/exploded" #$output)))
                   (delete 'reorder-jar-content)
                   (delete 'generate-jar-indices))))))))
 
 ;gradle-bootstrap
-;gradle
-js-jquery-tiptip
+gradle
