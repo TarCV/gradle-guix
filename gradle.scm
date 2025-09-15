@@ -1029,20 +1029,31 @@ browser window. It is completely customizable as well via CSS.")
                   (add-before 'build 'patch-versions
                     (lambda _ ; TODO: implement it in init.gradle instead and limit to the same major version
                       (substitute* "gradle/dependencies.gradle"
-                        (("(com.google.guava:)guava-jdk5" _ prefix)
-                          (string-append prefix "guava"))
-                        (("net.jcip:jcip-annotations") "com.google.code.findbugs:jsr305")
-                        (("([:'\"])([0-9][0-9.]+)([:'@\"])" _ prefix main-version suffix)
-                          (string-append prefix "[" main-version ",)" suffix)))
+                        (("(com.google.guava:)guava-jdk5:([0-9][0-9.]+)([:'@\"])" _ prefix version suffix)
+                          (string-append prefix "guava:[" version ",)" suffix))
+                        (("((org.ow2.asm:asm[^'\":]+|com.google.code.findbugs:jsr305):)([0-9]+[0-9.]*)([:'@\"])" _ prefix _ version suffix)
+                          (string-append prefix "[" version ",)" suffix))
+                        (("net.jcip:jcip-annotations:([0-9][0-9.]+)([:'@\"])" _ version suffix)
+                          (string-append "com.google.code.findbugs:jsr305:" version suffix))
+                        (("([:'\"])([0-9]+)([0-9.]*)([:'@\"])" _ prefix major-version rest-version suffix)
+                          (string-append prefix "["
+                            major-version rest-version ", "
+                            (number->string (1+ (string->number major-version))) ")"
+                            suffix)))
 
                       (substitute* '("buildSrc/build.gradle"
                                       "subprojects/docs/docs.gradle"
                                       "subprojects/docs/src/transforms/release-notes.gradle"
                                       "subprojects/reporting/reporting.gradle")
-                        (("(com.google.guava:)guava-jdk5" _ prefix)
-                          (string-append prefix "guava"))
-                        (("(:)([0-9][0-9.]+)([:'@\"])" _ prefix main-version suffix)
-                          (string-append prefix "[" main-version ",)" suffix)))))
+                        (("(com.google.guava:)guava-jdk5:([0-9][0-9.]+)([:'@\"])" _ prefix version suffix)
+                          (string-append prefix "guava:[" version ",)" suffix))
+                        (("((org.ow2.asm:asm[^'\":]+|com.google.code.findbugs:jsr305):)([0-9]+[0-9.]*)([:'@\"])" _ prefix _ version suffix)
+                          (string-append prefix "[" version ",)" suffix))
+                        (("(:)([0-9]+)([0-9.]*)([:'@\"])" _ prefix major-version rest-version suffix)
+                          (string-append prefix "["
+                            major-version rest-version ", "
+                            (number->string (1+ (string->number major-version))) ")"
+                            suffix)))))
 
                   ;; This phase ensures any .gradle.kts not in the dekotlinize patch fails the build
                   (add-before 'build 'rename-kts-build-files
