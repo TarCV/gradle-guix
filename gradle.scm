@@ -788,7 +788,8 @@ browser window. It is completely customizable as well via CSS.")
                     (add-after 'prepare-merged-sources 'unshade-imports
                       (lambda _
                         (substitute* (find-files "merged-src" ".*\\.(java|groovy)$")
-                          (("groovyjarjarasm\\.asm") "org.objectweb.asm")
+                          (("groovyjarjarasm") "org.objectweb") ; no dot at the end of the pattern as otherwise it would miss some package mentions
+                          (("groovyjarjarantlr") "antlr")
                           (("org\\.gradle\\.mvn3.") ""))))
 ;                    (add-after 'prepare-merged-sources 'update-asm
 ;                      (lambda _
@@ -1007,7 +1008,8 @@ browser window. It is completely customizable as well via CSS.")
                   (add-before 'build 'unshade-imports ; TODO: how to use the same lambda here and in the -bootstrap?
                     (lambda _
                       (substitute* (find-files "." ".*\\.(java|groovy)$")
-                        (("groovyjarjarantlr\\.") "antlr."))))
+                        (("groovyjarjarasm") "org.objectweb") ; no dot at the end of the pattern as otherwise it would miss some package mentions
+                        (("groovyjarjarantlr") "antlr"))))
 
                   ;; Remove online dependencies, dependency loops and other too complex dependencies
                   (add-before 'build 'remove-complex-dependencies
@@ -1066,7 +1068,7 @@ browser window. It is completely customizable as well via CSS.")
                         (find-files "." ".*\\.gradle\\.kts"))))
                   (replace 'build
                     (lambda* (#:key inputs outputs #:allow-other-keys)
-                      (let* ((dir (string-append (getenv "TMP") "/" (mkdtemp "build-home.XXXXXX")))
+                      (let* ((dir (string-append (getenv "TMP") "/build-home"))
                               (m2-packages (filter
                                              (lambda (input)
                                                (file-exists? (string-append (cdr input) "/lib/m2")))

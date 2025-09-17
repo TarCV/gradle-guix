@@ -83,14 +83,3 @@
      }
  
      private Set<Module> loadModules(Properties properties) {
---- a/subprojects/plugins/src/main/java/org/gradle/api/plugins/JavaPlugin.java
-+++ b/subprojects/plugins/src/main/java/org/gradle/api/plugins/JavaPlugin.java
-@@ -443,7 +443,7 @@
-             FileCollection gradleApi = project.getConfigurations().detachedConfiguration(project.getDependencies().gradleApi(), project.getDependencies().localGroovy());
-             Configuration runtimeElements = project.getConfigurations().getByName(mainSourceSet.getRuntimeElementsConfigurationName());
-             FileCollection mainSourceSetArtifact = runtimeElements.getOutgoing().getArtifacts().getFiles();
--            return mainSourceSetArtifact.plus(runtimeClasspath.minus(mainSourceSet.getOutput()).minus(gradleApi));
-+            return mainSourceSetArtifact.plus(runtimeClasspath.minus(mainSourceSet.getOutput()));
-         }
- 
-         public Configuration getCompileDependencies() {
