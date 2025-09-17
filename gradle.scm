@@ -1035,8 +1035,8 @@ browser window. It is completely customizable as well via CSS.")
                           (string-append prefix "guava:[" version ",)" suffix))
                         (("((org.ow2.asm:asm[^'\":]+|com.google.code.findbugs:jsr305):)([0-9]+[0-9.]*)([:'@\"])" _ prefix _ version suffix)
                           (string-append prefix "[" version ",)" suffix))
-                        (("net.jcip:jcip-annotations:([0-9][0-9.]+)([:'@\"])" _ version suffix)
-                          (string-append "com.google.code.findbugs:jsr305:" version suffix))
+                        (("net.jcip:jcip-annotations:([0-9][0-9.]+)([:'@\"])" _ _ suffix)
+                          (string-append "com.google.code.findbugs:jsr305:[3,)" suffix))
                         (("([:'\"])([0-9]+)([0-9.]*)([:'@\"])" _ prefix major-version rest-version suffix)
                           (string-append prefix "["
                             major-version rest-version ", "
@@ -1051,6 +1051,8 @@ browser window. It is completely customizable as well via CSS.")
                           (string-append prefix "guava:[" version ",)" suffix))
                         (("((org.ow2.asm:asm[^'\":]+|com.google.code.findbugs:jsr305):)([0-9]+[0-9.]*)([:'@\"])" _ prefix _ version suffix)
                           (string-append prefix "[" version ",)" suffix))
+                        (("net.jcip:jcip-annotations:([0-9][0-9.]+)([:'@\"])" _ _ suffix)
+                          (string-append "com.google.code.findbugs:jsr305:[3,)" suffix))
                         (("(:)([0-9]+)([0-9.]*)([:'@\"])" _ prefix major-version rest-version suffix)
                           (string-append prefix "["
                             major-version rest-version ", "
