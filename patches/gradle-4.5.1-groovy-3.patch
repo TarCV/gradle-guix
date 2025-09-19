@@ -1074,6 +1074,15 @@ diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
 index ffef7a139a4b9..92e1af6746f2c 100644
 --- a/gradle/dependencies.gradle
 +++ b/gradle/dependencies.gradle
+@@ -17,7 +17,7 @@
+ ext {
+     versions = [:]
+     libraries = [:]
+-    groovyVersion = '2.5.10'
++    groovyVersion = '3.0.4'
+ }
+ 
+ versions.gradle_kotlin_dsl = '[0.14.2, 1)'
 @@ -70,7 +70,17 @@
      guava: 'com.google.guava:guava-jdk5:17.0',
      kryo: 'com.esotericsoftware.kryo:kryo:2.20',

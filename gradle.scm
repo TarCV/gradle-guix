@@ -795,6 +795,11 @@ browser window. It is completely customizable as well via CSS.")
 ;                      (lambda _
 ;                        (substitute* (find-files "merged-src" ".*\\.(java|groovy)$")
 ;                          (("ASM6") "ASM8"))))
+                    (add-after 'prepare-merged-sources 'patch-jcip
+                      (lambda _
+                        (substitute* (find-files "merged-src" ".*\\.(java|groovy)$")
+                          (("import net\\.jcip\\.annotations\\.((Not)?ThreadSafe;)" _ name)
+                            (string-append "import javax.annotation.concurrent." name)))))
                     (add-after 'prepare-merged-sources 'patch-for-newer-guava
                       (lambda _
                         (substitute* (find-files "merged-src" ".*\\.(java|groovy)$")
@@ -813,8 +818,6 @@ browser window. It is completely customizable as well via CSS.")
                           (("</javac>" all) (string-append all "</groovyc>")))))
                     (add-before 'build 'remove-dependencies
                       (lambda _
-                        (substitute* (find-files "merged-src" ".*\\.java$")
-                          (("import net\\.jcip\\.annotations\\.(Not)?ThreadSafe;|@(Not)?ThreadSafe") ""))
                         (delete-file-recursively
                           "merged-src/src/main/java/org/gradle/internal/resource/transport/http/ntlm")
                         ;                        (delete-file-recursively
@@ -1010,7 +1013,11 @@ browser window. It is completely customizable as well via CSS.")
                       (substitute* (find-files "." ".*\\.(java|groovy)$")
                         (("groovyjarjarasm") "org.objectweb") ; no dot at the end of the pattern as otherwise it would miss some package mentions
                         (("groovyjarjarantlr") "antlr"))))
-
+                  (add-before 'build 'patch-jcip
+                    (lambda _
+                      (substitute* (find-files "." ".*\\.(java|groovy)$")
+                        (("import net\\.jcip\\.annotations\\.((Not)?ThreadSafe;)" _ name)
+                          (string-append "import javax.annotation.concurrent." name)))))
                   ;; Remove online dependencies, dependency loops and other too complex dependencies
                   (add-before 'build 'remove-complex-dependencies
                     (lambda _
@@ -1037,6 +1044,8 @@ browser window. It is completely customizable as well via CSS.")
                           (string-append prefix "[" version ",)" suffix))
                         (("net.jcip:jcip-annotations:([0-9][0-9.]+)([:'@\"])" _ _ suffix)
                           (string-append "com.google.code.findbugs:jsr305:[3,)" suffix))
+                        (("(org.fusesource.jansi:jansi:)([0-9][0-9.]+)([:'@\"])" _ prefix _ suffix) ; TODO update the package instead
+                          (string-append prefix "[1.16,2)" suffix))
                         (("([:'\"])([0-9]+)([0-9.]*)([:'@\"])" _ prefix major-version rest-version suffix)
                           (string-append prefix "["
                             major-version rest-version ", "
@@ -1128,28 +1137,22 @@ browser window. It is completely customizable as well via CSS.")
                                          "\\.pom$")
                             ((">[[:digit:].]+-android<") (string-append ">" ,(package-version java-guava) "-jre<")))
 
+                          ; TODO: fix the package instead?
                           (mavenize-package ,java-commons-lang ,(package-version java-commons-lang)
                             "commons-lang" "commons-lang"
                             (string-append "/share/java/commons-lang-" ,(package-version java-commons-lang) ".jar"))
+                          (mavenize-package ,java-kryo-2 ,(package-version java-kryo-2)
+                            "com.esotericsoftware.kryo" "kryo" "/share/java/kryo.jar")
                           (mavenize-package ,java-gson ,(package-version java-gson)
                             "com.google.code.gson" "gson" "/share/java/gson.jar")
                           (mavenize-package ,java-jhighlight ,(package-version java-jhighlight)
                             "com.uwyn" "jhighlight" "/share/java/jhighlight.jar")
+                          (mavenize-package ,java-native-platform-0.14 ,(package-version java-native-platform-0.14)
+                            "net.rubygrapefruit" "native-platform" "/share/java/native-platform.jar")
                           (mavenize-package ,java-jsoup ,(package-version java-jsoup)
                             "org.jsoup" "jsoup" "/share/java/jsoup.jar")
                           (mavenize-package ,r-jquerylib "1.12.4" ; TODO: replace with a new js-jquery package
                             "jquery" "jquery.min" "/site-library/jquerylib/lib/1.12.4/jquery-1.12.4.min.js")
-
-;                          (let ((pom (string-append (string-drop-right groovyLocalMavenPath 4) ".pom")))
-;                            (rename-file "groovy-pom.xml" pom)
-;                            (substitute* pom
-;                              (("<dependencies />")
-;                                (string-append
-;                                 "<dependencies><dependency>"
-;                                 "<groupId>antlr</groupId>"
-;                                 "<artifactId>antlr</artifactId>"
-;                                 "<version>" ,(package-version antlr2) "</version>"
-;                                 "</dependency></dependencies>"))))
 
                           ; TODO: fix java-guava package instead
                           (with-directory-excursion dir
