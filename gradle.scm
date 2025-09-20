@@ -1137,6 +1137,8 @@ browser window. It is completely customizable as well via CSS.")
                                          "\\.pom$")
                             ((">[[:digit:].]+-android<") (string-append ">" ,(package-version java-guava) "-jre<")))
 
+                          (mavenize-package ,ant ,(package-version ant)
+                            "org.apache.ant" "ant" "/lib/ant.jar")
                           ; TODO: fix the package instead?
                           (mavenize-package ,java-commons-lang ,(package-version java-commons-lang)
                             "commons-lang" "commons-lang"
@@ -1179,6 +1181,22 @@ browser window. It is completely customizable as well via CSS.")
                                 path
                                 "*")))
 
+                          (let* ((version "1.11")
+                                  (name "fusesource-pom")
+                                  (groupPath "org/fusesource")
+                                  (path
+                                    (string-append
+                                      dir "/.m2/repository/"
+                                      groupPath "/" name "/" version "/"
+                                      name "-" version ".pom")))
+                            (mkdir-p (dirname path))
+                            (symlink   ; TODO: fix java-jansi instead
+                              ,(origin
+                                 (method url-fetch)
+                                 (uri "https://github.com/fusesource/mvnplugins/raw/1009400af302fdea72ea234df9360aabe4921eb3/fusesource-pom/pom.xml")
+                                 (sha256 (base32 "1vnbj9gc9qgs73lvna9n102m41qk82flc7ccri2sd2j5ssj9r516")))
+                              path))
+
                           (setenv "CLASSPATH"
                             (string-append
                               asmMavenPath ":" asmCommonsMavenPath ; Only the correct version of ASM must be on the classpath
@@ -1196,6 +1214,7 @@ browser window. It is completely customizable as well via CSS.")
                             "--no-build-cache"
 ;                            "--offline"
                             "--stacktrace"
+                            "-x" "check"
                             "install" (string-append "-Pgradle_installPath=" (assoc-ref outputs "out"))
                           )))))
                   (delete 'reorder-jar-content)

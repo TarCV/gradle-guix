@@ -8,3 +8,13 @@
  
      compile("org.pegdown:pegdown:1.6.0")
      compile("org.jsoup:jsoup:1.6.3")
+--- a/subprojects/base-services-groovy/base-services-groovy.gradle
++++ b/subprojects/base-services-groovy/base-services-groovy.gradle
+@@ -21,6 +21,7 @@
+ 
+ dependencies {
+     api libraries.groovy
++    api libraries.asm
+     api project(":baseServices")
+ }
+ 

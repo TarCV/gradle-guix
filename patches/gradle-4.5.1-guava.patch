@@ -9,3 +9,13 @@
              return fileWatcher;
          } else {
              throw new IllegalStateException("file watcher is started");
+--- a/subprojects/base-services-groovy/src/main/java/org/gradle/groovy/scripts/internal/AstUtils.java
++++ b/subprojects/base-services-groovy/src/main/java/org/gradle/groovy/scripts/internal/AstUtils.java
+@@ -204,6 +204,7 @@
+             public boolean apply(ScriptBlock input) {
+                 return names.contains(input.getName());
+             }
++            public boolean test(ScriptBlock input) { return apply(input); }
+         });
+     }
+ 
