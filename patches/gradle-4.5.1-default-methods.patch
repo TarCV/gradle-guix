@@ -1,0 +1,23 @@
+Patch modules where dependencies require default interface methods language feature
+--- a/subprojects/base-services-groovy/base-services-groovy.gradle
++++ b/subprojects/base-services-groovy/base-services-groovy.gradle
+@@ -17,7 +17,7 @@
+     id 'java-library'
+ }
+ 
+-sourceCompatibility = javaVersion.java9Compatible ? 1.6 : 1.5
++sourceCompatibility = JavaVersion.VERSION_1_8
+ 
+ dependencies {
+     api libraries.groovy
+--- a/subprojects/model-core/model-core.gradle
++++ b/subprojects/model-core/model-core.gradle
+@@ -21,7 +21,7 @@
+     id 'java-library'
+ }
+ 
+-sourceCompatibility = javaVersion.java9Compatible ? 1.6 : 1.5
++sourceCompatibility = JavaVersion.VERSION_1_8
+ 
+ dependencies {
+     api project(':baseServices')

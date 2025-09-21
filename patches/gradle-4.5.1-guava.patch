@@ -9,13 +9,15 @@
              return fileWatcher;
          } else {
              throw new IllegalStateException("file watcher is started");
---- a/subprojects/base-services-groovy/src/main/java/org/gradle/groovy/scripts/internal/AstUtils.java
-+++ b/subprojects/base-services-groovy/src/main/java/org/gradle/groovy/scripts/internal/AstUtils.java
-@@ -204,6 +204,7 @@
-             public boolean apply(ScriptBlock input) {
-                 return names.contains(input.getName());
-             }
-+            public boolean test(ScriptBlock input) { return apply(input); }
-         });
+Avoid dependency on errorprone annotations
+--- a/gradle/strictCompile.gradle
++++ b/gradle/strictCompile.gradle
+@@ -17,7 +17,7 @@
+ allprojects {
+     ext.strictCompile = {
+         tasks.withType(AbstractCompile) {
+-            options.compilerArgs << "-Werror" << "-Xlint:all" << "-Xlint:-options" << "-Xlint:-serial"
++            options.compilerArgs << "-Werror" << "-Xlint:all" << "-Xlint:-classfile" << "-Xlint:-options" << "-Xlint:-serial"
+         }
      }
- 
+     ext.strictCompileIgnoreDeprecations = {

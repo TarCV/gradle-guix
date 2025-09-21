@@ -989,6 +989,7 @@ browser window. It is completely customizable as well via CSS.")
                          "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
                          "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"
 
+                         "patches/gradle-4.5.1-default-methods.patch"
                          "patches/gradle-4.5.1-dekotlinize-build-files.patch"
                          "patches/gradle-4.5.1-local-repository.patch" "patches/gradle-4.5.1-no-remote-cache.patch"
                          "patches/gradle-4.5.1-remove-complex-dependencies.patch"
@@ -1013,6 +1014,14 @@ browser window. It is completely customizable as well via CSS.")
                       (substitute* (find-files "." ".*\\.(java|groovy)$")
                         (("groovyjarjarasm") "org.objectweb") ; no dot at the end of the pattern as otherwise it would miss some package mentions
                         (("groovyjarjarantlr") "antlr"))))
+                  (add-before 'build 'patch-for-newer-guava
+                    (lambda _
+                      (substitute* (find-files "." ".*\\.(java|groovy)$")
+                        (("import static com.google.common.collect.Iterators.emptyIterator;")
+                          "import static java.util.Collections.emptyIterator;")
+                        (("CharMatcher.JAVA_ISO_CONTROL") "CharMatcher.javaIsoControl()")
+                        (("Iterators.emptyIterator\\(\\)") "java.util.Collections.emptyIterator()")
+                        (("Objects.toStringHelper") "com.google.common.base.MoreObjects.toStringHelper"))))
                   (add-before 'build 'patch-jcip
                     (lambda _
                       (substitute* (find-files "." ".*\\.(java|groovy)$")
@@ -1122,6 +1131,9 @@ browser window. It is completely customizable as well via CSS.")
                                 (asmCommonsMavenPath
                                   (mavenize-package ,java-asm-commons-9 ,(package-version java-asm-commons-9)
                                     "org.ow2.asm" "asm-commons" "/share/java/asm-commons8.jar"))
+                                (asmTreeMavenPath
+                                  (mavenize-package ,java-asm-tree-9 ,(package-version java-asm-tree-9)
+                                    "org.ow2.asm" "asm-tree" "/share/java/asm-tree.jar"))
 
                                 (classpathWithoutAntlrAsm
                                   (string-join
@@ -1140,6 +1152,9 @@ browser window. It is completely customizable as well via CSS.")
                           (mavenize-package ,ant ,(package-version ant)
                             "org.apache.ant" "ant" "/lib/ant.jar")
                           ; TODO: fix the package instead?
+                          (mavenize-package ,java-commons-collections ,(package-version java-commons-collections)
+                            "commons-collections" "commons-collections"
+                            (string-append "/share/java/commons-collections-" ,(package-version java-commons-collections) ".jar"))
                           (mavenize-package ,java-commons-lang ,(package-version java-commons-lang)
                             "commons-lang" "commons-lang"
                             (string-append "/share/java/commons-lang-" ,(package-version java-commons-lang) ".jar"))
@@ -1199,7 +1214,7 @@ browser window. It is completely customizable as well via CSS.")
 
                           (setenv "CLASSPATH"
                             (string-append
-                              asmMavenPath ":" asmCommonsMavenPath ; Only the correct version of ASM must be on the classpath
+                              asmMavenPath ":" asmCommonsMavenPath ":" asmTreeMavenPath ; Only the correct version of ASM must be on the classpath
                               ":" antlrMavenPath
                               ":" groovyLocalMavenPath ; Groovy version detection only accepts Maven-like file names, so add a mavenized copy to the beginning
                               ":" classpathWithoutAntlrAsm
