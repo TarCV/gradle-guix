@@ -430,6 +430,26 @@
       that you can easily identify the difference between your RIFE markup and the actual marked up source.")
     (license (list license:cddl1.0 license:lgpl2.1+))))
 
+(define java-jcl-over-slf4j
+  (package
+    (inherit java-slf4j-api)
+    (name "java-jcl-over-slf4j")
+    (build-system ant-build-system)
+    (propagated-inputs (list java-slf4j-api))
+    (native-inputs (list java-junit java-commons-logging-minimal java-slf4j-jdk14))
+    (arguments
+      `(#:jar-name "jcl-over-slf4j.jar"
+         #:source-dir "jcl-over-slf4j/src/main"
+         #:test-dir  "jcl-over-slf4j/src/test"
+         #:phases ,#~(modify-phases %standard-phases
+                       (add-after 'build 'copy-resources
+                         (lambda _
+                           (copy-recursively "jcl-over-slf4j/src/main/resources" "build/classes")))
+                       (replace 'install
+                         (install-from-pom "jcl-over-slf4j/pom.xml")))))
+    (synopsis "JCL 1.2 implemented over SLF4J")
+    (license license:asl2.0)))
+
 (define java-jul-to-slf4j
   (package
     (inherit java-slf4j-api)
@@ -448,6 +468,51 @@
                            (install-from-pom "jul-to-slf4j/pom.xml")))))
     (home-page "https://www.slf4j.org/legacy.html")
     (synopsis "java.util.logging to Simple logging facade for Java bridge")))
+
+(define java-log4j-over-slf4j
+  (package
+    (inherit java-slf4j-api)
+    (name "java-log4j-over-slf4j")
+    (build-system ant-build-system)
+    (propagated-inputs (list java-slf4j-api))
+    (native-inputs (list java-junit java-log4j-api java-slf4j-jdk14))
+    (arguments
+      `(#:jar-name "log4j-over-slf4j.jar"
+         #:source-dir "log4j-over-slf4j/src/main"
+         #:test-dir  "log4j-over-slf4j/src/test"
+         #:phases ,#~(modify-phases %standard-phases
+                         (add-after 'build 'copy-resources
+                           (lambda _
+                             (copy-recursively "log4j-over-slf4j/src/main/resources" "build/classes")))
+                         (replace 'install
+                           (install-from-pom "log4j-over-slf4j/pom.xml")))))
+    (home-page "http://www..slf4j.org/log4j-over-slf4j.html")
+    (synopsis "Log4j Implemented Over SLF4J")))
+
+(define java-slf4j-jdk14
+  (package
+    (inherit java-slf4j-api)
+    (name "java-slf4j-jdk14")
+    (build-system ant-build-system)
+    (propagated-inputs (list java-slf4j-api))
+    (native-inputs (list java-junit))
+    (arguments
+      `(#:jar-name "slf4j-jdk14.jar"
+         #:source-dir "slf4j-jdk14/src/main"
+         #:test-dir  "slf4j-jdk14/src/test"
+         #:tests? #f ; TODO
+         #:phases ,#~(modify-phases %standard-phases
+                       (add-after 'build 'copy-resources
+                         (lambda _
+                           (copy-recursively "slf4j-jdk14/src/main/resources" "build/classes")))
+                       (add-before 'check 'copy-helpers
+                         (lambda _
+                           (copy-recursively "slf4j-api/src/test/java" "slf4j-jdk14/src/test/java")))
+                       (replace 'install
+                         (install-from-pom "slf4j-jdk14/pom.xml")))))
+    (home-page "https://www.slf4j.org/api/org/slf4j/jul/JDK14LoggerAdapter.html")
+    (synopsis "Binding/provider for java.util.logging, also referred to as JDK 1.4 logging")
+    (license license:expat)))
 
 (define java-native-platform-0.14
   (package
@@ -983,7 +1048,7 @@ browser window. It is completely customizable as well via CSS.")
     (source (origin
               (inherit (package-source gradle-bootstrap))
               (patches '("patches/gradle-4.5.1-asm.patch"
-                         "patches/gradle-4.5.1-groovy-2.4.patch" "patches/gradle-4.5.1-groovy-2.5-1.patch"
+                         "patches/gradle-4.5.1-groovy-2.4.patch" "patches/gradle-4.5.1-groovy-2.5-1.patch" ; TODO: replace these sets having redundant patches with just diffs, and then compare with originals
                          "patches/gradle-4.5.1-groovy-2.5-2.patch" "patches/gradle-4.5.1-groovy-2.5-3.patch"
                          "patches/gradle-4.5.1-groovy-2.5-4.patch" "patches/gradle-4.5.1-groovy-3.patch"
                          "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
@@ -995,7 +1060,7 @@ browser window. It is completely customizable as well via CSS.")
                          "patches/gradle-4.5.1-remove-complex-dependencies.patch"
                          "patches/gradle-4.5.1-unshaded-groovy.patch"))))
     (native-inputs (list
-                     java-jsoup java-pegdown zip))
+                     java-jsoup java-jcl-over-slf4j java-log4j-over-slf4j java-pegdown zip))
     (arguments
       `(#:modules ((guix build ant-build-system) (guix build java-utils) (guix build utils) (ice-9 ftw) (srfi srfi-1)
                     (ice-9 string-fun) (srfi srfi-26))
@@ -1149,9 +1214,15 @@ browser window. It is completely customizable as well via CSS.")
                                          "\\.pom$")
                             ((">[[:digit:].]+-android<") (string-append ">" ,(package-version java-guava) "-jre<")))
 
+                          ; TODO: fix the packages instead?
                           (mavenize-package ,ant ,(package-version ant)
                             "org.apache.ant" "ant" "/lib/ant.jar")
-                          ; TODO: fix the package instead?
+                          (for-each
+                            (lambda (suffix)
+                              (mavenize-package ,groovy ,(package-version groovy)
+                                "org.codehaus.groovy"
+                                (string-append "groovy-" suffix) (string-append "/lib/groovy-" suffix ".jar")))
+                            (list "ant" "datetime" "dateutil" "groovydoc" "json" "templates" "xml"))
                           (mavenize-package ,java-commons-collections ,(package-version java-commons-collections)
                             "commons-collections" "commons-collections"
                             (string-append "/share/java/commons-collections-" ,(package-version java-commons-collections) ".jar"))
@@ -1168,6 +1239,9 @@ browser window. It is completely customizable as well via CSS.")
                             "net.rubygrapefruit" "native-platform" "/share/java/native-platform.jar")
                           (mavenize-package ,java-jsoup ,(package-version java-jsoup)
                             "org.jsoup" "jsoup" "/share/java/jsoup.jar")
+                          (mavenize-package ,java-jaxp ,(package-version java-jaxp)
+                            "xml-apis" "xml-apis" "/share/java/jaxp.jar")
+
                           (mavenize-package ,r-jquerylib "1.12.4" ; TODO: replace with a new js-jquery package
                             "jquery" "jquery.min" "/site-library/jquerylib/lib/1.12.4/jquery-1.12.4.min.js")
 

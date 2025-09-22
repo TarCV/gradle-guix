@@ -21,3 +21,25 @@ Patch modules where dependencies require default interface methods language feat
  
  dependencies {
      api project(':baseServices')
+--- a/subprojects/model-groovy/model-groovy.gradle
++++ b/subprojects/model-groovy/model-groovy.gradle
+@@ -22,7 +22,7 @@
+     id 'java-library'
+ }
+ 
+-sourceCompatibility = javaVersion.java9Compatible ? 1.6 : 1.5
++sourceCompatibility = JavaVersion.VERSION_1_8
+ 
+ dependencies {
+     api project(':baseServices')
+--- a/subprojects/core/core.gradle
++++ b/subprojects/core/core.gradle
+@@ -18,7 +18,7 @@
+ }
+ apply from: "$rootDir/gradle/taskProperties.gradle"
+ 
+-sourceCompatibility = javaVersion.java9Compatible ? 1.6 : 1.5
++sourceCompatibility = JavaVersion.VERSION_1_8
+ 
+ configurations {
+     reports

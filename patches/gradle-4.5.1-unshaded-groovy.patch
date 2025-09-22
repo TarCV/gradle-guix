@@ -18,3 +18,14 @@
      api project(":baseServices")
  }
  
+--- a/gradle/dependencies.gradle
++++ b/gradle/dependencies.gradle
+@@ -368,8 +368,6 @@
+                 details.useTarget(libraries.asm_commons)
+             } else if (details.requested.name == 'asm-tree') {
+                 details.useTarget(libraries.asm_tree)
+-            } else if (details.requested.group == 'org.codehaus.groovy') {
+-                details.useTarget(libraries.groovy)
+             } else if (details.requested.group == 'cglib') {
+                 details.useTarget(libraries.cglib)
+             } else if (details.requested.group == 'org.apache.ivy') {

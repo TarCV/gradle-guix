@@ -87,6 +87,29 @@ index f80e49be3bac1..1338c550e99c9 100644
      }
      testCompile("cglib:cglib-nodep:3.2.5")
 
+diff --git a/build-logic/dependency-modules/src/main/kotlin/gradlebuild/modules/extension/ExternalModulesExtension.kt b/build-logic/dependency-modules/src/main/kotlin/gradlebuild/modules/extension/ExternalModulesExtension.kt
+index ff1e7d1d650d8..e87c8954672dd 100644
+--- a/gradle/dependencies.gradle
++++ b/gradle/dependencies.gradle
+@@ -70,7 +70,16 @@
+     guava: 'com.google.guava:guava-jdk5:17.0',
+     kryo: 'com.esotericsoftware.kryo:kryo:2.20',
+     jsr305: 'com.google.code.findbugs:jsr305:1.3.9',
+-    groovy: "org.codehaus.groovy:groovy-all:${versions.groovy}",
++    groovy: "org.codehaus.groovy:groovy:${versions.groovy}",
++    groovyAnt: "org.codehaus.groovy:groovy-ant:${versions.groovy}",
++    groovyDoc: "org.codehaus.groovy:groovy-groovydoc:${versions.groovy}",
++    groovyDatetime: "org.codehaus.groovy:groovy-datetime:${versions.groovy}",
++    groovyDateUtil: "org.codehaus.groovy:groovy-dateutil:${versions.groovy}",
++    groovyTest: "org.codehaus.groovy:groovy-test:${versions.groovy}",
++    groovyJson: "org.codehaus.groovy:groovy-json:${versions.groovy}",
++    groovyTemplates: "org.codehaus.groovy:groovy-templates:${versions.groovy}",
++    groovyXml: "org.codehaus.groovy:groovy-xml:${versions.groovy}",
++    javaParser: 'com.github.javaparser:javaparser-core:3.17.0',
+     jaxen: 'jaxen:jaxen:1.1',
+     jcip: "net.jcip:jcip-annotations:1.0",
+     junit: 'junit:junit:4.12',
+
 From 6e75b0b40de7204b87d0ee7af73112dde6f502d7 Mon Sep 17 00:00:00 2001
 From: Benjamin Muskalla <bmuskalla@gradle.com>
 Date: Wed, 17 Feb 2021 15:44:05 +0100
@@ -316,6 +339,19 @@ Subject: [PATCH 16/68] Upgrade 'core-api' to Groovy 3
  subprojects/core-api/src/main/java/org/gradle/util/AntUtil.java | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
 
+diff --git a/subprojects/core-api/build.gradle.kts b/subprojects/core-api/build.gradle.kts
+index 8151f50f50bd8..1b9d1feb1c8aa 100644
+--- a/subprojects/core-api/core-api.gradle
++++ b/subprojects/core-api/core-api.gradle
+@@ -11,6 +11,8 @@ dependencies {
+     api project(":processServices")
+     api project(":resources")
+ 
++    implementation libraries.groovy
++    implementation libraries.groovyAnt
+     implementation libraries.ant
+     implementation libraries.commons_io
+     implementation libraries.commons_lang
 diff --git a/subprojects/core-api/src/main/java/org/gradle/util/AntUtil.java b/subprojects/core-api/src/main/java/org/gradle/util/AntUtil.java
 index b6e24863ddc4a..524a8f0f3f976 100644
 --- a/subprojects/core-api/src/main/java/org/gradle/util/AntUtil.java
@@ -727,7 +763,7 @@ diff --git a/subprojects/core/core.gradle b/subprojects/core/core.gradle
 index cb835adcc641e..2802e6184dafa 100755
 --- a/subprojects/core/core.gradle
 +++ b/subprojects/core/core.gradle
-@@ -41,6 +41,13 @@ dependencies {
+@@ -41,6 +41,12 @@ dependencies {
      api project(":jvmServices")
      api project(":modelCore")
      api libraries.groovy
@@ -736,19 +772,18 @@ index cb835adcc641e..2802e6184dafa 100755
 +    api libraries.groovyJson
 +    api libraries.groovyDoc
 +    api libraries.groovyTemplates
-+    api libraries.groovyTest
 +    api libraries.groovyXml
      api libraries.ant
      api libraries.guava
      api libraries.inject
-@@ -52,6 +59,7 @@ dependencies {
-     implementation libraries.nativePlatform
-     implementation libraries.commons_compress
-     implementation libraries.xmlApis
-+    implementation(libraries.javaParser) // because the Groovy compiler inspects the dependencies at compile time
+@@ -73,6 +79,7 @@ dependencies {
  
-     runtimeOnly project(":docs")
+     testFixturesImplementation project(":internalTesting")
+     testFixturesImplementation libraries.ivy
++    testFixturesImplementation libraries.groovyAnt
  
+     testFixturesRuntime project(':workers')
+     testFixturesRuntime project(':dependencyManagement')
 diff --git a/subprojects/core/src/integTest/groovy/org/gradle/api/ApplyPluginIntegSpec.groovy b/subprojects/core/src/integTest/groovy/org/gradle/api/ApplyPluginIntegSpec.groovy
 index 44dfa203d199f..3113a899dd893 100644
 --- a/subprojects/core/src/integTest/groovy/org/gradle/api/ApplyPluginIntegSpec.groovy
@@ -1083,25 +1118,6 @@ index ffef7a139a4b9..92e1af6746f2c 100644
  }
  
  versions.gradle_kotlin_dsl = '[0.14.2, 1)'
-@@ -70,7 +70,17 @@
-     guava: 'com.google.guava:guava-jdk5:17.0',
-     kryo: 'com.esotericsoftware.kryo:kryo:2.20',
-     jsr305: 'com.google.code.findbugs:jsr305:1.3.9',
--    groovy: "org.codehaus.groovy:groovy-all:${versions.groovy}",
-+    groovy: "org.codehaus.groovy:groovy:${versions.groovy}",
-+    groovyAnt: "org.codehaus.groovy:groovy-ant:${versions.groovy}",
-+    groovyDatetime: "org.codehaus.groovy:groovy-datetime:${versions.groovy}",
-+    groovyDateUtil: "org.codehaus.groovy:groovy-dateutil:${versions.groovy}",
-+    groovyDoc: "org.codehaus.groovy:groovy-groovydoc:${versions.groovy}",
-+    groovyTest: "org.codehaus.groovy:groovy-test:${versions.groovy}",
-+    groovyJson: "org.codehaus.groovy:groovy-json:${versions.groovy}",
-+    groovyTemplates: "org.codehaus.groovy:groovy-templates:${versions.groovy}",
-+    groovyTest: "org.codehaus.groovy:groovy-test:${versions.groovy}",
-+    groovyXml: "org.codehaus.groovy:groovy-xml:${versions.groovy}",
-+    javaParser: 'com.github.javaparser:javaparser-core:3.17.0',
-     jaxen: 'jaxen:jaxen:1.1',
-     jcip: "net.jcip:jcip-annotations:1.0",
-     junit: 'junit:junit:4.12',
 @@ -96,7 +96,8 @@
  libraries.maven3 = "org.apache.maven:maven-core:${versions.maven}"
  
