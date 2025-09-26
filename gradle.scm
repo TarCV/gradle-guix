@@ -36,7 +36,8 @@
   #:use-module (guix build utils)
   #:use-module (guix build-system ant)
   #:use-module (guix build-system gnu)
-  #:use-module (guix build-system maven))
+  #:use-module (guix build-system maven)
+  #:use-module (guix git-download))
 
 (define apache-ivy-2.0-beta2
   (package
@@ -389,6 +390,7 @@
                     #t))))
     (build-system ant-build-system)
     (native-inputs (list java-junit))
+    (propagated-inputs (list java-sonatype-oss-parent-pom-5))
     (arguments
       `(#:jar-name "jatl.jar"
          #:phases ,#~(modify-phases %standard-phases
@@ -401,6 +403,40 @@
     (synopsis "JATL: Java Anti-Template Language")
     (description "JATL is an extremely lightweight efficient Java library that generates XHTML or XML by using an a elegant fluent styled micro DSL.")
     (license (list license:asl2.0))))
+
+(define java-jcifs
+  (package
+    (name "java-jcifs")
+    (version "1.3.19")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://www.jcifs.org/src/jcifs-" version ".tgz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "19kzac3c19j0fyssibcj47868k8079wlj9azgsd7i6yqmdgqyk3y"))
+        (patches '("patches/jcifs-1.3.19-fix-compile-target.patch"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(gz|jar|tar|tgz|zip)$"))
+                    #t))))
+    (build-system ant-build-system)
+    (native-inputs (list java-javaee-servletapi))
+    (arguments
+      `(#:tests? #f ; no tests in the package
+        #:phases (modify-phases %standard-phases
+                   (add-before 'build 'generate-pom
+                     (generate-pom.xml "pom.xml" "jcifs" "jcifs" ,version))
+                   (replace 'install
+                     (install-from-pom "pom.xml")))))
+    (home-page "https://www.jcifs.org/")
+    (synopsis "A client library that implements the CIFS/SMB networking protocol in 100% Java.
+     CIFS is the standard file sharing protocol on the Microsoft Windows platform (e.g. Map Network Drive ...).")
+    (description "Beware, JCIFS has been in maintenance-mode-only for several years and although what it does support
+     works fine (SMB1, NTLMv2, midlc, MSRPC and various utility classes), jCIFS does not support the newer SMB2/3
+     variants of the SMB protocol which is becoming required in newer systems. And SMB1 has been deprecated in some
+     of them. So if SMB1 is disabled on your network, JCIFS' file related operations will NOT work.")
+    (license license:lgpl2.1+)))
 
 (define java-jhighlight
   (package
@@ -513,6 +549,20 @@
     (home-page "https://www.slf4j.org/api/org/slf4j/jul/JDK14LoggerAdapter.html")
     (synopsis "Binding/provider for java.util.logging, also referred to as JDK 1.4 logging")
     (license license:expat)))
+
+(define java-sonatype-oss-parent-pom-5
+  (hidden-package
+    (package
+      (inherit java-sonatype-oss-parent-pom-7)
+      (version "5")
+      (source (origin
+                (method git-fetch)
+                (uri (git-reference
+                       (url "https://github.com/sonatype/oss-parents")
+                       (commit (string-append "oss-parent-" version))))
+                (sha256
+                  (base32
+                    "1zr506sfkhb9nxkzqsmdii6yy7fiw1rwd06zaclxxxyqlzlv6q17")))))))
 
 (define java-native-platform-0.14
   (package
@@ -1056,11 +1106,13 @@ browser window. It is completely customizable as well via CSS.")
 
                          "patches/gradle-4.5.1-default-methods.patch"
                          "patches/gradle-4.5.1-dekotlinize-build-files.patch"
+                         "patches/gradle-4.5.1-jcifs-new-coordinates.patch"
                          "patches/gradle-4.5.1-local-repository.patch" "patches/gradle-4.5.1-no-remote-cache.patch"
                          "patches/gradle-4.5.1-remove-complex-dependencies.patch"
                          "patches/gradle-4.5.1-unshaded-groovy.patch"))))
     (native-inputs (list
-                     java-jsoup java-jcl-over-slf4j java-log4j-over-slf4j java-pegdown zip))
+                     java-commons-codec java-jsoup java-jcl-over-slf4j java-log4j-over-slf4j java-jcifs
+                     java-pegdown zip java-sonatype-oss-parent-pom-5))
     (arguments
       `(#:modules ((guix build ant-build-system) (guix build java-utils) (guix build utils) (ice-9 ftw) (srfi srfi-1)
                     (ice-9 string-fun) (srfi srfi-26))
@@ -1120,7 +1172,7 @@ browser window. It is completely customizable as well via CSS.")
                           (string-append "com.google.code.findbugs:jsr305:[3,)" suffix))
                         (("(org.fusesource.jansi:jansi:)([0-9][0-9.]+)([:'@\"])" _ prefix _ suffix) ; TODO update the package instead
                           (string-append prefix "[1.16,2)" suffix))
-                        (("([:'\"])([0-9]+)([0-9.]*)([:'@\"])" _ prefix major-version rest-version suffix)
+                        (("([:'\"])([0-9]+)([0-9a-z.-]*)([:'@\"])" _ prefix major-version rest-version suffix)
                           (string-append prefix "["
                             major-version rest-version ", "
                             (number->string (1+ (string->number major-version))) ")"
@@ -1154,12 +1206,13 @@ browser window. It is completely customizable as well via CSS.")
                   (replace 'build
                     (lambda* (#:key inputs outputs #:allow-other-keys)
                       (let* ((dir (string-append (getenv "TMP") "/build-home"))
+                              (roots (map cdr inputs))
                               (m2-packages (filter
                                              (lambda (input)
-                                               (file-exists? (string-append (cdr input) "/lib/m2")))
-                                             inputs))
+                                               (file-exists? (string-append input "/lib/m2")))
+                                             roots))
                               (m2-roots (map
-                                          (lambda (input) (string-append (cdr input) "/lib/m2"))
+                                          (lambda (input) (string-append input "/lib/m2"))
                                           m2-packages)))
                         (mkdir-p (string-append dir "/.m2/repository"))
                         (for-each
@@ -1233,14 +1286,22 @@ browser window. It is completely customizable as well via CSS.")
                             "com.esotericsoftware.kryo" "kryo" "/share/java/kryo.jar")
                           (mavenize-package ,java-gson ,(package-version java-gson)
                             "com.google.code.gson" "gson" "/share/java/gson.jar")
+                          (mavenize-package ,java-jsch ,(package-version java-jsch)
+                            "com.jcraft" "jsch" (string-append "/share/java/jsch-" ,(package-version java-jsch) ".jar"))
                           (mavenize-package ,java-jhighlight ,(package-version java-jhighlight)
                             "com.uwyn" "jhighlight" "/share/java/jhighlight.jar")
                           (mavenize-package ,java-native-platform-0.14 ,(package-version java-native-platform-0.14)
                             "net.rubygrapefruit" "native-platform" "/share/java/native-platform.jar")
+                          (mavenize-package ,java-httpcomponents-httpclient ,(package-version java-httpcomponents-httpclient)
+                            "org.apache.httpcomponents" "httpclient" "/share/java/httpcomponents-httpclient.jar")
                           (mavenize-package ,java-jsoup ,(package-version java-jsoup)
                             "org.jsoup" "jsoup" "/share/java/jsoup.jar")
+                          (mavenize-package ,java-jgit ,(package-version java-jgit)
+                            "org.eclipse.jgit" "org.eclipse.jgit" "/share/java/jgit.jar")
                           (mavenize-package ,java-jaxp ,(package-version java-jaxp)
                             "xml-apis" "xml-apis" "/share/java/jaxp.jar")
+                          (mavenize-package ,java-xerces ,(package-version java-xerces)
+                            "xerces" "xercesImpl" "/share/java/xercesImpl.jar")
 
                           (mavenize-package ,r-jquerylib "1.12.4" ; TODO: replace with a new js-jquery package
                             "jquery" "jquery.min" "/site-library/jquerylib/lib/1.12.4/jquery-1.12.4.min.js")
@@ -1302,7 +1363,7 @@ browser window. It is completely customizable as well via CSS.")
                             "--init-script" "init.gradle"
                             "--no-build-cache"
 ;                            "--offline"
-                            "--stacktrace"
+;                            "--stacktrace"
                             "-x" "check"
                             "install" (string-append "-Pgradle_installPath=" (assoc-ref outputs "out"))
                           )))))

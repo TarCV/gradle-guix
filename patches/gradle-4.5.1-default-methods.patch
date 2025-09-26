@@ -43,3 +43,14 @@ Patch modules where dependencies require default interface methods language feat
  
  configurations {
      reports
+--- a/subprojects/reporting/reporting.gradle
++++ b/subprojects/reporting/reporting.gradle
+@@ -2,7 +2,7 @@
+     id 'javascript-base'
+ }
+ 
+-sourceCompatibility = 1.6
++sourceCompatibility = JavaVersion.VERSION_1_8
+ 
+ configurations {
+     reports
