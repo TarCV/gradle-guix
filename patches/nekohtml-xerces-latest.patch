@@ -1,0 +1,32 @@
+--- a/build.xml
++++ b/build.xml
+@@ -103,13 +103,7 @@
+ 		unless="compile.skip">
+ 	<mkdir dir="${build.classes.dir}"/>
+ 	
+-	<compileWith xercesVersion="2.0.2" bridge="2_0"/>
+-	<compileWith xercesVersion="2.1.0" bridge="2_1"/>
+-	<compileWith xercesVersion="2.2.1" bridge="2_2"/>
+-	<compileWith xercesVersion="2.3.0" bridge="2_3"/>
+-	<compileWith xercesVersion="2.8.1" bridge="2_3"/>
+-	<compileWith xercesVersion="2.9.1" bridge="2_3"/>
+-	<compileWith xercesVersion="2.10.0" bridge="2_3"/>
++	<compileWith xercesVersion="latest" bridge="2_3"/>
+ 
+ 	<copy todir="${build.classes.dir}">
+ 		<fileset dir='${src.dir}' includes='**' excludes='META-INF/**, **/*.java*' />
+@@ -308,13 +302,7 @@
+ 		<delete dir="${build.dir}/junit"/>
+ 		<mkdir dir="${build.dir}/junit"/>
+ 
+-		<testWith xercesVersion="2.11.0"/>
+-		<testWith xercesVersion="2.10.0"/>
+-		<testWith xercesVersion="2.9.1"/>
+-		<testWith xercesVersion="2.8.1"/>
+-		<testWith xercesVersion="2.3.0"/>
+-		<testWith xercesVersion="2.2.1"/>
+-		<testWith xercesVersion="minimal"/>
++		<testWith xercesVersion="latest"/>
+ 		<!--
+ 		<testWith xercesVersion="2.1.0"/>
+ 		<testWith xercesVersion="2.0.2"/>

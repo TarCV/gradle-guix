@@ -37,7 +37,8 @@
   #:use-module (guix build-system ant)
   #:use-module (guix build-system gnu)
   #:use-module (guix build-system maven)
-  #:use-module (guix git-download))
+  #:use-module (guix git-download)
+  #:use-module (guix svn-download))
 
 (define apache-ivy-2.0-beta2
   (package
@@ -441,10 +442,10 @@
 (define java-jhighlight
   (package
     (name "java-jhighlight")
-    (version "1.1.0") ; TODO: compare with uwyn jhighlight
+    (version "1.1.0")
     (source
       (origin
-        (method url-fetch)
+        (method url-fetch) ; TODO: replace with SVN checkout from SF
         (uri (string-append "https://github.com/codelibs/jhighlight/archive/refs/tags/jhighlight-" version ".tar.gz"))
         (file-name (string-append name "-" version ".tar.gz"))
         (sha256 (base32 "1p0pavvkmrmaljk89aadq9a861dvssiv9iv4gzklgbwxmgf15r19"))
@@ -609,6 +610,49 @@
     (synopsis "Native-platform: Java bindings for various native APIs")
     (description
       "A collection of cross-platform Java APIs for various native APIs. Supports OS X, Linux, Solaris and Windows. These APIs support Java 5 and later. Some of these APIs overlap with APIs available in later Java versions.")
+    (license license:asl2.0)))
+
+(define java-nekohtml
+  (package
+    (name "java-nekohtml")
+    (version "1.9.22")
+    (source
+      (origin
+        (method svn-fetch)
+        (uri (svn-reference
+               (url "https://svn.code.sf.net/p/nekohtml/code/trunk/")
+               (revision 349)))
+        (file-name (git-file-name name version))
+        (sha256
+          (base32 "1gj1s0bbzsvnl3lwbhd706fi1i9l48aar9xnb7mw3v8w0nyan3j6"))
+        (patches '("patches/nekohtml-fix-tests.patch" "patches/nekohtml-xerces-latest.patch"))
+        (modules '((guix build utils)))
+        (snippet '(delete-file-recursively "lib"))))
+    (build-system ant-build-system)
+    (native-inputs (list java-junit java-jaxp))
+    (propagated-inputs (list java-xerces))
+    (arguments
+      `(#:test-target "test"
+        #:phases (modify-phases %standard-phases
+                      (add-before 'build 'provide-xerces
+                        (lambda _
+                          (install-file
+                            (string-append ,java-xerces  "/share/java/xercesImpl.jar")
+                            "lib/xerces-latest")))
+                      (add-before 'install 'remove-extra-jars
+                        (lambda _
+                          (delete-file "build/lib/nekohtmlSamples.jar")
+                          (delete-file-recursively "lib")))
+                      (replace 'install (install-from-pom "pom.xml")))))
+    (home-page "https://nekohtml.sourceforge.net/")
+    (synopsis "A simple HTML scanner and tag balancer that enables application programmers to parse HTML documents and
+     access the information using standard XML interfaces.")
+    (description
+      "The parser can scan HTML files and \"fix up\" many common mistakes that human (and computer) authors make in
+       writing HTML documents. NekoHTML adds missing parent elements; automatically closes elements with optional end
+       tags; and can handle mismatched inline element tags. NekoHTML is written using the Xerces Native Interface (XNI)
+       that is the foundation of the Xerces2 implementation. This enables you to use the NekoHTML parser with existing
+       XNI tools without modification or rewriting code.")
     (license license:asl2.0)))
 
 (define java-parboiled-core-1.1
@@ -1106,12 +1150,12 @@ browser window. It is completely customizable as well via CSS.")
 
                          "patches/gradle-4.5.1-default-methods.patch"
                          "patches/gradle-4.5.1-dekotlinize-build-files.patch"
-                         "patches/gradle-4.5.1-jcifs-new-coordinates.patch"
+                         "patches/gradle-4.5.1-jcifs-new-coordinates.patch" "patches/gradle-4.5.1-httpclient.patch"
                          "patches/gradle-4.5.1-local-repository.patch" "patches/gradle-4.5.1-no-remote-cache.patch"
                          "patches/gradle-4.5.1-remove-complex-dependencies.patch"
                          "patches/gradle-4.5.1-unshaded-groovy.patch"))))
     (native-inputs (list
-                     java-commons-codec java-jsoup java-jcl-over-slf4j java-log4j-over-slf4j java-jcifs
+                     java-commons-codec java-jsoup java-jcl-over-slf4j java-log4j-over-slf4j java-jcifs java-nekohtml
                      java-pegdown zip java-sonatype-oss-parent-pom-5))
     (arguments
       `(#:modules ((guix build ant-build-system) (guix build java-utils) (guix build utils) (ice-9 ftw) (srfi srfi-1)
@@ -1294,6 +1338,8 @@ browser window. It is completely customizable as well via CSS.")
                             "net.rubygrapefruit" "native-platform" "/share/java/native-platform.jar")
                           (mavenize-package ,java-httpcomponents-httpclient ,(package-version java-httpcomponents-httpclient)
                             "org.apache.httpcomponents" "httpclient" "/share/java/httpcomponents-httpclient.jar")
+                          (mavenize-package ,java-httpcomponents-httpcore ,(package-version java-httpcomponents-httpcore)
+                            "org.apache.httpcomponents" "httpcore" "/share/java/httpcomponents-httpcore.jar")
                           (mavenize-package ,java-jsoup ,(package-version java-jsoup)
                             "org.jsoup" "jsoup" "/share/java/jsoup.jar")
                           (mavenize-package ,java-jgit ,(package-version java-jgit)
@@ -1370,5 +1416,4 @@ browser window. It is completely customizable as well via CSS.")
                   (delete 'reorder-jar-content)
                   (delete 'generate-jar-indices))))))))
 
-;gradle-bootstrap
 gradle
