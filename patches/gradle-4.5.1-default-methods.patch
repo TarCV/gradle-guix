@@ -54,3 +54,12 @@ Patch modules where dependencies require default interface methods language feat
  
  configurations {
      reports
+--- a/subprojects/dependency-management/dependency-management.gradle
++++ b/subprojects/dependency-management/dependency-management.gradle
+@@ -1,5 +1,5 @@
+ 
+-sourceCompatibility = 1.6
++sourceCompatibility = JavaVersion.VERSION_1_8
+ 
+ configurations {
+     mvn3Input

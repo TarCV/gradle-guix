@@ -40,6 +40,9 @@
   #:use-module (guix git-download)
   #:use-module (guix svn-download))
 
+(define groovy-test  ; TODO: make the package public instead
+  (module-ref (resolve-module '(gnu packages groovy)) 'groovy-test))
+
 (define apache-ivy-2.0-beta2
   (package
     (inherit java-apache-ivy)
@@ -1151,12 +1154,14 @@ browser window. It is completely customizable as well via CSS.")
                          "patches/gradle-4.5.1-default-methods.patch"
                          "patches/gradle-4.5.1-dekotlinize-build-files.patch"
                          "patches/gradle-4.5.1-jcifs-new-coordinates.patch" "patches/gradle-4.5.1-httpclient.patch"
-                         "patches/gradle-4.5.1-local-repository.patch" "patches/gradle-4.5.1-no-remote-cache.patch"
+                         "patches/gradle-4.5.1-local-repository.patch" "patches/gradle-4.5.1-maven-dependencies.patch"
+                         "patches/gradle-4.5.1-no-remote-cache.patch"
                          "patches/gradle-4.5.1-remove-complex-dependencies.patch"
                          "patches/gradle-4.5.1-unshaded-groovy.patch"))))
     (native-inputs (list
                      java-commons-codec java-jsoup java-jcl-over-slf4j java-log4j-over-slf4j java-jcifs java-nekohtml
-                     java-pegdown zip java-sonatype-oss-parent-pom-5))
+                     java-pegdown zip java-plexus-cipher java-plexus-container-default java-sonatype-oss-parent-pom-5
+                     maven-compat maven-core maven-parent-pom-34 maven-wagon-provider-api))
     (arguments
       `(#:modules ((guix build ant-build-system) (guix build java-utils) (guix build utils) (ice-9 ftw) (srfi srfi-1)
                     (ice-9 string-fun) (srfi srfi-26))
@@ -1210,7 +1215,11 @@ browser window. It is completely customizable as well via CSS.")
                       (substitute* "gradle/dependencies.gradle"
                         (("(com.google.guava:)guava-jdk5:([0-9][0-9.]+)([:'@\"])" _ prefix version suffix)
                           (string-append prefix "guava:[" version ",)" suffix))
-                        (("((org.ow2.asm:asm[^'\":]+|com.google.code.findbugs:jsr305):)([0-9]+[0-9.]*)([:'@\"])" _ prefix _ version suffix)
+                        (((string-append "((org.ow2.asm:asm[^'\":]+"
+                           "|com.google.code.findbugs:jsr305"
+                           "|org.apache.maven.wagon:wagon-[^'\":]+"
+                           "|org.codehaus.plexus:plexus-[^'\":]+"
+                           "):)([0-9]+[0-9.]*)([:'@\"])") _ prefix _ version suffix)
                           (string-append prefix "[" version ",)" suffix))
                         (("net.jcip:jcip-annotations:([0-9][0-9.]+)([:'@\"])" _ _ suffix)
                           (string-append "com.google.code.findbugs:jsr305:[3,)" suffix))
@@ -1296,6 +1305,9 @@ browser window. It is completely customizable as well via CSS.")
                                 (asmTreeMavenPath
                                   (mavenize-package ,java-asm-tree-9 ,(package-version java-asm-tree-9)
                                     "org.ow2.asm" "asm-tree" "/share/java/asm-tree.jar"))
+                                (asmUtilMavenPath
+                                  (mavenize-package ,java-asm-util-9 ,(package-version java-asm-util-9)
+                                    "org.ow2.asm" "asm-util" "/share/java/asm-util8.jar"))
 
                                 (classpathWithoutAntlrAsm
                                   (string-join
@@ -1320,6 +1332,8 @@ browser window. It is completely customizable as well via CSS.")
                                 "org.codehaus.groovy"
                                 (string-append "groovy-" suffix) (string-append "/lib/groovy-" suffix ".jar")))
                             (list "ant" "datetime" "dateutil" "groovydoc" "json" "templates" "xml"))
+                          (mavenize-package ,groovy-test ,(package-version groovy-test)
+                            "org.codehaus.groovy" "groovy-test" "/lib/groovy-test.jar")
                           (mavenize-package ,java-commons-collections ,(package-version java-commons-collections)
                             "commons-collections" "commons-collections"
                             (string-append "/share/java/commons-collections-" ,(package-version java-commons-collections) ".jar"))
@@ -1330,16 +1344,34 @@ browser window. It is completely customizable as well via CSS.")
                             "com.esotericsoftware.kryo" "kryo" "/share/java/kryo.jar")
                           (mavenize-package ,java-gson ,(package-version java-gson)
                             "com.google.code.gson" "gson" "/share/java/gson.jar")
+                          (mavenize-package ,java-fasterxml-jackson-annotations ,(package-version java-fasterxml-jackson-annotations)
+                            "com.fasterxml.jackson.core" "jackson-annotations" "/share/java/jackson-annotations.jar")
+                          (mavenize-package ,java-fasterxml-jackson-core ,(package-version java-fasterxml-jackson-core)
+                            "com.fasterxml.jackson.core" "jackson-core" "/share/java/jackson-core.jar")
+                          (mavenize-package ,java-fasterxml-jackson-databind ,(package-version java-fasterxml-jackson-databind)
+                            "com.fasterxml.jackson.core" "jackson-databind" "/share/java/jackson-databind.jar")
                           (mavenize-package ,java-jsch ,(package-version java-jsch)
                             "com.jcraft" "jsch" (string-append "/share/java/jsch-" ,(package-version java-jsch) ".jar"))
                           (mavenize-package ,java-jhighlight ,(package-version java-jhighlight)
                             "com.uwyn" "jhighlight" "/share/java/jhighlight.jar")
+                          (mavenize-package ,java-joda-time ,(package-version java-joda-time)
+                            "joda-time" "joda-time" "/share/java/java-joda-time.jar")
                           (mavenize-package ,java-native-platform-0.14 ,(package-version java-native-platform-0.14)
                             "net.rubygrapefruit" "native-platform" "/share/java/native-platform.jar")
                           (mavenize-package ,java-httpcomponents-httpclient ,(package-version java-httpcomponents-httpclient)
                             "org.apache.httpcomponents" "httpclient" "/share/java/httpcomponents-httpclient.jar")
                           (mavenize-package ,java-httpcomponents-httpcore ,(package-version java-httpcomponents-httpcore)
                             "org.apache.httpcomponents" "httpcore" "/share/java/httpcomponents-httpcore.jar")
+                          (mavenize-package ,java-apache-ivy ,(package-version java-apache-ivy)
+                            "org.apache.ivy" "ivy" "/share/java/ivy.jar")
+                          (mavenize-package ,maven-resolver-transport-wagon ,(package-version maven-resolver-transport-wagon)
+                            "org.apache.maven.resolver" "maven-resolver-transport-wagon" "/share/java/maven-resolver-transport-wagon.jar")
+                          (mavenize-package ,maven-wagon-file ,(package-version maven-wagon-file)
+                            "org.apache.maven.wagon" "wagon-file" "/share/java/maven-wagon-file.jar")
+                          (mavenize-package ,maven-wagon-http ,(package-version maven-wagon-http)
+                            "org.apache.maven.wagon" "wagon-http" "/share/java/maven-wagon-http.jar")
+                          (mavenize-package ,maven-wagon-http-shared ,(package-version maven-wagon-http-shared)
+                            "org.apache.maven.wagon" "wagon-http-shared" "/share/java/maven-wagon-http-shared.jar")
                           (mavenize-package ,java-jsoup ,(package-version java-jsoup)
                             "org.jsoup" "jsoup" "/share/java/jsoup.jar")
                           (mavenize-package ,java-jgit ,(package-version java-jgit)
@@ -1408,6 +1440,7 @@ browser window. It is completely customizable as well via CSS.")
                             "org.gradle.launcher.Main"
                             "--init-script" "init.gradle"
                             "--no-build-cache"
+                            ; TODO: set number of worker threads based on '--cores' Guix argument
 ;                            "--offline"
 ;                            "--stacktrace"
                             "-x" "check"

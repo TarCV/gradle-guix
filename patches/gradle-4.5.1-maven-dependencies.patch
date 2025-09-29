@@ -1,0 +1,48 @@
+--- a/gradle/dependencies.gradle
++++ b/gradle/dependencies.gradle
+@@ -168,24 +168,16 @@
+                         add('org.apache.maven.wagon:wagon-file:2.4')
+                         add('org.apache.maven.wagon:wagon-http:2.4')
+                         add('org.apache.maven.wagon:wagon-provider-api:2.4')
+-                        add('org.apache.maven.wagon:wagon-http-shared4:2.4')
++                        add('org.apache.maven.wagon:wagon-http-shared:2.4')
+                         add('org.codehaus.plexus:plexus-container-default:1.5.5')
+-                        add('org.sonatype.aether:aether-connector-wagon:1.13.1')
+-                        add('org.sonatype.plexus:plexus-cipher:1.7')
++                        add('org.apache.maven.resolver:maven-resolver-transport-wagon:1.9.4')
++                        add('org.codehaus.plexus:plexus-cipher:1.7')
+                     }
+                 }
+                 withVariant('runtime') {
+                     withDependencies { it.removeAll { it.group == 'org.sonatype.sisu' }}
+                 }
+             }
+-            withModule('org.apache.maven.wagon:wagon-provider-api') {
+-                withVariant('default') {
+-                    withDependencies { it.findAll { it.name == 'plexus-utils' }.each { changeVersionInMetadata it, '2.1' }}
+-                }
+-                withVariant('runtime') {
+-                    withDependencies { it.findAll { it.name == 'plexus-utils' }.each { changeVersionInMetadata it, '2.1' }}
+-                }
+-            }
+             withModule('org.apache.xbean:xbean-reflect') {
+                 withVariant('default') {
+                     withDependencies { it.removeAll { it.group == 'commons-logging' || it.group == 'log4j' }}
+@@ -202,7 +194,7 @@
+                     withDependencies { it.removeAll { it.group == 'com.google.collections' || it.group == 'junit' || it.group == 'org.apache.xbean' }}
+                 }
+             }
+-            withModule('org.sonatype.aether:aether-connector-wagon') {
++            withModule('org.apache.maven.resolver:maven-resolver-transport-wagon') {
+                 withVariant('default') {
+                     withDependencies { it.removeAll { it.group == 'org.sonatype.sisu' }}
+                 }
+@@ -231,7 +223,7 @@
+                     withDependencies { it.removeAll { it.group == 'org.apache.httpcomponents' }}
+                 }
+             }
+-            withModule('org.apache.maven.wagon:wagon-http-shared4') {
++            withModule('org.apache.maven.wagon:wagon-http-shared') {
+                 withVariant('default') {
+                     withDependencies { it.removeAll { it.group == 'org.jsoup' || it.group == 'commons-logging' || it.group == 'org.apache.httpcomponents' }}
+                 }
