@@ -1333,7 +1333,7 @@ browser window. It is completely customizable as well via CSS.")
                                 (string-append "groovy-" suffix) (string-append "/lib/groovy-" suffix ".jar")))
                             (list "ant" "datetime" "dateutil" "groovydoc" "json" "templates" "xml"))
                           (mavenize-package ,groovy-test ,(package-version groovy-test)
-                            "org.codehaus.groovy" "groovy-test" "/lib/groovy-test.jar")
+                            "org.codehaus.groovy" "groovy-test" "/share/java/groovy-test.jar")
                           (mavenize-package ,java-commons-collections ,(package-version java-commons-collections)
                             "commons-collections" "commons-collections"
                             (string-append "/share/java/commons-collections-" ,(package-version java-commons-collections) ".jar"))
