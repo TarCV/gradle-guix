@@ -1,6 +1,15 @@
-TODO: Fix the relevant Guix package instead
+TODO: Fix the relevant Guix packages to have these dependencies in POMs instead
 --- a/gradle/dependencies.gradle
 +++ b/gradle/dependencies.gradle
+@@ -26,7 +26,7 @@
+ versions.maven = '3.0.4'
+ versions.httpclient = '4.4.1'
+ 
+-libraries.ant = 'org.apache.ant:ant:1.9.9'
++libraries.ant = ['org.apache.ant:ant:1.9.9', 'org.apache.ant:ant-launcher:1.9.9']
+ libraries.asm =  'org.ow2.asm:asm:6.0'
+ libraries.asm_commons =  'org.ow2.asm:asm-commons:6.0'
+ libraries.asm_util =  'org.ow2.asm:asm-util:6.0'
 @@ -59,7 +59,7 @@
  libraries.jetty = "org.mortbay.jetty:jetty:6.1.26"
  libraries.commons_codec = "commons-codec:commons-codec:1.6"

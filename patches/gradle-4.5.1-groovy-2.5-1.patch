@@ -1071,7 +1071,7 @@ index ae9536a525576..3fd6b8b1371cf 100755
 +def groovyVersion = '2.5.2'
 +
  versions.gradle_kotlin_dsl = '0.14.2'
- versions.commons_io = '2.2'
+ versions.commons_io = '2.5'
 -versions.groovy = '2.4.15'
 +versions.groovy = groovyVersion
  versions.bouncycastle = '1.58'

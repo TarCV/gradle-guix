@@ -1,0 +1,377 @@
+The commit is copied and backported from the PR #6728
+From cffb64cf93e32366102d0d6b6b79e084bcea659c Mon Sep 17 00:00:00 2001
+From: Marc Philipp <marc@gradle.com>
+Date: Wed, 12 Sep 2018 11:52:57 +0200
+Subject: [PATCH] Update Apache Commons libraries to latest versions
+
+ - Replace `IOUtils.closeQuietly()` with try-with-resources
+ - Add Charset parameter to `FileUtils.writeStringToFile`,
+   `FileUtils.readFileToString` and `IOUtils.write`
+---
+ gradle/dependencies.gradle                    |  6 ++--
+ .../api/plugins/announce/internal/Snarl.java  | 28 +++++--------------
+ .../plugins/announce/internal/Twitter.java    | 16 ++++++-----
+ .../main/java/org/gradle/util/GFileUtils.java |  8 ------
+ .../DefaultBuildCacheController.java          | 14 +---------
+ .../build-option/build-option.gradle.kts      |  2 +-
+ .../ProjectDirectoryProjectSpecTest.groovy    |  3 +-
+ .../fixtures/MSBuildExecutor.java             |  4 ++-
+ .../gradle/test/fixtures/file/TestFile.java   |  5 ++--
+ .../RegexBackedCSourceParser.java             | 10 ++-----
+ .../toolchain/internal/PCHUtils.java          |  3 +-
+ .../DefaultVisualCppMetadataProvider.java     |  3 +-
+ .../internal/swift/SwiftCompiler.java         | 14 +++-------
+ 13 files changed, 38 insertions(+), 78 deletions(-)
+
+diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
+index 03b3af84061cb..2f7c98cf12da2 100755
+--- a/gradle/dependencies.gradle
++++ b/gradle/dependencies.gradle
+@@ -20,7 +20,7 @@
+ }
+ 
+ versions.gradle_kotlin_dsl = '0.14.2'
+-versions.commons_io = '2.2'
++versions.commons_io = '2.5'
+ versions.groovy = '2.4.12'
+ versions.bouncycastle = '1.58'
+ versions.maven = '3.0.4'
+@@ -37,7 +37,7 @@
+ libraries.commons_io = "commons-io:commons-io:${versions.commons_io}"
+ libraries.commons_lang = 'commons-lang:commons-lang:2.6'
+ libraries.commons_collections = 'commons-collections:commons-collections:3.2.2'
+-libraries.commons_compress = 'org.apache.commons:commons-compress:1.14'
++libraries.commons_compress = 'org.apache.commons:commons-compress:1.18'
+ libraries.jsch = 'com.jcraft:jsch:0.1.54'
+ libraries.fastutil = "it.unimi.dsi:fastutil:7.2.1"
+ 
+@@ -58,7 +58,7 @@
+ libraries.servlet_api = "org.mortbay.jetty:servlet-api:2.5-20081211"
+ libraries.jetty_util = "org.mortbay.jetty:jetty-util:6.1.26"
+ libraries.jetty = "org.mortbay.jetty:jetty:6.1.26"
+-libraries.commons_codec = "commons-codec:commons-codec:1.6"
++libraries.commons_codec = "commons-codec:commons-codec:1.11"
+ libraries.jcifs = "org.samba.jcifs:jcifs:1.3.17"
+ libraries.commons_httpclient = "org.apache.httpcomponents:httpclient:${versions.httpclient}"
+ 
+diff --git a/subprojects/announce/src/main/java/org/gradle/api/plugins/announce/internal/Snarl.java b/subprojects/announce/src/main/java/org/gradle/api/plugins/announce/internal/Snarl.java
+index e41d19d16a5b3..bb61cb7e58ccb 100755
+--- a/subprojects/announce/src/main/java/org/gradle/api/plugins/announce/internal/Snarl.java
++++ b/subprojects/announce/src/main/java/org/gradle/api/plugins/announce/internal/Snarl.java
+@@ -16,7 +16,6 @@
+ 
+ package org.gradle.api.plugins.announce.internal;
+ 
+-import org.apache.commons.io.IOUtils;
+ import org.gradle.api.UncheckedIOException;
+ import org.gradle.api.plugins.announce.Announcer;
+ import org.gradle.internal.UncheckedException;
+@@ -53,28 +52,15 @@ public void send(String title, String message) {
+     }
+ 
+     private void send(InetAddress host, final String title, final String message) {
+-        Socket socket = null;
+-        try {
+-            try {
+-                socket = new Socket(host, 9887);
+-            } catch (ConnectException e) {
+-                // Snarl is not running
+-                throw new AnnouncerUnavailableException("Snarl is not running on host " + String.valueOf(host) + ".", e);
+-            }
+-            PrintWriter printWriter = null;
+-            try {
+-                final OutputStream outputStream = socket.getOutputStream();
+-                printWriter = new PrintWriter(outputStream, true);
+-                printWriter.println(formatMessage(title, message));
+-            } catch (IOException e) {
+-                throw new UncheckedIOException(e);
+-            } finally {
+-                IOUtils.closeQuietly(printWriter);
+-            }
++        try (Socket socket = new Socket(host, 9887);
++             OutputStream outputStream = socket.getOutputStream();
++             PrintWriter printWriter = new PrintWriter(outputStream, true)) {
++            printWriter.println(formatMessage(title, message));
++        } catch (ConnectException e) {
++            // Snarl is not running
++            throw new AnnouncerUnavailableException("Snarl is not running on host " + String.valueOf(host) + ".", e);
+         } catch (IOException ioException) {
+             throw new UncheckedIOException(ioException);
+-        } finally {
+-            IOUtils.closeQuietly(socket);
+         }
+     }
+ 
+diff --git a/subprojects/announce/src/main/java/org/gradle/api/plugins/announce/internal/Twitter.java b/subprojects/announce/src/main/java/org/gradle/api/plugins/announce/internal/Twitter.java
+index 149e83e4e35c0..f05368e419ff6 100644
+--- a/subprojects/announce/src/main/java/org/gradle/api/plugins/announce/internal/Twitter.java
++++ b/subprojects/announce/src/main/java/org/gradle/api/plugins/announce/internal/Twitter.java
+@@ -29,6 +29,8 @@
+ import java.net.URL;
+ import java.net.URLEncoder;
+ 
++import static java.nio.charset.StandardCharsets.UTF_8;
++
+ /**
+  * This class allows to send announce messages to Twitter.
+  */
+@@ -53,17 +55,17 @@ public void send(String title, final String message) {
+             connection.setDoOutput(true);
+             connection.setUseCaches(false);
+ 
+-            String credentials = Base64.encodeBase64String((username + ":" + password).getBytes("UTF-8")).trim();
++            String credentials = Base64.encodeBase64String((username + ":" + password).getBytes(UTF_8)).trim();
+             connection.setRequestProperty("Authorization", "Basic " + credentials);
+-            final OutputStream outputStream = connection.getOutputStream();
+-            IOUtils.write("status=" + URLEncoder.encode(message, "UTF-8"), outputStream);
+-            IOUtils.closeQuietly(outputStream);
++            try (OutputStream outputStream = connection.getOutputStream()) {
++                IOUtils.write("status=" + URLEncoder.encode(message, UTF_8.name()), outputStream, UTF_8);
++            }
+ 
+             logger.info("Successfully tweeted \'" + message + "\' using account \'" + username + "\'");
+             if (logger.isDebugEnabled()) {
+-                final InputStream inputStream = connection.getInputStream();
+-                logger.debug(IOUtils.toString(inputStream, "UTF-8"));
+-                IOUtils.closeQuietly(inputStream);
++                try (InputStream inputStream = connection.getInputStream()) {
++                    logger.debug(IOUtils.toString(inputStream, UTF_8));
++                }
+             }
+         } catch (Exception e) {
+             throw UncheckedException.throwAsUncheckedException(e);
+diff --git a/subprojects/base-services/src/main/java/org/gradle/util/GFileUtils.java b/subprojects/base-services/src/main/java/org/gradle/util/GFileUtils.java
+index 4cf8587e23955..221b35ef30e0d 100644
+--- a/subprojects/base-services/src/main/java/org/gradle/util/GFileUtils.java
++++ b/subprojects/base-services/src/main/java/org/gradle/util/GFileUtils.java
+@@ -236,14 +236,6 @@ public static String tail(File file, int maxLines) throws TailReadingException {
+         }
+     }
+ 
+-    public static void writeStringToFile(File file, String data) {
+-        try {
+-            FileUtils.writeStringToFile(file, data);
+-        } catch (IOException e) {
+-            throw new UncheckedIOException(e);
+-        }
+-    }
+-
+     public static void forceDelete(File file) {
+         try {
+             FileUtils.forceDelete(file);
+diff --git a/subprojects/build-cache/src/main/java/org/gradle/caching/internal/controller/DefaultBuildCacheController.java b/subprojects/build-cache/src/main/java/org/gradle/caching/internal/controller/DefaultBuildCacheController.java
+index 81fe090980ab9..ff7d98a673ef5 100644
+--- a/subprojects/build-cache/src/main/java/org/gradle/caching/internal/controller/DefaultBuildCacheController.java
++++ b/subprojects/build-cache/src/main/java/org/gradle/caching/internal/controller/DefaultBuildCacheController.java
+@@ -17,7 +17,6 @@
+ package org.gradle.caching.internal.controller;
+ 
+ import com.google.common.annotations.VisibleForTesting;
+-import org.apache.commons.io.IOUtils;
+ import org.gradle.api.Action;
+ import org.gradle.api.GradleException;
+ import org.gradle.api.UncheckedIOException;
+@@ -51,7 +50,6 @@
+ import javax.annotation.Nullable;
+ import java.io.File;
+ import java.io.FileInputStream;
+-import java.io.FileNotFoundException;
+ import java.io.FileOutputStream;
+ import java.io.IOException;
+ import java.io.InputStream;
+@@ -177,21 +175,11 @@ public void execute(final File file) {
+             buildOperationExecutor.run(new RunnableBuildOperation() {
+                 @Override
+                 public void run(BuildOperationContext context) {
+-                    InputStream input;
+-                    try {
+-                        input = new FileInputStream(file);
+-                    } catch (FileNotFoundException e) {
+-                        throw new UncheckedIOException(e);
+-                    }
+-
+-                    try {
++                    try (InputStream input = new FileInputStream(file)) {
+                         result = command.load(input);
+                     } catch (IOException e) {
+                         throw new UncheckedIOException(e);
+-                    } finally {
+-                        IOUtils.closeQuietly(input);
+                     }
+-
+                     context.setResult(new UnpackOperationResult(
+                         result.getArtifactEntryCount()
+                     ));
+diff --git a/subprojects/build-option/build-option.gradle.kts b/subprojects/build-option/build-option.gradle.kts
+index e3b4e8f6cc63f..428110bf4e731 100644
+--- a/subprojects/build-option/build-option.gradle
++++ b/subprojects/build-option/build-option.gradle
+@@ -8,7 +8,7 @@ plugins {
+ dependencies {
+     api project(':cli')
+     api libraries.jsr305
+-    implementation 'commons-lang:commons-lang:2.6'
++    implementation libraries.commons_lang
+ }
+ 
+ useClassycle()
+diff --git a/subprojects/core/src/test/groovy/org/gradle/initialization/ProjectDirectoryProjectSpecTest.groovy b/subprojects/core/src/test/groovy/org/gradle/initialization/ProjectDirectoryProjectSpecTest.groovy
+index 521a85ae50b93..53765e39c1bd7 100644
+--- a/subprojects/core/src/test/groovy/org/gradle/initialization/ProjectDirectoryProjectSpecTest.groovy
++++ b/subprojects/core/src/test/groovy/org/gradle/initialization/ProjectDirectoryProjectSpecTest.groovy
+@@ -20,7 +20,6 @@ import org.gradle.api.internal.project.ProjectIdentifier
+ import org.gradle.api.internal.project.ProjectRegistry
+ import org.gradle.test.fixtures.file.CleanupTestDirectory
+ import org.gradle.test.fixtures.file.TestNameTestDirectoryProvider
+-import org.gradle.util.GFileUtils
+ import org.junit.Rule
+ import spock.lang.Specification
+ 
+@@ -84,7 +83,7 @@ public class ProjectDirectoryProjectSpecTest extends Specification {
+         e.message == "Project directory '" + dir + "' does not exist."
+ 
+         when:
+-        GFileUtils.writeStringToFile(dir, "file");
++        dir.text = "file"
+         spec.containsProject(registry());
+ 
+         then:
+diff --git a/subprojects/internal-testing/src/main/groovy/org/gradle/test/fixtures/file/TestFile.java b/subprojects/internal-testing/src/main/groovy/org/gradle/test/fixtures/file/TestFile.java
+index 6e1304cac76e8..975163e2791dc 100644
+--- a/subprojects/internal-testing/src/main/groovy/org/gradle/test/fixtures/file/TestFile.java
++++ b/subprojects/internal-testing/src/main/groovy/org/gradle/test/fixtures/file/TestFile.java
+@@ -43,6 +43,7 @@
+ import java.net.URI;
+ import java.net.URISyntaxException;
+ import java.net.URL;
++import java.nio.charset.StandardCharsets;
+ import java.util.ArrayList;
+ import java.util.Arrays;
+ import java.util.Formatter;
+@@ -146,7 +147,7 @@ public TestFile writelns(String... lines) {
+ 
+     public TestFile write(Object content) {
+         try {
+-            FileUtils.writeStringToFile(this, content.toString());
++            FileUtils.writeStringToFile(this, content.toString(), StandardCharsets.UTF_8);
+         } catch (IOException e) {
+             throw new RuntimeException(String.format("Could not write to test file '%s'", this), e);
+         }
+@@ -189,7 +190,7 @@ public TestFile[] listFiles() {
+     public String getText() {
+         assertIsFile();
+         try {
+-            return FileUtils.readFileToString(this);
++            return FileUtils.readFileToString(this, StandardCharsets.UTF_8);
+         } catch (IOException e) {
+             throw new RuntimeException(String.format("Could not read from test file '%s'", this), e);
+         }
+diff --git a/subprojects/language-native/src/main/java/org/gradle/language/nativeplatform/internal/incremental/sourceparser/RegexBackedCSourceParser.java b/subprojects/language-native/src/main/java/org/gradle/language/nativeplatform/internal/incremental/sourceparser/RegexBackedCSourceParser.java
+index 1458bc45b208e..940879796658e 100644
+--- a/subprojects/language-native/src/main/java/org/gradle/language/nativeplatform/internal/incremental/sourceparser/RegexBackedCSourceParser.java
++++ b/subprojects/language-native/src/main/java/org/gradle/language/nativeplatform/internal/incremental/sourceparser/RegexBackedCSourceParser.java
+@@ -19,7 +19,6 @@
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Sets;
+-import org.apache.commons.io.IOUtils;
+ import org.gradle.api.GradleException;
+ import org.gradle.language.nativeplatform.internal.Expression;
+ import org.gradle.language.nativeplatform.internal.Include;
+@@ -48,13 +47,8 @@
+ public class RegexBackedCSourceParser implements CSourceParser {
+     @Override
+     public IncludeDirectives parseSource(File sourceFile) {
+-        try {
+-            Reader fileReader = new FileReader(sourceFile);
+-            try {
+-                return parseSource(fileReader);
+-            } finally {
+-                IOUtils.closeQuietly(fileReader);
+-            }
++        try (Reader fileReader = new FileReader(sourceFile)) {
++            return parseSource(fileReader);
+         } catch (Exception e) {
+             throw new GradleException(String.format("Could not extract includes from source file %s.", sourceFile), e);
+         }
+diff --git a/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/PCHUtils.java b/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/PCHUtils.java
+index cbabcd818e0bf..6bc60c66d5ebb 100644
+--- a/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/PCHUtils.java
++++ b/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/PCHUtils.java
+@@ -27,6 +27,7 @@
+ 
+ import java.io.File;
+ import java.io.IOException;
++import java.nio.charset.StandardCharsets;
+ import java.util.List;
+ 
+ public class PCHUtils {
+@@ -72,7 +73,7 @@ public static <T extends NativeCompileSpec> File generatePCHSourceFile(T origina
+         File headerFileCopy = new File(generatedSourceDir, sourceFile.getName());
+         try {
+             FileUtils.copyFile(sourceFile, headerFileCopy);
+-            FileUtils.writeStringToFile(generatedSource, "#include \"".concat(headerFileCopy.getName()).concat("\""));
++            FileUtils.writeStringToFile(generatedSource, "#include \"".concat(headerFileCopy.getName()).concat("\""), StandardCharsets.UTF_8);
+             return generatedSource;
+         } catch (IOException e) {
+             throw new UncheckedIOException(e);
+diff --git a/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/msvcpp/version/DefaultVisualCppMetadataProvider.java b/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/msvcpp/version/DefaultVisualCppMetadataProvider.java
+index 39b57f7d41913..23eb9ed3e973b 100644
+--- a/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/msvcpp/version/DefaultVisualCppMetadataProvider.java
++++ b/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/msvcpp/version/DefaultVisualCppMetadataProvider.java
+@@ -26,6 +26,7 @@
+ 
+ import java.io.File;
+ import java.io.IOException;
++import java.nio.charset.StandardCharsets;
+ 
+ public class DefaultVisualCppMetadataProvider implements VisualCppMetadataProvider {
+     private static final String VS2017_METADATA_FILE_PATH = "VC/Auxiliary/Build/Microsoft.VCToolsVersion.default.txt";
+@@ -68,7 +69,7 @@ public VisualCppInstallCandidate getVisualCppFromMetadataFile(File installDir) {
+             return null;
+         }
+         try {
+-            String versionString = FileUtils.readFileToString(msvcVersionFile).trim();
++            String versionString = FileUtils.readFileToString(msvcVersionFile, StandardCharsets.UTF_8).trim();
+             File visualCppDir = new File(installDir, VS2017_COMPILER_PATH_PREFIX + "/" + versionString);
+             return new DefaultVisualCppMetadata(visualCppDir, VersionNumber.parse(versionString));
+         } catch (IOException e) {
+diff --git a/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/swift/SwiftCompiler.java b/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/swift/SwiftCompiler.java
+index 8ae093715ea43..3412988dbcc32 100644
+--- a/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/swift/SwiftCompiler.java
++++ b/subprojects/platform-native/src/main/java/org/gradle/nativeplatform/toolchain/internal/swift/SwiftCompiler.java
+@@ -21,7 +21,6 @@
+ import com.google.gson.FieldNamingPolicy;
+ import com.google.gson.Gson;
+ import com.google.gson.GsonBuilder;
+-import org.apache.commons.io.IOUtils;
+ import org.gradle.api.Action;
+ import org.gradle.api.Transformer;
+ import org.gradle.api.UncheckedIOException;
+@@ -43,7 +42,7 @@
+ import org.gradle.util.VersionNumber;
+ 
+ import java.io.File;
+-import java.io.FileNotFoundException;
++import java.io.IOException;
+ import java.io.PrintWriter;
+ import java.io.Writer;
+ import java.util.HashMap;
+@@ -195,14 +194,9 @@ private void toJson(Appendable writer) {
+         }
+ 
+         public void writeToFile(File outputFile) {
+-            try {
+-                Writer writer = new PrintWriter(outputFile);
+-                try {
+-                    toJson(writer);
+-                } finally {
+-                    IOUtils.closeQuietly(writer);
+-                }
+-            } catch (FileNotFoundException ex) {
++            try (Writer writer = new PrintWriter(outputFile)) {
++                toJson(writer);
++            } catch (IOException ex) {
+                 throw new UncheckedIOException(ex);
+             }
+         }

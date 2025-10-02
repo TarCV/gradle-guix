@@ -127,9 +127,18 @@ TODO: review if something need to be restored in a non-bootstrap build:
          projectProperties ignoreIncomingBuildReceipt: true
      }
  
-@@ -147,7 +147,7 @@
-         'platformJvm', 'languageJvm', 'languageJava', 'languageGroovy', 'languageScala',
-         'platformNative', 'platformPlay', 'idePlay', 'languageNative', 'ideNative', 'testingBase',
+@@ -142,12 +142,12 @@
+     publicGroovyProjects = groovyProjects - internalProjects
+     pluginProjects = [
+         'plugins', 'codeQuality', 'antlr', 'wrapper', 'osgi', 'maven',
+-        'ide', 'announce', 'scala', 'signing', 'ear', 'javascript', 'buildComparison',
+-        'diagnostics', 'reporting', 'publish', 'ivy', 'jacoco', 'buildInit', 'platformBase',
+-        'platformJvm', 'languageJvm', 'languageJava', 'languageGroovy', 'languageScala',
+-        'platformNative', 'platformPlay', 'idePlay', 'languageNative', 'ideNative', 'testingBase',
++        'ide', 'announce', 'signing', 'ear', 'javascript', 'buildComparison',
++        'diagnostics', 'reporting', 'publish', 'ivy', 'buildInit', 'platformBase',
++        'platformJvm', 'languageJvm', 'languageJava', 'languageGroovy',
++        'platformNative', 'languageNative', 'ideNative', 'testingBase',
          'testingNative', 'testingJvm', 'pluginDevelopment', 'pluginUse', 'resourcesHttp',
 -        'resourcesSftp', 'resourcesS3', 'resourcesGcs', 'compositeBuilds', 'buildCacheHttp'
 +        'resourcesSftp', 'compositeBuilds', 'buildCacheHttp'
@@ -154,7 +163,7 @@ TODO: review if something need to be restored in a non-bootstrap build:
  
  allprojects {
      group = 'org.gradle'
-@@ -210,14 +207,9 @@
+@@ -210,14 +206,9 @@
          apply from: "$rootDir/gradle/groovyProject.gradle"
          apply from: "$rootDir/gradle/testWithUnknownOS.gradle"
          apply from: "$rootDir/gradle/java9.gradle"
@@ -410,7 +419,7 @@ TODO: Call asciidoctor directly
  useTestFixtures()
 --- a/settings.gradle
 +++ b/settings.gradle
-@@ -32,8 +32,6 @@
+@@ -32,14 +32,10 @@
  include("messaging")
  include("resources")
  include("resourcesHttp")
@@ -418,8 +427,14 @@ TODO: Call asciidoctor directly
 -include("resourcesS3")
  include("resourcesSftp")
  include("plugins")
- include("scala")
-@@ -54,10 +52,6 @@
+-include("scala")
+ include("ide")
+ include("ideNative")
+-include("idePlay")
+ include("osgi")
+ include("maven")
+ include("announce")
+@@ -54,17 +50,12 @@
  include("native")
  include("internalTesting")
  include("internalIntegTesting")
@@ -430,6 +445,29 @@ TODO: Call asciidoctor directly
  include("javascript")
  include("buildComparison")
  include("reporting")
+ include("diagnostics")
+ include("publish")
+ include("ivy")
+-include("jacoco")
+ include("buildInit")
+ include("buildOption")
+ include("platformBase")
+@@ -74,7 +65,6 @@
+ include("languageJava")
+ include("languageGroovy")
+ include("languageNative")
+-include("languageScala")
+ include("pluginUse")
+ include("pluginDevelopment")
+ include("modelCore")
+@@ -83,7 +73,6 @@
+ include("testingBase")
+ include("testingNative")
+ include("testingJvm")
+-include("platformPlay")
+ include("testKit")
+ include("installationBeacon")
+ include("soak")
 --- a/subprojects/internal-integ-testing/internal-integ-testing.gradle
 +++ b/subprojects/internal-integ-testing/internal-integ-testing.gradle
 @@ -69,4 +69,3 @@
@@ -518,7 +556,15 @@ TODO: Call asciidoctor directly
 -}
 --- a/subprojects/smoke-test/smoke-test.gradle
 +++ b/subprojects/smoke-test/smoke-test.gradle
-@@ -46,24 +46,3 @@
+@@ -24,7 +24,6 @@
+     smokeTestRuntimeOnly project(':codeQuality')
+     smokeTestRuntimeOnly project(':ide')
+     smokeTestRuntimeOnly project(':ivy')
+-    smokeTestRuntimeOnly project(':jacoco')
+     smokeTestRuntimeOnly project(':maven')
+     smokeTestRuntimeOnly project(':plugins')
+     smokeTestRuntimeOnly project(':toolingApiBuilders')
+@@ -46,24 +45,3 @@
      classpath = sourceSets.smokeTest.runtimeClasspath
      maxParallelForks = 1 // those tests are pretty expensive, we shouldn't execute them concurrently
  }
@@ -619,3 +665,23 @@ TODO: Call asciidoctor directly
      integTestRuntime project(":resourcesSftp")
  
      testFixturesCompile project(":internalIntegTesting")
+--- a/subprojects/ide/ide.gradle
++++ b/subprojects/ide/ide.gradle
+@@ -20,7 +20,6 @@
+ dependencies {
+     compile libraries.groovy
+ 
+-    compile project(':scala')
+     compile project(':core')
+     compile project(':plugins')
+     compile project(':ear')
+--- a/subprojects/reporting/reporting.gradle
++++ b/subprojects/reporting/reporting.gradle
+@@ -19,7 +19,6 @@
+ 
+     testCompile libraries.jsoup
+     integTestRuntime project(':codeQuality')
+-    integTestRuntime project(':jacoco')
+ 
+     reports "jquery:jquery.min:1.11.0@js"
+ }

@@ -46,3 +46,13 @@
                  withVariant('default') {
                      withDependencies { it.removeAll { it.group == 'org.jsoup' || it.group == 'commons-logging' || it.group == 'org.apache.httpcomponents' }}
                  }
+--- a/subprojects/build-init/build-init.gradle
++++ b/subprojects/build-init/build-init.gradle
+@@ -15,6 +15,7 @@
+  * limitations under the License.
+  */
+ dependencies {
++    compile 'org.sonatype.aether:aether:[1.13.1,)'
+     compile libraries.groovy
+     compile libraries.groovyTemplates
+     compile project(':core')

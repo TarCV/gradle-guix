@@ -3,7 +3,7 @@
 @@ -59,7 +59,7 @@
  libraries.jetty_util = "org.mortbay.jetty:jetty-util:6.1.26"
  libraries.jetty = "org.mortbay.jetty:jetty:6.1.26"
- libraries.commons_codec = "commons-codec:commons-codec:1.6"
+ libraries.commons_codec = "commons-codec:commons-codec:1.11"
 -libraries.jcifs = "org.samba.jcifs:jcifs:1.3.17"
 +libraries.jcifs = "jcifs:jcifs:1.3.17"
  libraries.commons_httpclient = "org.apache.httpcomponents:httpclient:${versions.httpclient}"

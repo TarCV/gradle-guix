@@ -63,3 +63,84 @@ Patch modules where dependencies require default interface methods language feat
  
  configurations {
      mvn3Input
+--- a/subprojects/platform-base/platform-base.gradle
++++ b/subprojects/platform-base/platform-base.gradle
+@@ -1,4 +1,4 @@
+-sourceCompatibility = 1.6
++sourceCompatibility = JavaVersion.VERSION_1_8
+ 
+ dependencies {
+     compile libraries.groovy
+--- a/subprojects/plugin-use/plugin-use.gradle
++++ b/subprojects/plugin-use/plugin-use.gradle
+@@ -14,6 +14,7 @@
+  * limitations under the License.
+  */
+ 
++sourceCompatibility = JavaVersion.VERSION_1_8
+ dependencies {
+     compile project(":core")
+     compile project(":dependencyManagement")
+--- a/subprojects/diagnostics/diagnostics.gradle
++++ b/subprojects/diagnostics/diagnostics.gradle
+@@ -17,7 +17,7 @@
+     id 'java-library'
+ }
+ 
+-sourceCompatibility = 1.6
++sourceCompatibility = JavaVersion.VERSION_1_8
+ 
+ dependencies {
+     api libraries.groovy
+--- a/subprojects/testing-base/testing-base.gradle
++++ b/subprojects/testing-base/testing-base.gradle
+@@ -14,7 +14,7 @@
+  * limitations under the License.
+  */
+ // Test execution
+-sourceCompatibility = 1.6
++sourceCompatibility = JavaVersion.VERSION_1_8
+ 
+ dependencies {
+     compile project(':core')
+--- a/subprojects/platform-native/platform-native.gradle
++++ b/subprojects/platform-native/platform-native.gradle
+@@ -13,7 +13,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-
++sourceCompatibility = JavaVersion.VERSION_1_8
+ dependencies {
+     compile libraries.groovy
+     compile libraries.commons_io
+--- a/subprojects/platform-jvm/platform-jvm.gradle
++++ b/subprojects/platform-jvm/platform-jvm.gradle
+@@ -1,4 +1,4 @@
+-sourceCompatibility = 1.6
++sourceCompatibility = JavaVersion.VERSION_1_8
+ 
+ dependencies {
+     compile project(":platformBase")
+Workaround `sourceCompatibility = JavaVersion.VERSION_1_8` above causing a warning here (and Gradle has warnings as errors enabled).
+@SuppressWarnings instead of @SafeVarargs is used here to avoid non-local effects of the latter annotation.
+--- a/subprojects/platform-jvm/src/main/java/org/gradle/jvm/internal/DefaultJvmBinarySpec.java
++++ b/subprojects/platform-jvm/src/main/java/org/gradle/jvm/internal/DefaultJvmBinarySpec.java
+@@ -81,7 +81,7 @@
+         return assembly;
+     }
+ 
+-    public static List<DependencySpec> collectDependencies(final BinarySpec binary, @Nullable final SourceComponentSpec owner, final Collection<DependencySpec>... specificDependencies) {
++    @SuppressWarnings("unchecked") public static List<DependencySpec> collectDependencies(final BinarySpec binary, @Nullable final SourceComponentSpec owner, final Collection<DependencySpec>... specificDependencies) {
+         List<DependencySpec> dependencies = Lists.newArrayList();
+         if (specificDependencies!=null) {
+             for (Collection<DependencySpec> deps : specificDependencies) {
+--- a/subprojects/language-java/language-java.gradle
++++ b/subprojects/language-java/language-java.gradle
+@@ -1,5 +1,5 @@
+ // Compiler daemon
+-sourceCompatibility = 1.6
++sourceCompatibility = JavaVersion.VERSION_1_8
+ 
+ dependencies {
+     compile libraries.groovy

@@ -28,6 +28,7 @@
   #:use-module (gnu packages java)
   #:use-module (gnu packages java-compression)
   #:use-module (gnu packages java-xml)
+  #:use-module (gnu packages javascript)
   #:use-module (gnu packages libffi)
   #:use-module (gnu packages maven)
   #:use-module (gnu packages maven-parent-pom)
@@ -40,8 +41,17 @@
   #:use-module (guix git-download)
   #:use-module (guix svn-download))
 
+; TODO: ensure all packages here reproducible
+
 (define groovy-test  ; TODO: make the package public instead
   (module-ref (resolve-module '(gnu packages groovy)) 'groovy-test))
+
+(define make-apache-commons-parent-pom
+  (module-ref (resolve-module '(gnu packages maven-parent-pom)) 'make-apache-commons-parent-pom))
+(define-public apache-commons-parent-pom-42
+  (make-apache-commons-parent-pom
+    "42" "1x7hpi2zwibfd73ixwabg86qywn9s999a6rbsay28lwg2yp9ldng"
+    apache-parent-pom-18))
 
 (define apache-ivy-2.0-beta2
   (package
@@ -470,6 +480,38 @@
       that you can easily identify the difference between your RIFE markup and the actual marked up source.")
     (license (list license:cddl1.0 license:lgpl2.1+))))
 
+(define-public java-simple-web-4
+  (package
+    (name "java-simple-web")
+    (version "4.1.21")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "mirror://sourceforge/simpleweb/simpleweb/" version "/simple-" version ".tar.gz"))
+              (file-name (string-append name "-" version ".tar.gz"))
+              (sha256 (base32 "049nfqmlgdpkki03n4iyc53fpbwlfkk1znjk4jj1xpvf1nw3zlrn"))))
+    (build-system ant-build-system)
+    (arguments
+      `(#:build-target "build"
+        #:test-target "test"
+        #:tests? #f ; TODO
+        #:phases
+        (modify-phases %standard-phases
+          (add-after 'unpack 'remove-jars
+            (lambda _
+              (delete-file-recursively "jar")))
+          (add-before 'install 'generate-pom
+            (generate-pom.xml "pom.xml" "org.simpleframework" "simple" ,version))
+          (replace 'install (install-from-pom "pom.xml")))))
+    (native-inputs
+      (list unzip))
+    (home-page "https://simpleweb.sourceforge.net/")
+    (synopsis "Web framework for Java")
+    (description "The goal of Simple is to bring the power of simplicity to the world of server side Java.
+     The primary focus of the project is to provide a truly embeddable Java based HTTP engine capable of handling
+     enormous loads. Simple provides a truly asynchronous service model, request completion is driven using an internal,
+     transparent, monitoring system.")
+    (license license:asl2.0)))
+
 (define java-jcl-over-slf4j
   (package
     (inherit java-slf4j-api)
@@ -841,6 +883,13 @@ browser window. It is completely customizable as well via CSS.")
                   (append (origin-patches (package-source original-groovy-ant))
                     (list "patches/groovy-fix-groovyc-classpath.patch"))))))))
 
+(define common-gradle-patches
+  (list "patches/gradle-4.5.1-asm.patch" "patches/gradle-4.5.1-commons.patch"
+     "patches/gradle-4.5.1-groovy-2.4.patch" "patches/gradle-4.5.1-groovy-2.5-1.patch" ; TODO: replace these sets having redundant patches with just diffs, and then compare with originals
+     "patches/gradle-4.5.1-groovy-2.5-2.patch" "patches/gradle-4.5.1-groovy-2.5-3.patch"
+     "patches/gradle-4.5.1-groovy-2.5-4.patch" "patches/gradle-4.5.1-groovy-3.patch"
+     "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
+     "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"))
 (define gradle-bootstrap
   (package
     (name "gradle")
@@ -851,13 +900,7 @@ browser window. It is completely customizable as well via CSS.")
         (uri (string-append "https://github.com/gradle/gradle/archive/refs/tags/v" version ".tar.gz"))
         (file-name (string-append "gradle-" version ".tar.gz"))
         (sha256 (base32 "03yaq6kkdk5akjl5is0rmkdqhg1jfhp1mbv9jzpmjrs53z1hsxlw"))
-        (patches '("patches/gradle-4.5.1-asm.patch"
-                    "patches/gradle-4.5.1-groovy-2.4.patch" "patches/gradle-4.5.1-groovy-2.5-1.patch"
-                    "patches/gradle-4.5.1-groovy-2.5-2.patch" "patches/gradle-4.5.1-groovy-2.5-3.patch"
-                    "patches/gradle-4.5.1-groovy-2.5-4.patch" "patches/gradle-4.5.1-groovy-3.patch"
-                    "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
-                    "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"
-
+        (patches `(,@common-gradle-patches
                     "patches/gradle-bootstrap-4.5.1-remove-dependencies.patch"
                     "patches/gradle-bootstrap-4.5.1-single-jar.patch"))
         (modules '((guix build utils)))
@@ -1139,28 +1182,25 @@ browser window. It is completely customizable as well via CSS.")
       NOTE: To keep up to date with the current version of Groovy in Guix, this build backports migration to Groovy 3 from Gradle 7.0 and thus partially breaks compatibility with the upstream. To see how it may affect your scripts you can check Groovy-related sections at https://docs.gradle.org/7.0/userguide/upgrading_version_6.html#changes_to_groovy_and_groovy_dsl")
     (license license:asl2.0)))
 
+; TODO: document patches/changes in Gradle docs?
 (define gradle
   (package
     (inherit gradle-bootstrap)
     (source (origin
               (inherit (package-source gradle-bootstrap))
-              (patches '("patches/gradle-4.5.1-asm.patch"
-                         "patches/gradle-4.5.1-groovy-2.4.patch" "patches/gradle-4.5.1-groovy-2.5-1.patch" ; TODO: replace these sets having redundant patches with just diffs, and then compare with originals
-                         "patches/gradle-4.5.1-groovy-2.5-2.patch" "patches/gradle-4.5.1-groovy-2.5-3.patch"
-                         "patches/gradle-4.5.1-groovy-2.5-4.patch" "patches/gradle-4.5.1-groovy-3.patch"
-                         "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
-                         "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"
-
+              (patches `(,@common-gradle-patches
                          "patches/gradle-4.5.1-default-methods.patch"
                          "patches/gradle-4.5.1-dekotlinize-build-files.patch"
-                         "patches/gradle-4.5.1-jcifs-new-coordinates.patch" "patches/gradle-4.5.1-httpclient.patch"
+                         "patches/gradle-4.5.1-jcifs-new-coordinates.patch" "patches/gradle-4.5.1-guix-dependencies.patch"
                          "patches/gradle-4.5.1-local-repository.patch" "patches/gradle-4.5.1-maven-dependencies.patch"
                          "patches/gradle-4.5.1-no-remote-cache.patch"
                          "patches/gradle-4.5.1-remove-complex-dependencies.patch"
                          "patches/gradle-4.5.1-unshaded-groovy.patch"))))
     (native-inputs (list
+                     apache-commons-parent-pom-42 java-commons-cli
                      java-commons-codec java-jsoup java-jcl-over-slf4j java-log4j-over-slf4j java-jcifs java-nekohtml
                      java-pegdown zip java-plexus-cipher java-plexus-container-default java-sonatype-oss-parent-pom-5
+                     java-simple-web-4
                      maven-compat maven-core maven-parent-pom-34 maven-wagon-provider-api))
     (arguments
       `(#:modules ((guix build ant-build-system) (guix build java-utils) (guix build utils) (ice-9 ftw) (srfi srfi-1)
@@ -1218,6 +1258,7 @@ browser window. It is completely customizable as well via CSS.")
                         (((string-append "((org.ow2.asm:asm[^'\":]+"
                            "|com.google.code.findbugs:jsr305"
                            "|org.apache.maven.wagon:wagon-[^'\":]+"
+                           "|org.apache.xbean:xbean-[^'\":]+"
                            "|org.codehaus.plexus:plexus-[^'\":]+"
                            "):)([0-9]+[0-9.]*)([:'@\"])") _ prefix _ version suffix)
                           (string-append prefix "[" version ",)" suffix))
@@ -1234,6 +1275,7 @@ browser window. It is completely customizable as well via CSS.")
                       (substitute* '("buildSrc/build.gradle"
                                       "subprojects/docs/docs.gradle"
                                       "subprojects/docs/src/transforms/release-notes.gradle"
+                                      "subprojects/javascript/javascript.gradle"
                                       "subprojects/reporting/reporting.gradle")
                         (("(com.google.guava:)guava-jdk5:([0-9][0-9.]+)([:'@\"])" _ prefix version suffix)
                           (string-append prefix "guava:[" version ",)" suffix))
@@ -1241,7 +1283,7 @@ browser window. It is completely customizable as well via CSS.")
                           (string-append prefix "[" version ",)" suffix))
                         (("net.jcip:jcip-annotations:([0-9][0-9.]+)([:'@\"])" _ _ suffix)
                           (string-append "com.google.code.findbugs:jsr305:[3,)" suffix))
-                        (("(:)([0-9]+)([0-9.]*)([:'@\"])" _ prefix major-version rest-version suffix)
+                        (("(:)([0-9]+)([0-9.Rr]*)([:'@\"])" _ prefix major-version rest-version suffix)
                           (string-append prefix "["
                             major-version rest-version ", "
                             (number->string (1+ (string->number major-version))) ")"
@@ -1326,6 +1368,8 @@ browser window. It is completely customizable as well via CSS.")
                           ; TODO: fix the packages instead?
                           (mavenize-package ,ant ,(package-version ant)
                             "org.apache.ant" "ant" "/lib/ant.jar")
+                          (mavenize-package ,ant ,(package-version ant)
+                            "org.apache.ant" "ant-launcher" "/lib/ant-launcher.jar")
                           (for-each
                             (lambda (suffix)
                               (mavenize-package ,groovy ,(package-version groovy)
@@ -1340,6 +1384,8 @@ browser window. It is completely customizable as well via CSS.")
                           (mavenize-package ,java-commons-lang ,(package-version java-commons-lang)
                             "commons-lang" "commons-lang"
                             (string-append "/share/java/commons-lang-" ,(package-version java-commons-lang) ".jar"))
+                          (mavenize-package ,java-aqute-bndlib ,(package-version java-aqute-bndlib)
+                            "biz.aQute.bnd" "biz.aQute.bndlib" "/share/java/java-bndlib.jar")
                           (mavenize-package ,java-kryo-2 ,(package-version java-kryo-2)
                             "com.esotericsoftware.kryo" "kryo" "/share/java/kryo.jar")
                           (mavenize-package ,java-gson ,(package-version java-gson)
@@ -1372,10 +1418,18 @@ browser window. It is completely customizable as well via CSS.")
                             "org.apache.maven.wagon" "wagon-http" "/share/java/maven-wagon-http.jar")
                           (mavenize-package ,maven-wagon-http-shared ,(package-version maven-wagon-http-shared)
                             "org.apache.maven.wagon" "wagon-http-shared" "/share/java/maven-wagon-http-shared.jar")
-                          (mavenize-package ,java-jsoup ,(package-version java-jsoup)
-                            "org.jsoup" "jsoup" "/share/java/jsoup.jar")
+                          (mavenize-package ,java-bouncycastle ,(package-version java-bouncycastle)
+                            "org.bouncycastle" "bcprov-jdk15on"
+                            (string-append "/share/java/bcprov-jdk15on-"
+                              (string-concatenate (string-split ,(package-version java-bouncycastle) #\.)) ".jar"))
                           (mavenize-package ,java-jgit ,(package-version java-jgit)
                             "org.eclipse.jgit" "org.eclipse.jgit" "/share/java/jgit.jar")
+                          (mavenize-package ,java-jsoup ,(package-version java-jsoup)
+                            "org.jsoup" "jsoup" "/share/java/jsoup.jar")
+                          (mavenize-package ,rhino ,(package-version rhino)
+                            "org.mozilla" "rhino" "/share/java/js.jar")
+                          (mavenize-package ,java-testng ,(package-version java-testng)
+                            "org.testng" "testng" "/share/java/java-testng.jar")
                           (mavenize-package ,java-jaxp ,(package-version java-jaxp)
                             "xml-apis" "xml-apis" "/share/java/jaxp.jar")
                           (mavenize-package ,java-xerces ,(package-version java-xerces)
