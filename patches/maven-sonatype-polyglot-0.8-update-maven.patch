@@ -1,0 +1,504 @@
+Backported newer commits from the repository:
+From d05d7395c6f92c17184015815d99bd8951d0abf3 Mon Sep 17 00:00:00 2001
+From: Jason Dillon <jason@planet57.com>
+Date: Mon, 26 Apr 2010 12:14:50 -0700
+Subject: [PATCH] [PMAVEN-17] Fixed compatibility with Maven 3.0-beta-1,
+ upgrade distribution to that version.
+
+---
+ .../cli/PolyglotModelTransformerTest.groovy   |  2 +-
+ .../polyglot/clojure/ClojureModelReader.java  | 11 +++---
+ .../clojure/ClojureModelReaderTest.java       | 20 ++++-------
+ .../clojure/ClojureModelWriterTest.java       | 28 +++++----------
+ .../polyglot/PolyglotModelTranslator.java     | 11 +++---
+ .../maven/polyglot/PolyglotModelUtil.java     | 34 ++++++++++++++++---
+ .../polyglot/mapping/MappingSupport.java      |  4 +--
+ .../polyglot/PolyglotModelManagerTest.groovy  |  7 ++--
+ .../PolyglotModelTransformerTest.groovy       |  7 ++--
+ .../groovy/GroovyModelReaderTest.groovy       |  4 +--
+ .../groovy/GroovyModelWriterTest.groovy       |  1 -
+ pom.xml                                       |  2 +-
+ 12 files changed, 68 insertions(+), 63 deletions(-)
+
+diff --git a/pmaven-cli/src/test/groovy/org/sonatype/maven/polyglot/cli/PolyglotModelTransformerTest.groovy b/pmaven-cli/src/test/groovy/org/sonatype/maven/polyglot/cli/PolyglotModelTransformerTest.groovy
+index 878b6df..66ea6a8 100644
+--- a/pmaven-cli/src/test/groovy/org/sonatype/maven/polyglot/cli/PolyglotModelTransformerTest.groovy
++++ b/pmaven-cli/src/test/groovy/org/sonatype/maven/polyglot/cli/PolyglotModelTransformerTest.groovy
+@@ -61,7 +61,7 @@ public class PolyglotTranslatorCliTest
+ 
+     private Model loadModel(final InputStream input, final String location) {
+         def options = [:]
+-        options.put(ModelProcessor.LOCATION, location)
++        options.put(ModelProcessor.SOURCE, location)
+         def reader = manager.getReaderFor(options);
+         return reader.read(input, options)
+     }
+diff --git a/pmaven-clojure/src/main/java/org/sonatype/maven/polyglot/clojure/ClojureModelReader.java b/pmaven-clojure/src/main/java/org/sonatype/maven/polyglot/clojure/ClojureModelReader.java
+index 3b7db33..fd37cd4 100644
+--- a/pmaven-clojure/src/main/java/org/sonatype/maven/polyglot/clojure/ClojureModelReader.java
++++ b/pmaven-clojure/src/main/java/org/sonatype/maven/polyglot/clojure/ClojureModelReader.java
+@@ -21,12 +21,12 @@ import clojure.lang.RT;
+ import clojure.lang.Var;
+ import org.apache.maven.model.Model;
+ import org.apache.maven.model.building.ModelBuilder;
+-import org.apache.maven.model.building.ModelProcessor;
+ import org.apache.maven.model.io.ModelReader;
+ import org.codehaus.plexus.component.annotations.Component;
+ import org.codehaus.plexus.component.annotations.Requirement;
+ import org.codehaus.plexus.logging.Logger;
+ import org.sonatype.maven.polyglot.execute.ExecuteManager;
++import org.sonatype.maven.polyglot.PolyglotModelUtil;
+ import org.sonatype.maven.polyglot.io.ModelReaderSupport;
+ 
+ import java.io.IOException;
+@@ -63,8 +63,7 @@ public class ClojureModelReader extends ModelReaderSupport {
+         Model model;
+         try {
+ 
+-            Object location = options.containsKey(ModelProcessor.LOCATION) ? options.get(ModelProcessor.LOCATION) : "";
+-            Object source = options.containsKey(ModelProcessor.SOURCE) ? options.get(ModelProcessor.SOURCE) : "";
++             String location = PolyglotModelUtil.getLocation(options);
+ 
+             final String bootstrapClojureDsl = "" +
+                     "(use (quote org.sonatype.maven.polyglot.clojure.dsl.reference))" +
+@@ -83,7 +82,7 @@ public class ClojureModelReader extends ModelReaderSupport {
+                     "(use (quote org.sonatype.maven.polyglot.clojure.dsl.project))";
+             
+             clojure.lang.Compiler.load(new StringReader(bootstrapClojureDsl));
+-            clojure.lang.Compiler.load(input, location.toString(), source.toString());
++            clojure.lang.Compiler.load(input, location, location);
+ 
+             Atom project = (Atom) RT.var("org.sonatype.maven.polyglot.clojure.dsl.project", "*PROJECT*").get();
+ 
+diff --git a/pmaven-clojure/src/test/java/org/sonatype/maven/polyglot/clojure/ClojureModelReaderTest.java b/pmaven-clojure/src/test/java/org/sonatype/maven/polyglot/clojure/ClojureModelReaderTest.java
+index 6a46833..9a51a3f 100644
+--- a/pmaven-clojure/src/test/java/org/sonatype/maven/polyglot/clojure/ClojureModelReaderTest.java
++++ b/pmaven-clojure/src/test/java/org/sonatype/maven/polyglot/clojure/ClojureModelReaderTest.java
+@@ -17,11 +17,11 @@ import java.util.Map;
+  *
+  * @author <a href="mailto:mark@derricutt.com">Mark Derricutt</a>
+  */
+-public class ClojureModelReaderTest extends PlexusTestCase {
+-
++public class ClojureModelReaderTest
++    extends PlexusTestCase
++{
+     @Test
+     public void testReading() throws Exception {
+-
+         Model model = readClojureModel("test1.clj");
+         assertNotNull(model);
+ 
+@@ -54,12 +54,10 @@ public class ClojureModelReaderTest extends PlexusTestCase {
+         assertNotNull(plugin);
+         assertEquals("clojure-maven-plugin", plugin.getArtifactId());
+         assertEquals("1.2-SNAPSHOT", plugin.getVersion());
+-
+     }
+ 
+     @Test
+     public void testScripted() throws Exception {
+-
+         Model model = readClojureModel("test2.clj");
+         assertNotNull(model);
+ 
+@@ -71,15 +69,12 @@ public class ClojureModelReaderTest extends PlexusTestCase {
+         }
+ 
+         assertEquals(true, hasTestNg);
+-
+     }
+ 
+     @Test
+     public void testNoGroupOrArtifact() throws Exception {
+-
+         Model model = readClojureModel("test3.clj");
+         assertNotNull(model);
+-
+     }
+ 
+     @Test
+@@ -94,11 +89,8 @@ public class ClojureModelReaderTest extends PlexusTestCase {
+         URL input = getClass().getResource(sourceFile);
+         assertNotNull(input);
+ 
+-        Map options = new HashMap();
+-        options.put(ModelProcessor.LOCATION, input);
+-        options.put(ModelProcessor.SOURCE, sourceFile);
+-        Model model = reader.read(input.openStream(), options);
+-        return model;
++        Map<String,Object> options = new HashMap<String,Object>();
++        options.put(ModelProcessor.SOURCE, input);
++        return reader.read(input.openStream(), options);
+     }
+-
+ }
+diff --git a/pmaven-clojure/src/test/java/org/sonatype/maven/polyglot/clojure/ClojureModelWriterTest.java b/pmaven-clojure/src/test/java/org/sonatype/maven/polyglot/clojure/ClojureModelWriterTest.java
+index 6a21568..1aa041e 100644
+--- a/pmaven-clojure/src/test/java/org/sonatype/maven/polyglot/clojure/ClojureModelWriterTest.java
++++ b/pmaven-clojure/src/test/java/org/sonatype/maven/polyglot/clojure/ClojureModelWriterTest.java
+@@ -11,20 +11,16 @@ import java.net.URL;
+ 
+ import static org.fest.assertions.Assertions.assertThat;
+ 
+-
+ /**
+- * Created by IntelliJ IDEA.
+- * User: amrk
+- * Date: Dec 13, 2009
+- * Time: 1:29:38 PM
+- * To change this template use File | Settings | File Templates.
++ * Tests for {@link ClojureModelWriter}.
++ *
++ * @author <a href="mailto:mark@derricutt.com">Mark Derricutt</a>
+  */
+-public class ClojureModelWriterTest extends PlexusTestCase {
+-
+-
++public class ClojureModelWriterTest
++    extends PlexusTestCase
++{
+     @Test
+     public void testSimpleDependencyRendering() {
+-
+         Dependency dependency = new Dependency();
+         dependency.setGroupId("group");
+         dependency.setArtifactId("artifact");
+@@ -36,8 +31,6 @@ public class ClojureModelWriterTest extends PlexusTestCase {
+         writer.write(sw, new HashMap(), model);
+ 
+         System.out.println(sw.getBuffer().toString());
+-
+-
+     }
+ 
+     private Model readClojureModel(final String sourceFile) throws Exception {
+@@ -46,11 +39,8 @@ public class ClojureModelWriterTest extends PlexusTestCase {
+         URL input = getClass().getResource(sourceFile);
+         assertNotNull(input);
+ 
+-        Map options = new HashMap();
+-        options.put(ModelProcessor.LOCATION, input);
+-        options.put(ModelProcessor.SOURCE, sourceFile);
+-        Model model = reader.read(input.openStream(), options);
+-        return model;
++        Map<String,Object> options = new HashMap<String,Object>();
++        options.put(ModelProcessor.SOURCE, input);
++        return reader.read(input.openStream(), options);
+     }
+-
+ }
+diff --git a/pmaven-common/src/main/java/org/sonatype/maven/polyglot/PolyglotModelTranslator.java b/pmaven-common/src/main/java/org/sonatype/maven/polyglot/PolyglotModelTranslator.java
+index fa085da..4e5fcf1 100644
+--- a/pmaven-common/src/main/java/org/sonatype/maven/polyglot/PolyglotModelTranslator.java
++++ b/pmaven-common/src/main/java/org/sonatype/maven/polyglot/PolyglotModelTranslator.java
+@@ -58,14 +58,15 @@ public class PolyglotModelTranslator
+         assert output != null;
+ 
+         Map<String,Object> inputOptions = new HashMap<String,Object>();
+-        inputOptions.put(ModelProcessor.LOCATION, input.getPath());
++        inputOptions.put(ModelProcessor.SOURCE, input);
+ 
+         Map<String,Object> outputOptions = new HashMap<String,Object>();
+-        outputOptions.put(ModelProcessor.LOCATION, output.getPath());
++        outputOptions.put(ModelProcessor.SOURCE, output);
+ 
+         translate(input, inputOptions, output, outputOptions);
+     }
+ 
++    @SuppressWarnings({"unchecked"})
+     public void translate(final File input, final Map<String,?> inputOptions, final File output, final Map<String,?> outputOptions) throws IOException, ModelParseException {
+         assert input != null;
+         assert output != null;
+@@ -82,10 +83,10 @@ public class PolyglotModelTranslator
+         assert output != null;
+ 
+         Map<String,Object> inputOptions = new HashMap<String,Object>();
+-        inputOptions.put(ModelProcessor.LOCATION, input.toExternalForm());
++        inputOptions.put(ModelProcessor.SOURCE, input);
+ 
+         Map<String,Object> outputOptions = new HashMap<String,Object>();
+-        outputOptions.put(ModelProcessor.LOCATION, output.toExternalForm());
++        outputOptions.put(ModelProcessor.SOURCE, output);
+ 
+         translate(input, inputOptions, output, outputOptions);
+     }
+@@ -111,6 +112,7 @@ public class PolyglotModelTranslator
+         }
+     }
+ 
++    @SuppressWarnings({"unchecked"})
+     public void translate(final InputStream input, final Map<String,?> inputOptions, final OutputStream output, final Map<String,?> outputOptions) throws IOException, ModelParseException {
+         assert input != null;
+         assert output != null;
+@@ -122,6 +124,7 @@ public class PolyglotModelTranslator
+         writer.write(output, (Map<String, Object>) outputOptions, model);
+     }
+ 
++    @SuppressWarnings({"unchecked"})
+     public void translate(final Reader input, final Map<String,?> inputOptions, final Writer output, final Map<String,?> outputOptions) throws IOException, ModelParseException {
+         assert input != null;
+         assert output != null;
+diff --git a/pmaven-common/src/main/java/org/sonatype/maven/polyglot/PolyglotModelUtil.java b/pmaven-common/src/main/java/org/sonatype/maven/polyglot/PolyglotModelUtil.java
+index f319ed3..7f6f535 100644
+--- a/pmaven-common/src/main/java/org/sonatype/maven/polyglot/PolyglotModelUtil.java
++++ b/pmaven-common/src/main/java/org/sonatype/maven/polyglot/PolyglotModelUtil.java
+@@ -16,25 +16,49 @@
+ 
+ package org.sonatype.maven.polyglot;
+ 
+-import org.apache.maven.classrealm.ClassRealmManagerDelegate;
+ import org.apache.maven.model.building.ModelProcessor;
+-import org.codehaus.plexus.classworlds.realm.ClassRealm;
+-import org.codehaus.plexus.component.annotations.Component;
++import org.apache.maven.model.building.ModelSource;
+ 
++import java.io.File;
++import java.net.URL;
+ import java.util.Map;
+ 
+ /**
+  * Support for models.
+  *
+  * @author <a href="mailto:jason@planet57.com">Jason Dillon</a>
+- *
+  * @since 0.7
+  */
+ public class PolyglotModelUtil
+ {
++    /**
++     * Gets the location, as configured via the {@link ModelProcessor#SOURCE} key.
++     *
++     * Supports values of:
++     * <ul>
++     * <li>String
++     * <li>File
++     * <li>URL
++     * <li>ModelSource
++     * </ul>
++     *
++     * @return  The model location; or null.
++     */
+     public static String getLocation(final Map<?, ?> options) {
+         if (options != null) {
+-            return options.containsKey(ModelProcessor.LOCATION) ? String.valueOf(options.get(ModelProcessor.LOCATION)) : null;
++            Object tmp = options.get(ModelProcessor.SOURCE);
++            if (tmp instanceof String) {
++                return (String)tmp;
++            }
++            else if (tmp instanceof URL) {
++                return ((URL)tmp).toExternalForm();
++            }
++            else if (tmp instanceof File) {
++                return ((File)tmp).getAbsolutePath();
++            }
++            else if (tmp instanceof ModelSource) {
++                return ((ModelSource)tmp).getLocation();
++            }
+         }
+         return null;
+     }
+diff --git a/pmaven-common/src/main/java/org/sonatype/maven/polyglot/mapping/MappingSupport.java b/pmaven-common/src/main/java/org/sonatype/maven/polyglot/mapping/MappingSupport.java
+index bf9fff6..563b8ca 100644
+--- a/pmaven-common/src/main/java/org/sonatype/maven/polyglot/mapping/MappingSupport.java
++++ b/pmaven-common/src/main/java/org/sonatype/maven/polyglot/mapping/MappingSupport.java
+@@ -16,12 +16,12 @@
+ 
+ package org.sonatype.maven.polyglot.mapping;
+ 
+-import org.apache.maven.model.building.ModelProcessor;
+ import org.apache.maven.model.io.ModelReader;
+ import org.apache.maven.model.io.ModelWriter;
+ import org.codehaus.plexus.PlexusContainer;
+ import org.codehaus.plexus.component.annotations.Requirement;
+ import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
++import org.sonatype.maven.polyglot.PolyglotModelUtil;
+ 
+ import java.io.File;
+ import java.util.Map;
+@@ -130,7 +130,7 @@ public abstract class MappingSupport
+                 }
+             }
+ 
+-            String location = String.valueOf(options.get(ModelProcessor.LOCATION));
++            String location = PolyglotModelUtil.getLocation(options);
+             if (location != null) {
+                 for (String ext : getAcceptLocationExtensions()) {
+                     if (location.endsWith(ext)) {
+diff --git a/pmaven-common/src/test/groovy/org/sonatype/maven/polyglot/PolyglotModelManagerTest.groovy b/pmaven-common/src/test/groovy/org/sonatype/maven/polyglot/PolyglotModelManagerTest.groovy
+index b45721d..3918986 100644
+--- a/pmaven-common/src/test/groovy/org/sonatype/maven/polyglot/PolyglotModelManagerTest.groovy
++++ b/pmaven-common/src/test/groovy/org/sonatype/maven/polyglot/PolyglotModelManagerTest.groovy
+@@ -4,8 +4,7 @@ import org.apache.maven.model.io.DefaultModelReader
+ import org.codehaus.plexus.PlexusTestCase
+ import org.junit.Before
+ import org.junit.Test
+-import org.sonatype.maven.polyglot.PolyglotModelManager
+-import static org.apache.maven.model.building.ModelProcessor.*
++import static org.apache.maven.model.building.ModelProcessor.SOURCE
+ 
+ /**
+  * Tests for {@link org.sonatype.maven.polyglot.PolyglotModelManager}.
+@@ -33,12 +32,12 @@ public class PolyglotModelManagerTest
+ 
+     @Test
+     void testAcceptLocationXml() {
+-        expectReader(LOCATION, "foo.xml", DefaultModelReader)
++        expectReader(SOURCE, "foo.xml", DefaultModelReader)
+     }
+ 
+     @Test
+     void testAcceptLocationPom() {
+-        expectReader(LOCATION, "foo.pom", DefaultModelReader)
++        expectReader(SOURCE, "foo.pom", DefaultModelReader)
+     }
+ 
+     @Test
+diff --git a/pmaven-common/src/test/groovy/org/sonatype/maven/polyglot/PolyglotModelTransformerTest.groovy b/pmaven-common/src/test/groovy/org/sonatype/maven/polyglot/PolyglotModelTransformerTest.groovy
+index f222f50..730db9b 100644
+--- a/pmaven-common/src/test/groovy/org/sonatype/maven/polyglot/PolyglotModelTransformerTest.groovy
++++ b/pmaven-common/src/test/groovy/org/sonatype/maven/polyglot/PolyglotModelTransformerTest.groovy
+@@ -3,8 +3,7 @@ package org.sonatype.maven.polyglot
+ import org.codehaus.plexus.PlexusTestCase
+ import org.junit.Before
+ import org.junit.Test
+-import org.sonatype.maven.polyglot.PolyglotModelTranslator
+-import static org.apache.maven.model.building.ModelProcessor.*
++import static org.apache.maven.model.building.ModelProcessor.SOURCE
+ 
+ /**
+  * Tests for {@link PolyglotModelTranslator}.
+@@ -28,11 +27,11 @@ public class PolyglotModelTranslatorTest
+         def url = getClass().getResource(input)
+         assertNotNull(url)
+         def inputOptions = [:]
+-        inputOptions.put(LOCATION, url.path)
++        inputOptions.put(SOURCE, url.path)
+ 
+         def buff = new StringWriter()
+         def outputOptions = [:]
+-        outputOptions.put(LOCATION, output)
++        outputOptions.put(SOURCE, output)
+ 
+         translator.translate(url.newReader(), inputOptions, buff, outputOptions)
+ 
+diff --git a/pmaven-groovy/src/test/groovy/org/sonatype/maven/polyglot/groovy/GroovyModelReaderTest.groovy b/pmaven-groovy/src/test/groovy/org/sonatype/maven/polyglot/groovy/GroovyModelReaderTest.groovy
+index 755951e..b7cf159 100644
+--- a/pmaven-groovy/src/test/groovy/org/sonatype/maven/polyglot/groovy/GroovyModelReaderTest.groovy
++++ b/pmaven-groovy/src/test/groovy/org/sonatype/maven/polyglot/groovy/GroovyModelReaderTest.groovy
+@@ -27,7 +27,7 @@ public class GroovyModelReaderTest
+         assertNotNull(input)
+ 
+         def options = [:]
+-        options.put(ModelProcessor.LOCATION, input)
++        options.put(ModelProcessor.SOURCE, input)
+         def model = reader.read(input.openStream(), options)
+         assertNotNull(model)
+ 
+@@ -48,7 +48,7 @@ public class GroovyModelReaderTest
+         assertNotNull(input)
+ 
+         def options = [:]
+-        options.put(ModelProcessor.LOCATION, input)
++        options.put(ModelProcessor.SOURCE, input)
+         def model = reader.read(input.openStream(), options)
+         assertNotNull(model)
+ 
+diff --git a/pmaven-groovy/src/test/groovy/org/sonatype/maven/polyglot/groovy/GroovyModelWriterTest.groovy b/pmaven-groovy/src/test/groovy/org/sonatype/maven/polyglot/groovy/GroovyModelWriterTest.groovy
+index 7c89457..3e59f74 100644
+--- a/pmaven-groovy/src/test/groovy/org/sonatype/maven/polyglot/groovy/GroovyModelWriterTest.groovy
++++ b/pmaven-groovy/src/test/groovy/org/sonatype/maven/polyglot/groovy/GroovyModelWriterTest.groovy
+@@ -40,5 +40,4 @@ public class GroovyModelWriterTest
+         def expect = expected.replaceAll( "(\r\n)|(\r)|(\n)", "\n" )
+         assertEquals(expect, text)
+     }
+-
+ }
+\ No newline at end of file
+diff --git a/pom.xml b/pom.xml
+index 0b82ecc..3682f2e 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -81,7 +81,7 @@
+     
+     <properties>
+         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+-        <mavenVersion>3.0-alpha-7</mavenVersion>
++        <mavenVersion>3.0-beta-1</mavenVersion>
+         <forgeSiteId>forge-sites</forgeSiteId>
+         <forgeSiteUrl>dav:http://repository.sonatype.org/content/sites/forge-sites/${project.artifactId}/${project.version}</forgeSiteUrl>
+     </properties>
+From 110ef8ad793dfb37a62a853336485e653c8cad87 Mon Sep 17 00:00:00 2001
+From: mkristian <m.kristian@web.de>
+Date: Mon, 27 Sep 2010 12:59:33 +0530
+Subject: [PATCH] switch to maven3-beta-3
+
+---
+ .../main/java/org/apache/maven/cli/PolyglotMavenCli.java    | 6 +++---
+ .../maven/polyglot/commands/TranslateCommandTest.java       | 2 ++
+ .../org/sonatype/maven/polyglot/mapping/MappingSupport.java | 2 +-
+ pom.xml                                                     | 2 +-
+ 4 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/pmaven-cli/src/main/java/org/apache/maven/cli/PolyglotMavenCli.java b/pmaven-cli/src/main/java/org/apache/maven/cli/PolyglotMavenCli.java
+index b0572d2..188d628 100644
+--- a/pmaven-cli/src/main/java/org/apache/maven/cli/PolyglotMavenCli.java
++++ b/pmaven-cli/src/main/java/org/apache/maven/cli/PolyglotMavenCli.java
+@@ -38,9 +38,9 @@ public class PolyglotMavenCli
+ 
+         // HACK: Wedge our processor in as the default
+         ComponentDescriptor<?> source = container.getComponentDescriptor(ModelProcessor.class.getName(), "polyglot");
+-        ComponentDescriptor<?> target = container.getComponentDescriptor(ModelProcessor.class.getName());
++        ComponentDescriptor<?> target = container.getComponentDescriptor(ModelProcessor.class.getName(), "default");
+         target.setImplementation(source.getImplementation());
+-        target.addRequirements(source.getRequirements());
++        target.getRequirements().addAll(source.getRequirements());
+ 
+         try {
+             container.addComponentDescriptor(target);
+diff --git a/pmaven-commands/src/test/java/org/sonatype/maven/polyglot/commands/TranslateCommandTest.java b/pmaven-commands/src/test/java/org/sonatype/maven/polyglot/commands/TranslateCommandTest.java
+index 3d8ae6d..43f399e 100644
+--- a/pmaven-commands/src/test/java/org/sonatype/maven/polyglot/commands/TranslateCommandTest.java
++++ b/pmaven-commands/src/test/java/org/sonatype/maven/polyglot/commands/TranslateCommandTest.java
+@@ -8,6 +8,7 @@
+ 
+ package org.sonatype.maven.polyglot.commands;
+ 
++import org.junit.Ignore;
+ import org.junit.Test;
+ import org.sonatype.gshell.command.support.CommandTestSupport;
+ 
+@@ -18,6 +19,7 @@ import static org.junit.Assert.fail;
+  *
+  * @author <a href="mailto:jason@planet57.com">Jason Dillon</a>
+  */
++@Ignore // FIXME: Ignore for now
+ public class TranslateCommandTest
+     extends CommandTestSupport
+ {
+diff --git a/pmaven-common/src/main/java/org/sonatype/maven/polyglot/mapping/MappingSupport.java b/pmaven-common/src/main/java/org/sonatype/maven/polyglot/mapping/MappingSupport.java
+index 563b8ca..b9ae707 100644
+--- a/pmaven-common/src/main/java/org/sonatype/maven/polyglot/mapping/MappingSupport.java
++++ b/pmaven-common/src/main/java/org/sonatype/maven/polyglot/mapping/MappingSupport.java
+@@ -56,7 +56,7 @@ public abstract class MappingSupport
+     private ModelWriter writer;
+ 
+     protected MappingSupport(final String roleHint) {
+-        this.roleHint = roleHint;
++        this.roleHint = roleHint == null? "default" : roleHint;
+     }
+ 
+     public ModelReader getReader() {
+diff --git a/pom.xml b/pom.xml
+index 54c7050..213a961 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -81,7 +81,7 @@
+     
+     <properties>
+         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+-        <mavenVersion>3.0-beta-1</mavenVersion>
++        <mavenVersion>3.0-beta-3</mavenVersion>
+         <forgeSiteId>forge-sites</forgeSiteId>
+         <forgeSiteUrl>dav:http://repository.sonatype.org/content/sites/forge-sites/${project.artifactId}/${project.version}</forgeSiteUrl>
+     </properties>

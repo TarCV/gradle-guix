@@ -883,6 +883,70 @@ browser window. It is completely customizable as well via CSS.")
                   (append (origin-patches (package-source original-groovy-ant))
                     (list "patches/groovy-fix-groovyc-classpath.patch"))))))))
 
+(define maven-sonatype-polyglot-common
+  (package
+    (name "maven-sonatype-polyglot-common")
+    (version "0.8-20100316")
+    (source
+      (origin
+        (method git-fetch)
+        (uri (git-reference
+               ; Currently the source is only available on Software Heritage and only from forks. Originally it was
+               ; hosted at https://github.com/sonatype/maven-polyglot which no longer exist, not even as an archive at
+               ; Software Heritage, though there are some pages on Web Archive. Debian originally fetched the source
+               ; (albeit a different revision) from https://github.com/tobrien/maven-polyglot, but that repository
+               ; no longer exist either, but thankfully available at Software Heritage.
+               ; Commit used here is the newest commit that has datetime lessthan-or-equal to the snapshot used in
+               ; Gradle. Also existence of this commit can be verified both against Web Archive and tobrien's repository
+               ; on Software Heritage (on branch refs/heads/master).
+               (url "https://example.org")
+               (commit "64de179becc3ed324daab72f7238df1404723672"))) ; Please update the comment above when you change the commit
+        (file-name (git-file-name name version))
+        (sha256 (base32 "1lji0pjgcf16yqk6fj5r9n20q6872wr82rbzh0d22hdfrdfp1z9n"))
+        (patches (list "patches/maven-sonatype-polyglot-0.8-update-maven.patch"))))
+    ; TODO: fix propagating slf4j dependencies and make this propagated-inputs
+    (native-inputs (list maven-embedder maven-model-builder))
+    (build-system ant-build-system)
+    (arguments
+      `(#:jar-name "lib.jar"
+         #:source-dir "pmaven-common/src/main"
+         #:test-dir  "pmaven-common/src/test"
+         #:tests? #f ; TODO: compile tests with groovyc
+         #:phases ,#~(modify-phases %standard-phases
+                       (replace 'install
+                         (install-from-pom "pmaven-common/pom.xml")))))
+    (home-page "https://web.archive.org/web/20100706134238/http://polyglot.sonatype.org/")
+    (synopsis "Support alternative markup for Apache Maven POM files. Please check the package description before using.")
+    (description "A library allowing to write Maven POMs in JVM and DSL languages.
+    WARNING: This version of Polyglot no longer exists, not even as a Git repository. Please consider using Takari's
+    Polyglot for Maven for new projects or packages instead.")
+    (license license:asl2.0)))
+
+(define maven-sonatype-polyglot-groovy
+  (package
+    (inherit maven-sonatype-polyglot-common)
+    (native-inputs (list groovy-ant-patched groovy
+                         maven-embedder maven-model-builder)) ; TODO: remove this once propagated-inputs of the polyglot-common is fixed
+    (propagated-inputs (list maven-sonatype-polyglot-common))
+    (arguments
+      `(#:jar-name "lib.jar"
+         #:jdk ,openjdk9 ; same as groovy
+         #:source-dir "pmaven-groovy/src/main"
+         #:test-dir  "pmaven-groovy/src/test"
+         #:tests? #f ; TODO
+         #:phases ,#~(modify-phases %standard-phases
+                       (add-before 'build 'patch-build.xml
+                         (lambda _
+                           (substitute* "build.xml"
+                             (("<javac ([^>]+)>" all args) (string-append
+                                                             "<taskdef name=\"groovyc\" classname=\"org.codehaus.groovy.ant.Groovyc\" classpathref=\"classpath\"/>"
+                                                             "<groovyc " args " fork=\"true\"><classpath refid=\"classpath\"/>"
+                                                             "<javac debug=\"true\" " args ">"))
+                             (("</javac>" all) (string-append all "</groovyc>")))))
+                       (replace 'install
+                         (install-from-pom "pmaven-groovy/pom.xml")))))
+    (synopsis "Support alternative markup for Apache Maven POM files. This package provides Groovy DSL. Please check the package description before using.")))
+
 (define common-gradle-patches
   (list "patches/gradle-4.5.1-asm.patch" "patches/gradle-4.5.1-commons.patch"
      "patches/gradle-4.5.1-groovy-2.4.patch" "patches/gradle-4.5.1-groovy-2.5-1.patch" ; TODO: replace these sets having redundant patches with just diffs, and then compare with originals
@@ -1200,7 +1264,8 @@ browser window. It is completely customizable as well via CSS.")
                      apache-commons-parent-pom-42 java-commons-cli
                      java-commons-codec java-jsoup java-jcl-over-slf4j java-log4j-over-slf4j java-jcifs java-nekohtml
                      java-pegdown zip java-plexus-cipher java-plexus-container-default java-sonatype-oss-parent-pom-5
-                     java-simple-web-4
+                     java-simple-web-4 java-sonatype-aether-api-1.13
+                     maven-sonatype-polyglot-common maven-sonatype-polyglot-groovy
                      maven-compat maven-core maven-parent-pom-34 maven-wagon-provider-api))
     (arguments
       `(#:modules ((guix build ant-build-system) (guix build java-utils) (guix build utils) (ice-9 ftw) (srfi srfi-1)
