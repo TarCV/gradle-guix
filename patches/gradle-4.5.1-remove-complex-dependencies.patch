@@ -123,18 +123,20 @@ TODO: review if something need to be restored in a non-bootstrap build:
  buildTypes {
      sanityCheck {
 -        tasks "classes", "doc:checkstyleApi", "codeQuality", "docs:check", "distribution:checkBinaryCompatibility", "javadocAll"
-+        tasks "classes", "codeQuality", "docs:check", "distribution:checkBinaryCompatibility", "javadocAll"
++        tasks "classes", "docs:check", "distribution:checkBinaryCompatibility", "javadocAll"
          projectProperties ignoreIncomingBuildReceipt: true
      }
  
-@@ -142,12 +142,12 @@
+@@ -141,13 +141,13 @@
+     groovyProjects = subprojects
      publicGroovyProjects = groovyProjects - internalProjects
      pluginProjects = [
-         'plugins', 'codeQuality', 'antlr', 'wrapper', 'osgi', 'maven',
+-        'plugins', 'codeQuality', 'antlr', 'wrapper', 'osgi', 'maven',
 -        'ide', 'announce', 'scala', 'signing', 'ear', 'javascript', 'buildComparison',
 -        'diagnostics', 'reporting', 'publish', 'ivy', 'jacoco', 'buildInit', 'platformBase',
 -        'platformJvm', 'languageJvm', 'languageJava', 'languageGroovy', 'languageScala',
 -        'platformNative', 'platformPlay', 'idePlay', 'languageNative', 'ideNative', 'testingBase',
++        'plugins', 'antlr', 'wrapper', 'osgi', 'maven',
 +        'ide', 'announce', 'signing', 'ear', 'javascript', 'buildComparison',
 +        'diagnostics', 'reporting', 'publish', 'ivy', 'buildInit', 'platformBase',
 +        'platformJvm', 'languageJvm', 'languageJava', 'languageGroovy',
@@ -163,21 +165,19 @@ TODO: review if something need to be restored in a non-bootstrap build:
  
  allprojects {
      group = 'org.gradle'
-@@ -210,14 +206,9 @@
+@@ -210,12 +205,6 @@
          apply from: "$rootDir/gradle/groovyProject.gradle"
          apply from: "$rootDir/gradle/testWithUnknownOS.gradle"
          apply from: "$rootDir/gradle/java9.gradle"
 -        check.dependsOn ":docs:checkstyleApi"
-         check.dependsOn "codeQuality"
-     }
- 
--    if (project in publishedProjects) {
--        apply from: "$rootDir/gradle/publish.gradle"
+-        check.dependsOn "codeQuality"
 -    }
 -
-     apply from: "$rootDir/gradle/codeQuality.gradle"
- }
+-    if (project in publishedProjects) {
+-        apply from: "$rootDir/gradle/publish.gradle"
+     }
  
+     apply from: "$rootDir/gradle/codeQuality.gradle"
 --- a/gradle/integTest.gradle
 +++ b/gradle/integTest.gradle
 @@ -59,23 +59,3 @@
@@ -419,7 +419,7 @@ TODO: Call asciidoctor directly
  useTestFixtures()
 --- a/settings.gradle
 +++ b/settings.gradle
-@@ -32,14 +32,10 @@
+@@ -32,18 +32,13 @@
  include("messaging")
  include("resources")
  include("resourcesHttp")
@@ -434,7 +434,11 @@ TODO: Call asciidoctor directly
  include("osgi")
  include("maven")
  include("announce")
-@@ -54,17 +50,12 @@
+-include("codeQuality")
+ include("antlr")
+ include("toolingApi")
+ include("toolingApiBuilders")
+@@ -54,17 +49,12 @@
  include("native")
  include("internalTesting")
  include("internalIntegTesting")
@@ -452,7 +456,7 @@ TODO: Call asciidoctor directly
  include("buildInit")
  include("buildOption")
  include("platformBase")
-@@ -74,7 +65,6 @@
+@@ -74,7 +64,6 @@
  include("languageJava")
  include("languageGroovy")
  include("languageNative")
@@ -460,7 +464,7 @@ TODO: Call asciidoctor directly
  include("pluginUse")
  include("pluginDevelopment")
  include("modelCore")
-@@ -83,7 +73,6 @@
+@@ -83,7 +72,6 @@
  include("testingBase")
  include("testingNative")
  include("testingJvm")
@@ -556,15 +560,18 @@ TODO: Call asciidoctor directly
 -}
 --- a/subprojects/smoke-test/smoke-test.gradle
 +++ b/subprojects/smoke-test/smoke-test.gradle
-@@ -24,7 +24,6 @@
-     smokeTestRuntimeOnly project(':codeQuality')
+@@ -21,10 +21,8 @@
+     smokeTestCompile libraries.spock
+ 
+     smokeTestRuntimeOnly "org.gradle:gradle-kotlin-dsl:${versions.gradle_kotlin_dsl}"
+-    smokeTestRuntimeOnly project(':codeQuality')
      smokeTestRuntimeOnly project(':ide')
      smokeTestRuntimeOnly project(':ivy')
 -    smokeTestRuntimeOnly project(':jacoco')
      smokeTestRuntimeOnly project(':maven')
      smokeTestRuntimeOnly project(':plugins')
      smokeTestRuntimeOnly project(':toolingApiBuilders')
-@@ -46,24 +45,3 @@
+@@ -46,24 +44,3 @@
      classpath = sourceSets.smokeTest.runtimeClasspath
      maxParallelForks = 1 // those tests are pretty expensive, we shouldn't execute them concurrently
  }
@@ -677,10 +684,11 @@ TODO: Call asciidoctor directly
      compile project(':ear')
 --- a/subprojects/reporting/reporting.gradle
 +++ b/subprojects/reporting/reporting.gradle
-@@ -19,7 +19,6 @@
+@@ -18,8 +18,6 @@
+     compile libraries.jatl
  
      testCompile libraries.jsoup
-     integTestRuntime project(':codeQuality')
+-    integTestRuntime project(':codeQuality')
 -    integTestRuntime project(':jacoco')
  
      reports "jquery:jquery.min:1.11.0@js"

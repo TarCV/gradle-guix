@@ -65,6 +65,105 @@
         (sha256 (base32 "14nvi5hnjy4hdk42lyy959x3fp5khyyfvd9r3g8rbl97vpak3h0x"))
         (patches '())))))
 
+;(define maven-pom
+;  (module-ref (resolve-module '(gnu packages maven)) 'maven-pom))
+;(define make-maven-parent-pom
+;  (module-ref (resolve-module '(gnu packages maven-parent-pom)) 'make-maven-parent-pom))
+;(define-public maven-parent-pom-23
+;  (let ((base (make-maven-parent-pom
+;                "23" "0sjzbk60idz65km38nphcllrdkrjv4zzzhm7pl6429lfk3kpc3wf"
+;                apache-parent-pom-13
+;                #:replacements
+;                (delay
+;                  `(("org.codehaus.plexus"
+;                      ("plexus-component-annotations" .
+;                        ,(package-version java-plexus-container-default))))))))
+;    (package
+;      (inherit base)
+;      (arguments
+;        (substitute-keyword-arguments (package-arguments base)
+;          ((#:phases phases)
+;            `(modify-phases ,phases
+;               (delete 'install-plugins)
+;               (delete 'install-shared))))))))
+;(define maven-3.0.5-pom
+;  (package
+;    (inherit maven-pom)
+;    (version "3.0.5")
+;    (source (origin
+;              (method git-fetch)
+;              (uri (git-reference
+;                     (url "https://github.com/apache/maven")
+;                     (commit (string-append "maven-" version))))
+;              (file-name (git-file-name "maven" version))
+;              (sha256
+;                (base32
+;                  "1bvk3r5vlax1shxp6nis0628ls9grdiz0fchsljaxcp9z0a2y0sd"))
+;              (modules '((guix build utils)))
+;              (snippet
+;                '(begin
+;                   (for-each delete-file (find-files "." "\\.jar$"))
+;                   (for-each (lambda (file) (chmod file #o644))
+;                     (find-files "." "."))
+;                   #t))
+;              (patches
+;                (search-patches "maven-generate-component-xml.patch"
+;                  "maven-generate-javax-inject-named.patch"))))
+;    (propagated-inputs
+;      (list maven-parent-pom-23))))
+;; TODO: also replace inputs
+;(define maven-3.0.5-model
+;  (package
+;    (inherit maven-3.0-model)
+;    (version (package-version maven-3.0.5-pom))
+;    (source (package-source maven-3.0.5-pom))))
+;(define maven-3.0.5-compat
+;  (package
+;    (inherit maven-3.0-compat)
+;    (version (package-version maven-3.0.5-pom))
+;    (source (package-source maven-3.0.5-pom))))
+(define-public java-sonatype-aether-impl-1.13
+  (package
+    (inherit java-sonatype-aether-api-1.13)
+    (name "java-sonatype-aether-impl")
+    (arguments
+      `(#:jar-name "aether-impl.jar"
+         #:source-dir "aether-impl/src/main/java"
+         #:test-dir "aether-impl/src/test"
+         #:tests? #f ; TODO
+         #:phases
+         (modify-phases %standard-phases
+           (add-before 'install 'fix-pom
+             (lambda _
+               (substitute* "aether-impl/pom.xml"
+                 (("org.sonatype.sisu") "org.codehaus.plexus")
+                 (("sisu-inject-plexus") "plexus-container-default"))
+               #t))
+           (add-after 'build 'generate-metadata
+             (lambda _
+               (invoke "java" "-cp" (string-append (getenv "CLASSPATH") ":build/classes")
+                 "org.codehaus.plexus.metadata.PlexusMetadataGeneratorCli"
+                 "--source" "src/main/java"
+                 "--output" "build/classes/META-INF/plexus/components.xml"
+                 "--classes" "build/classes"
+                 "--descriptors" "build/classes/META-INF")
+               #t))
+           (add-after 'generate-metadata 'rebuild
+             (lambda _
+               (invoke "ant" "jar")
+               #t))
+           (replace 'install (install-from-pom "aether-impl/pom.xml")))))
+    (propagated-inputs
+      `(("java-sonatype-aether-api" ,java-sonatype-aether-api-1.13)
+        ("java-sonatype-aether-spi" ,java-sonatype-aether-spi-1.13)
+        ("java-sonatype-aether-util" ,java-sonatype-aether-util-1.13)
+        ("java-plexus-component-annotations" ,java-plexus-component-annotations)
+        ("java-plexus-container-default" ,java-plexus-container-default)
+        ("java-slf4j-api" ,java-slf4j-api)))
+    (native-inputs
+      (list java-junit java-plexus-component-metadata
+            java-sonatype-aether-test-util-1.13))))
+
 ; Avoid pack200 as it depends on old version of ASM library
 (define java-commons-compress-no-pack200 ; TODO: patch package instead
   (package
@@ -886,7 +985,9 @@ browser window. It is completely customizable as well via CSS.")
 (define maven-sonatype-polyglot-common
   (package
     (name "maven-sonatype-polyglot-common")
-    (version "0.8-20100316")
+    ; Version here uses the day before the day of the next commit. This is because any release between those two days
+    ; (bounds included) would be same, so the latest possible date of the needed release is used.
+    (version "0.8-20100327")
     (source
       (origin
         (method git-fetch)
@@ -899,13 +1000,21 @@ browser window. It is completely customizable as well via CSS.")
                ; Commit used here is the newest commit that has datetime lessthan-or-equal to the snapshot used in
                ; Gradle. Also existence of this commit can be verified both against Web Archive and tobrien's repository
                ; on Software Heritage (on branch refs/heads/master).
-               (url "https://example.org")
+;               (url "https://example.org")
+               (url "file:///tmp/swh:1:rev:f985700bacca99d6367a4649d9d878cb974c199c.git")
                (commit "64de179becc3ed324daab72f7238df1404723672"))) ; Please update the comment above when you change the commit
         (file-name (git-file-name name version))
         (sha256 (base32 "1lji0pjgcf16yqk6fj5r9n20q6872wr82rbzh0d22hdfrdfp1z9n"))
-        (patches (list "patches/maven-sonatype-polyglot-0.8-update-maven.patch"))))
+        (patches (list "patches/maven-sonatype-polyglot-0.8-update-maven.patch"
+                   "patches/maven-sonatype-polyglot-0.8-package-version.patch"
+                   "patches/maven-sonatype-polyglot-0.8-provided-groovy-dependency.patch"))
+        (modules '((guix build utils)))
+        (snippet `(substitute* (find-files "." ".*pom\\.xml$")
+            (("\\$\\{GUIX_PACKAGE_VERSION\\}") ,version)))
+        ))
     ; TODO: fix propagating slf4j dependencies and make this propagated-inputs
     (native-inputs (list maven-embedder maven-model-builder))
+    (propagated-inputs (list maven-sonatype-polyglot-parent-pom))
     (build-system ant-build-system)
     (arguments
       `(#:jar-name "lib.jar"
@@ -922,12 +1031,29 @@ browser window. It is completely customizable as well via CSS.")
     Polyglot for Maven for new projects or packages instead.")
     (license license:asl2.0)))
 
+(define maven-sonatype-polyglot-parent-pom
+  (hidden-package
+    (package
+      (inherit maven-sonatype-polyglot-common)
+      (inputs '())
+      (native-inputs '())
+      (propagated-inputs '())
+      (build-system ant-build-system)
+      (arguments
+        `(#:tests? #f
+           #:phases
+           (modify-phases %standard-phases
+             (delete 'configure)
+             (delete 'build)
+             (replace 'install
+               (install-pom-file "pom.xml"))))))))
+
 (define maven-sonatype-polyglot-groovy
   (package
     (inherit maven-sonatype-polyglot-common)
     (native-inputs (list groovy-ant-patched groovy
                          maven-embedder maven-model-builder)) ; TODO: remove this once propagated-inputs of the polyglot-common is fixed
-    (propagated-inputs (list maven-sonatype-polyglot-common))
+    (propagated-inputs (list maven-sonatype-polyglot-parent-pom maven-sonatype-polyglot-common))
     (arguments
       `(#:jar-name "lib.jar"
          #:jdk ,openjdk9 ; same as groovy
@@ -1264,9 +1390,9 @@ browser window. It is completely customizable as well via CSS.")
                      apache-commons-parent-pom-42 java-commons-cli
                      java-commons-codec java-jsoup java-jcl-over-slf4j java-log4j-over-slf4j java-jcifs java-nekohtml
                      java-pegdown zip java-plexus-cipher java-plexus-container-default java-sonatype-oss-parent-pom-5
-                     java-simple-web-4 java-sonatype-aether-api-1.13
+                     java-simple-web-4 java-sonatype-aether-api-1.13 java-sonatype-aether-impl-1.13 java-sonatype-aether-util-1.13
                      maven-sonatype-polyglot-common maven-sonatype-polyglot-groovy
-                     maven-compat maven-core maven-parent-pom-34 maven-wagon-provider-api))
+                     maven-3.0-compat maven-3.0-core maven-core maven-parent-pom-34 maven-wagon-provider-api))
     (arguments
       `(#:modules ((guix build ant-build-system) (guix build java-utils) (guix build utils) (ice-9 ftw) (srfi srfi-1)
                     (ice-9 string-fun) (srfi srfi-26))
@@ -1341,6 +1467,7 @@ browser window. It is completely customizable as well via CSS.")
                                       "subprojects/docs/docs.gradle"
                                       "subprojects/docs/src/transforms/release-notes.gradle"
                                       "subprojects/javascript/javascript.gradle"
+                                      "subprojects/maven/maven.gradle"
                                       "subprojects/reporting/reporting.gradle")
                         (("(com.google.guava:)guava-jdk5:([0-9][0-9.]+)([:'@\"])" _ prefix version suffix)
                           (string-append prefix "guava:[" version ",)" suffix))
@@ -1348,7 +1475,7 @@ browser window. It is completely customizable as well via CSS.")
                           (string-append prefix "[" version ",)" suffix))
                         (("net.jcip:jcip-annotations:([0-9][0-9.]+)([:'@\"])" _ _ suffix)
                           (string-append "com.google.code.findbugs:jsr305:[3,)" suffix))
-                        (("(:)([0-9]+)([0-9.Rr]*)([:'@\"])" _ prefix major-version rest-version suffix)
+                        (("(:)([0-9]+)([0-9.Rr-]*)([:'@\"])" _ prefix major-version rest-version suffix)
                           (string-append prefix "["
                             major-version rest-version ", "
                             (number->string (1+ (string->number major-version))) ")"
@@ -1451,6 +1578,8 @@ browser window. It is completely customizable as well via CSS.")
                             (string-append "/share/java/commons-lang-" ,(package-version java-commons-lang) ".jar"))
                           (mavenize-package ,java-aqute-bndlib ,(package-version java-aqute-bndlib)
                             "biz.aQute.bnd" "biz.aQute.bndlib" "/share/java/java-bndlib.jar")
+                          (mavenize-package ,java-aqute-libg ,(package-version java-aqute-libg)
+                            "biz.aQute.bnd" "biz.aQute.bndlib.libg" "/share/java/java-aqute-libg.jar")
                           (mavenize-package ,java-kryo-2 ,(package-version java-kryo-2)
                             "com.esotericsoftware.kryo" "kryo" "/share/java/kryo.jar")
                           (mavenize-package ,java-gson ,(package-version java-gson)
@@ -1561,7 +1690,7 @@ browser window. It is completely customizable as well via CSS.")
                             "--no-build-cache"
                             ; TODO: set number of worker threads based on '--cores' Guix argument
 ;                            "--offline"
-;                            "--stacktrace"
+                            "--stacktrace"
                             "-x" "check"
                             "install" (string-append "-Pgradle_installPath=" (assoc-ref outputs "out"))
                           )))))

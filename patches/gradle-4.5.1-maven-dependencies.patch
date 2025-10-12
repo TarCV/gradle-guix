@@ -1,5 +1,24 @@
+TODO: Remove all hunks here expect the first one?
 --- a/gradle/dependencies.gradle
 +++ b/gradle/dependencies.gradle
+@@ -24,7 +24,7 @@
+ versions.commons_io = '2.5'
+ versions.groovy = groovyVersion
+ versions.bouncycastle = '1.58'
+-versions.maven = '3.0.4'
++versions.maven = '[3.0, 3.1)'
+ versions.httpclient = '4.4.1'
+ 
+ libraries.ant = ['org.apache.ant:ant:1.9.9', 'org.apache.ant:ant-launcher:1.9.9']
+@@ -93,7 +94,7 @@
+ 
+ libraries.nekohtml = "net.sourceforge.nekohtml:nekohtml:1.9.14"
+ 
+-libraries.maven3 = "org.apache.maven:maven-core:${versions.maven}"
++libraries.maven3 = ["org.apache.maven:maven-core:${versions.maven}", "org.sonatype.aether:aether-api:[1.7,2)", "org.sonatype.aether:aether-impl:[1.7,2)", "org.sonatype.aether:aether-util:[1.7,2)"]
+ 
+ libraries.spock = [
+     'org.spockframework:spock-core:1.0-groovy-2.4',
 @@ -168,24 +168,16 @@
                          add('org.apache.maven.wagon:wagon-file:2.4')
                          add('org.apache.maven.wagon:wagon-http:2.4')
@@ -52,7 +71,7 @@
   * limitations under the License.
   */
  dependencies {
-+    compile 'org.sonatype.aether:aether-api:[1.13.1,2)'
++    compile 'org.sonatype.aether:aether-api:[1.7,2)'
      compile libraries.groovy
      compile libraries.groovyTemplates
      compile project(':core')
