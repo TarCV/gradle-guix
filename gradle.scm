@@ -1000,10 +1000,10 @@ browser window. It is completely customizable as well via CSS.")
                ; Commit used here is the newest commit that has datetime lessthan-or-equal to the snapshot used in
                ; Gradle. Also existence of this commit can be verified both against Web Archive and tobrien's repository
                ; on Software Heritage (on branch refs/heads/master).
-;               (url "https://example.org")
-               (url "file:///tmp/swh:1:rev:f985700bacca99d6367a4649d9d878cb974c199c.git")
+               (url "https://example.org")
                (commit "64de179becc3ed324daab72f7238df1404723672"))) ; Please update the comment above when you change the commit
-        (file-name (git-file-name name version))
+;        (file-name (git-file-name name version)) ; TODO
+        (file-name "swh_1_rev_64de179becc3ed324daab72f7238df1404723672-64de179")
         (sha256 (base32 "1lji0pjgcf16yqk6fj5r9n20q6872wr82rbzh0d22hdfrdfp1z9n"))
         (patches (list "patches/maven-sonatype-polyglot-0.8-update-maven.patch"
                    "patches/maven-sonatype-polyglot-0.8-package-version.patch"
@@ -1012,7 +1012,7 @@ browser window. It is completely customizable as well via CSS.")
         (snippet `(substitute* (find-files "." ".*pom\\.xml$")
             (("\\$\\{GUIX_PACKAGE_VERSION\\}") ,version)))
         ))
-    ; TODO: fix propagating slf4j dependencies and make this propagated-inputs
+    ; TODO: Prevent propagating slf4j dependencies and make these propagated-inputs
     (native-inputs (list maven-embedder maven-model-builder))
     (propagated-inputs (list maven-sonatype-polyglot-parent-pom))
     (build-system ant-build-system)
@@ -1025,7 +1025,7 @@ browser window. It is completely customizable as well via CSS.")
                        (replace 'install
                          (install-from-pom "pmaven-common/pom.xml")))))
     (home-page "https://web.archive.org/web/20100706134238/http://polyglot.sonatype.org/")
-    (synopsis "Support alternative markup for Apache Maven POM files. Please check the package description before using.")
+    (synopsis "Support alternative markup for Apache Maven POM files. Please note, this is an obsolete version of Polyglot.")
     (description "A library allowing to write Maven POMs in JVM and DSL languages.
     WARNING: This version of Polyglot no longer exists, not even as a Git repository. Please consider using Takari's
     Polyglot for Maven for new projects or packages instead.")
@@ -1092,7 +1092,8 @@ browser window. It is completely customizable as well via CSS.")
         (sha256 (base32 "03yaq6kkdk5akjl5is0rmkdqhg1jfhp1mbv9jzpmjrs53z1hsxlw"))
         (patches `(,@common-gradle-patches
                     "patches/gradle-bootstrap-4.5.1-remove-dependencies.patch"
-                    "patches/gradle-bootstrap-4.5.1-single-jar.patch"))
+                    "patches/gradle-bootstrap-4.5.1-single-jar.patch"
+                    "patches/gradle-4.5.1-workaround-dependency-issue.patch"))
         (modules '((guix build utils)))
         (snippet '(begin
                     (for-each delete-file
@@ -1690,6 +1691,7 @@ browser window. It is completely customizable as well via CSS.")
                             "--no-build-cache"
                             ; TODO: set number of worker threads based on '--cores' Guix argument
 ;                            "--offline"
+;                            "--debug"
                             "--stacktrace"
                             "-x" "check"
                             "install" (string-append "-Pgradle_installPath=" (assoc-ref outputs "out"))
