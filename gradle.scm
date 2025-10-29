@@ -46,8 +46,11 @@
 (define groovy-test  ; TODO: make the package public instead
   (module-ref (resolve-module '(gnu packages groovy)) 'groovy-test))
 
-(define make-apache-commons-parent-pom
+(define java-plexus-containers-parent-pom-1.7 ; TODO: add this dependency to java-plexus-container-default-1.7 instead?
+  (module-ref (resolve-module '(gnu packages java)) 'java-plexus-containers-parent-pom-1.7))
+(define make-apache-commons-parent-pom ; TODO: add this dependency to the relevant package?
   (module-ref (resolve-module '(gnu packages maven-parent-pom)) 'make-apache-commons-parent-pom))
+
 (define-public apache-commons-parent-pom-42
   (make-apache-commons-parent-pom
     "42" "1x7hpi2zwibfd73ixwabg86qywn9s999a6rbsay28lwg2yp9ldng"
@@ -1013,7 +1016,7 @@ browser window. It is completely customizable as well via CSS.")
             (("\\$\\{GUIX_PACKAGE_VERSION\\}") ,version)))
         ))
     ; TODO: Prevent propagating slf4j dependencies and make these propagated-inputs
-    (native-inputs (list maven-embedder maven-model-builder))
+    (native-inputs (list maven-embedder maven-3.0-model-builder))
     (propagated-inputs (list maven-sonatype-polyglot-parent-pom))
     (build-system ant-build-system)
     (arguments
@@ -1052,7 +1055,7 @@ browser window. It is completely customizable as well via CSS.")
   (package
     (inherit maven-sonatype-polyglot-common)
     (native-inputs (list groovy-ant-patched groovy
-                         maven-embedder maven-model-builder)) ; TODO: remove this once propagated-inputs of the polyglot-common is fixed
+                         maven-embedder maven-3.0-model-builder)) ; TODO: remove this once propagated-inputs of the polyglot-common is fixed
     (propagated-inputs (list maven-sonatype-polyglot-parent-pom maven-sonatype-polyglot-common))
     (arguments
       `(#:jar-name "lib.jar"
@@ -1107,7 +1110,7 @@ browser window. It is completely customizable as well via CSS.")
             java-commons-io java-commons-lang java-commons-logging-minimal
             java-fastutil-7 java-gson java-jansi-1 java-jatl java-jgit java-jsr305 java-jul-to-slf4j
             java-httpcomponents-httpclient java-httpcomponents-httpcore
-            java-kryo-2 java-native-platform-0.14 java-slf4j-api java-testng maven-settings-builder))
+            java-kryo-2 java-native-platform-0.14 java-slf4j-api java-testng maven-3.0-settings-builder))
     (arguments
       `(#:jdk ,openjdk9 ; same as groovy
          #:jar-name "gradle.jar"
@@ -1390,10 +1393,11 @@ browser window. It is completely customizable as well via CSS.")
     (native-inputs (list
                      apache-commons-parent-pom-42 java-commons-cli
                      java-commons-codec java-jsoup java-jcl-over-slf4j java-log4j-over-slf4j java-jcifs java-nekohtml
-                     java-pegdown zip java-plexus-cipher java-plexus-container-default java-sonatype-oss-parent-pom-5
-                     java-simple-web-4 java-sonatype-aether-api-1.13 java-sonatype-aether-impl-1.13 java-sonatype-aether-util-1.13
+                     java-pegdown zip java-plexus-cipher-1.7 java-plexus-container-default-1.7
+                     java-plexus-component-annotations-1.7 java-sonatype-oss-parent-pom-5 java-simple-web-4
+                     java-sonatype-aether-api-1.13 java-sonatype-aether-impl-1.13 java-sonatype-aether-util-1.13
                      maven-sonatype-polyglot-common maven-sonatype-polyglot-groovy
-                     maven-3.0-compat maven-3.0-core maven-core maven-parent-pom-34 maven-wagon-provider-api))
+                     maven-3.0-compat maven-3.0-core maven-parent-pom-34 maven-3.0-plugin-api maven-wagon-provider-api))
     (arguments
       `(#:modules ((guix build ant-build-system) (guix build java-utils) (guix build utils) (ice-9 ftw) (srfi srfi-1)
                     (ice-9 string-fun) (srfi srfi-26))
@@ -1420,6 +1424,11 @@ browser window. It is completely customizable as well via CSS.")
                         (("CharMatcher.JAVA_ISO_CONTROL") "CharMatcher.javaIsoControl()")
                         (("Iterators.emptyIterator\\(\\)") "java.util.Collections.emptyIterator()")
                         (("Objects.toStringHelper") "com.google.common.base.MoreObjects.toStringHelper"))))
+                  (add-before 'build 'patch-for-newer-maven
+                    (lambda _
+                      (substitute* (find-files "." ".*\\.(java|groovy)$")
+                        (("org\\.eclipse\\.aether\\.(RepositorySystemSession)" _ name) 
+                          (string-append "org.sonatype.aether." name)))))
                   (add-before 'build 'patch-jcip
                     (lambda _
                       (substitute* (find-files "." ".*\\.(java|groovy)$")
@@ -1451,7 +1460,7 @@ browser window. It is completely customizable as well via CSS.")
                            "|com.google.code.findbugs:jsr305"
                            "|org.apache.maven.wagon:wagon-[^'\":]+"
                            "|org.apache.xbean:xbean-[^'\":]+"
-                           "|org.codehaus.plexus:plexus-[^'\":]+"
+;                           "|org.codehaus.plexus:plexus-[^'\":]+"
                            "):)([0-9]+[0-9.]*)([:'@\"])") _ prefix _ version suffix)
                           (string-append prefix "[" version ",)" suffix))
                         (("net.jcip:jcip-annotations:([0-9][0-9.]+)([:'@\"])" _ _ suffix)
@@ -1692,9 +1701,11 @@ browser window. It is completely customizable as well via CSS.")
                             ; TODO: set number of worker threads based on '--cores' Guix argument
 ;                            "--offline"
 ;                            "--debug"
-                            "--stacktrace"
+;                            "--info"
+;                            "--stacktrace"
                             "-x" "check"
                             "install" (string-append "-Pgradle_installPath=" (assoc-ref outputs "out"))
+;                            ":dependencyManagement:dependencies"
                           )))))
                   (delete 'reorder-jar-content)
                   (delete 'generate-jar-indices))))))))
