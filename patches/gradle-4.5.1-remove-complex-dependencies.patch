@@ -693,3 +693,191 @@ TODO: Call asciidoctor directly
  
      reports "jquery:jquery.min:1.11.0@js"
  }
+--- a/subprojects/ide/src/main/java/org/gradle/plugins/ide/idea/model/IdeaModule.java
++++ b/subprojects/ide/src/main/java/org/gradle/plugins/ide/idea/model/IdeaModule.java
+@@ -27,7 +27,6 @@
+ import org.gradle.api.Project;
+ import org.gradle.api.artifacts.Configuration;
+ import org.gradle.api.internal.project.ProjectInternal;
+-import org.gradle.language.scala.ScalaPlatform;
+ import org.gradle.plugins.ide.idea.model.internal.IdeaDependenciesProvider;
+ 
+ import java.io.File;
+@@ -162,7 +161,6 @@
+     private String jdkName;
+     private IdeaLanguageLevel languageLevel;
+     private JavaVersion targetBytecodeVersion;
+-    private ScalaPlatform scalaPlatform;
+     private final IdeaModuleIml iml;
+     private final Project project;
+     private PathFactory pathFactory;
+@@ -428,18 +426,6 @@
+         this.targetBytecodeVersion = targetBytecodeVersion;
+     }
+ 
+-    /**
+-     * The Scala version used by this module.
+-     */
+-    @Incubating
+-    public ScalaPlatform getScalaPlatform() {
+-        return scalaPlatform;
+-    }
+-
+-    @Incubating
+-    public void setScalaPlatform(ScalaPlatform scalaPlatform) {
+-        this.scalaPlatform = scalaPlatform;
+-    }
+ 
+     /**
+      * See {@link #iml(Action)}
+--- a/subprojects/ide/src/main/java/org/gradle/plugins/ide/idea/IdeaPlugin.java
++++ b/subprojects/ide/src/main/java/org/gradle/plugins/ide/idea/IdeaPlugin.java
+@@ -39,16 +39,13 @@
+ import org.gradle.api.plugins.JavaPlugin;
+ import org.gradle.api.plugins.JavaPluginConvention;
+ import org.gradle.api.plugins.WarPlugin;
+-import org.gradle.api.plugins.scala.ScalaBasePlugin;
+ import org.gradle.api.tasks.SourceSetContainer;
+ import org.gradle.api.tasks.TaskDependency;
+ import org.gradle.initialization.ProjectPathRegistry;
+ import org.gradle.internal.component.local.model.LocalComponentArtifactMetadata;
+ import org.gradle.internal.reflect.Instantiator;
+ import org.gradle.internal.service.ServiceRegistry;
+-import org.gradle.language.scala.plugins.ScalaLanguagePlugin;
+ import org.gradle.plugins.ide.api.XmlFileContentMerger;
+-import org.gradle.plugins.ide.idea.internal.IdeaScalaConfigurer;
+ import org.gradle.plugins.ide.idea.model.IdeaLanguageLevel;
+ import org.gradle.plugins.ide.idea.model.IdeaModel;
+ import org.gradle.plugins.ide.idea.model.IdeaModule;
+@@ -130,7 +127,6 @@
+         configureIdeaModule(project);
+         configureForJavaPlugin(project);
+         configureForWarPlugin(project);
+-        configureForScalaPlugin();
+         registerIdeArtifact(createImlArtifact(project));
+         linkCompositeBuildDependencies((ProjectInternal) project);
+     }
+@@ -193,7 +189,7 @@
+ 
+             });
+ 
+-            ideaProject.getWildcards().addAll(Arrays.asList("!?*.class", "!?*.scala", "!?*.groovy", "!?*.java"));
++            ideaProject.getWildcards().addAll(Arrays.asList("!?*.class", "!?*.groovy", "!?*.java"));
+             conventionMapping.map("modules", new Callable<List<IdeaModule>>() {
+                 @Override
+                 public List<IdeaModule> call() throws Exception {
+@@ -442,24 +438,6 @@
+         return !moduleLanguageLevel.equals(ideaProject.getLanguageLevel());
+     }
+ 
+-    private void configureForScalaPlugin() {
+-        project.getPlugins().withType(ScalaBasePlugin.class, new Action<ScalaBasePlugin>() {
+-            @Override
+-            public void execute(ScalaBasePlugin scalaBasePlugin) {
+-                ideaModuleDependsOnRoot();
+-            }
+-        });
+-        project.getPlugins().withType(ScalaLanguagePlugin.class, new Action<ScalaLanguagePlugin>() {
+-            @Override
+-            public void execute(ScalaLanguagePlugin scalaLanguagePlugin) {
+-                ideaModuleDependsOnRoot();
+-            }
+-
+-        });
+-        if (isRoot()) {
+-            new IdeaScalaConfigurer(project).configure();
+-        }
+-    }
+ 
+     private void ideaModuleDependsOnRoot() {
+         // see IdeaScalaConfigurer which requires the ipr to be generated first
+--- a/subprojects/ide/src/main/java/org/gradle/plugins/ide/eclipse/EclipsePlugin.java
++++ b/subprojects/ide/src/main/java/org/gradle/plugins/ide/eclipse/EclipsePlugin.java
+@@ -38,7 +38,6 @@
+ import org.gradle.api.plugins.JavaPlugin;
+ import org.gradle.api.plugins.JavaPluginConvention;
+ import org.gradle.api.plugins.WarPlugin;
+-import org.gradle.api.plugins.scala.ScalaBasePlugin;
+ import org.gradle.api.tasks.SourceSetContainer;
+ import org.gradle.api.tasks.TaskContainer;
+ import org.gradle.internal.reflect.Instantiator;
+@@ -175,20 +174,6 @@
+ 
+                 });
+ 
+-                project.getPlugins().withType(ScalaBasePlugin.class, new Action<ScalaBasePlugin>() {
+-                    @Override
+-                    public void execute(ScalaBasePlugin scalaBasePlugin) {
+-                        projectModel.getBuildCommands().set(Iterables.indexOf(projectModel.getBuildCommands(), new Predicate<BuildCommand>() {
+-                            @Override
+-                            public boolean apply(BuildCommand buildCommand) {
+-                                return buildCommand.getName().equals("org.eclipse.jdt.core.javabuilder");
+-                            }
+-
+-                        }), new BuildCommand("org.scala-ide.sdt.core.scalabuilder"));
+-                        projectModel.getNatures().add(projectModel.getNatures().indexOf("org.eclipse.jdt.core.javanature"), "org.scala-ide.sdt.core.scalanature");
+-                    }
+-
+-                });
+             }
+ 
+         });
+@@ -241,7 +226,6 @@
+ 
+                         });
+ 
+-                        configureScalaDependencies(project, task);
+                     }
+ 
+                 });
+@@ -265,40 +249,6 @@
+         task.dependsOn(sourceSets.getByName("test").getOutput().getDirs());
+     }
+ 
+-    private static void configureScalaDependencies(final Project project, final GenerateEclipseClasspath task) {
+-        project.getPlugins().withType(ScalaBasePlugin.class, new Action<ScalaBasePlugin>() {
+-            @Override
+-            public void execute(ScalaBasePlugin scalaBasePlugin) {
+-                task.getClasspath().containers("org.scala-ide.sdt.launching.SCALA_CONTAINER");
+-
+-                // exclude the dependencies already provided by SCALA_CONTAINER; prevents problems with Eclipse Scala plugin
+-                project.getGradle().addBuildListener(new BuildAdapter() {
+-                    @Override
+-                    public void projectsEvaluated(Gradle gradle) {
+-                        final List<String> provided = Lists.newArrayList("scala-library", "scala-swing", "scala-dbc");
+-                        Predicate<Dependency> dependencyInProvided = new Predicate<Dependency>() {
+-                            @Override
+-                            public boolean apply(Dependency dependency) {
+-                                return provided.contains(dependency.getName());
+-                            }
+-
+-                        };
+-                        List<Dependency> dependencies = Lists.newArrayList(Iterables.filter(Iterables.concat(Iterables.transform(task.getClasspath().getPlusConfigurations(), new Function<Configuration, Iterable<Dependency>>() {
+-                            @Override
+-                            public Iterable<Dependency> apply(Configuration config) {
+-                                return config.getAllDependencies();
+-                            }
+-
+-                        })), dependencyInProvided));
+-                        if (!dependencies.isEmpty()) {
+-                            task.getClasspath().getMinusConfigurations().add(project.getConfigurations().detachedConfiguration(dependencies.toArray(new Dependency[0])));
+-                        }
+-                    }
+-                });
+-            }
+-
+-        });
+-    }
+ 
+     private void configureEclipseJdt(final Project project, final EclipseModel model) {
+         final EclipsePlugin eclipsePlugin = this;
+--- a/subprojects/ide-native/ide-native.gradle
++++ b/subprojects/ide-native/ide-native.gradle
+@@ -21,7 +21,6 @@
+     compile project(':platformNative')
+     compile project(':languageNative')
+     compile project(':testingNative')
+-    compile libraries.plist
+ 
+     testFixturesCompile project(':internalTesting')
+ }

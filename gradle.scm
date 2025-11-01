@@ -1441,11 +1441,22 @@ browser window. It is completely customizable as well via CSS.")
                         (list
                           "buildSrc/src/main/groovy/org/gradle/build/docs/CacheableAsciidoctorTask.groovy" ; depends on JRuby which is not packaged in Guix
                           "buildSrc/src/main/groovy/org/gradle/testing/DistributedPerformanceTest.groovy" ; depends on a remote CI system
-                          "buildSrc/src/main/groovy/org/gradle/testing/PerformanceTest.java" ; dependends on previous versions of Gradle
+                          "buildSrc/src/main/groovy/org/gradle/testing/PerformanceTest.java" ; depends on previous versions of Gradle
+                          "subprojects/ide/src/main/java/org/gradle/plugins/ide/idea/internal/IdeaScalaConfigurer.java" ; depends on Scala
+
+                          ; Depend on dd-plist library and only required for a properietary IDE:
+                          "subprojects/ide-native/src/main/java/org/gradle/api/internal/PropertyListTransformer.java"
+                          "subprojects/ide-native/src/main/java/org/gradle/plugins/ide/api/PropertyListGeneratorTask.java"
+                          "subprojects/ide-native/src/main/java/org/gradle/plugins/ide/internal/generator/PropertyListPersistableConfigurationObject.java"
                           ))
                       (delete-file-recursively "buildSrc/src/main/groovy/org/gradle/binarycompatibility") ; dependends on previous versions of Gradle
                       (delete-file-recursively "buildSrc/src/main/groovy/org/gradle/testing/performance") ; dependends on previous versions of Gradle
                       (delete-file-recursively "buildSrc/src/test") ; has dependency loops back to Gradle (spock)
+
+                      ; Depend on dd-plist library and only required for a properietary IDE:
+                      (delete-file-recursively "subprojects/ide-native/src/main/java/org/gradle/ide/xcode")
+                      (delete-file-recursively "subprojects/ide-native/src/test/groovy/org/gradle/ide/xcode")
+
                       (substitute* (find-files "." "\\.gradle$")
                         ((" crossVersionTest[A-Za-z]+ " all) (string-append "// " all)) ; dependencies for tests depending on previous versions of Gradle
                         )))
@@ -1622,10 +1633,15 @@ browser window. It is completely customizable as well via CSS.")
                             "org.apache.maven.wagon" "wagon-http" "/share/java/maven-wagon-http.jar")
                           (mavenize-package ,maven-wagon-http-shared ,(package-version maven-wagon-http-shared)
                             "org.apache.maven.wagon" "wagon-http-shared" "/share/java/maven-wagon-http-shared.jar")
-                          (mavenize-package ,java-bouncycastle ,(package-version java-bouncycastle)
-                            "org.bouncycastle" "bcprov-jdk15on"
-                            (string-append "/share/java/bcprov-jdk15on-"
-                              (string-concatenate (string-split ,(package-version java-bouncycastle) #\.)) ".jar"))
+
+                          (for-each
+                            (lambda (prefix)
+                              (mavenize-package ,java-bouncycastle ,(package-version java-bouncycastle)
+                                "org.bouncycastle" prefix
+                                (string-append "/share/java/" prefix "-"
+                                  (string-concatenate (string-split ,(package-version java-bouncycastle) #\.)) ".jar")))
+                            (list "bcpg-jdk15on" "bcprov-jdk15on"))
+
                           (mavenize-package ,java-jgit ,(package-version java-jgit)
                             "org.eclipse.jgit" "org.eclipse.jgit" "/share/java/jgit.jar")
                           (mavenize-package ,java-jsoup ,(package-version java-jsoup)

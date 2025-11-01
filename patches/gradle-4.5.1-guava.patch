@@ -46,3 +46,30 @@ Avoid dependency on errorprone annotations
          exec.setWorkingDir(workingDir);
          exec.setClasspath(new SimpleFileCollection(workingDir));
          try {
+--- a/subprojects/plugin-development/src/main/java/org/gradle/plugin/devel/tasks/ValidateTaskProperties.java
++++ b/subprojects/plugin-development/src/main/java/org/gradle/plugin/devel/tasks/ValidateTaskProperties.java
+@@ -200,7 +200,7 @@
+             File output = outputFile.get().getAsFile();
+             //noinspection ResultOfMethodCallIgnored
+             output.createNewFile();
+-            Files.write(Joiner.on('\n').join(problemMessages), output, Charsets.UTF_8);
++            Files.asCharSink(output, Charsets.UTF_8).write(Joiner.on('\n').join(problemMessages));
+         }
+     }
+ 
+--- a/subprojects/testing-native/src/main/java/org/gradle/nativeplatform/test/xctest/tasks/InstallXCTestBundle.java
++++ b/subprojects/testing-native/src/main/java/org/gradle/nativeplatform/test/xctest/tasks/InstallXCTestBundle.java
+@@ -104,11 +104,11 @@
+ 
+         File outputFile = new File(bundleDir, "Contents/Info.plist");
+ 
+-        Files.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
++        Files.asCharSink(outputFile, Charset.forName("UTF-8")).write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+             + "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
+             + "<plist version=\"1.0\">\n"
+             + "<dict/>\n"
+-            + "</plist>", outputFile, Charset.forName("UTF-8"));
++            + "</plist>");
+ 
+         getProject().exec(new Action<ExecSpec>() {
+             @Override
