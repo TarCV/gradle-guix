@@ -56,18 +56,6 @@
     "42" "1x7hpi2zwibfd73ixwabg86qywn9s999a6rbsay28lwg2yp9ldng"
     apache-parent-pom-18))
 
-(define apache-ivy-2.0-beta2
-  (package
-    (inherit java-apache-ivy)
-    (version "2.0.0-beta2")
-    (source
-      (origin
-        (inherit (package-source java-apache-ivy))
-        (uri (string-append "mirror://apache//ant/ivy/" version
-               "/apache-ivy-" version "-src.tar.gz"))
-        (sha256 (base32 "14nvi5hnjy4hdk42lyy959x3fp5khyyfvd9r3g8rbl97vpak3h0x"))
-        (patches '())))))
-
 ;(define maven-pom
 ;  (module-ref (resolve-module '(gnu packages maven)) 'maven-pom))
 ;(define make-maven-parent-pom
@@ -1135,7 +1123,8 @@ browser window. It is completely customizable as well via CSS.")
                                                           (begin
                                                             (display char targetPort)
                                                             (loop (read-char sourcePort)))))))
-                                                  (close targetPort)))
+                                                  (close targetPort))
+                                                  #t)
                                               (copy-file source target)))))
                           (list
                             "subprojects/base-services"
@@ -1377,6 +1366,7 @@ browser window. It is completely customizable as well via CSS.")
     (license license:asl2.0)))
 
 ; TODO: document patches/changes in Gradle docs?
+; TODO: disable patching dependencies and libs in out are bit-for-bit same as are provided by Guix
 (define gradle
   (package
     (inherit gradle-bootstrap)
@@ -1389,6 +1379,7 @@ browser window. It is completely customizable as well via CSS.")
                          "patches/gradle-4.5.1-local-repository.patch" "patches/gradle-4.5.1-maven-dependencies.patch"
                          "patches/gradle-4.5.1-no-remote-cache.patch"
                          "patches/gradle-4.5.1-remove-complex-dependencies.patch"
+                         "patches/gradle-4.5.1-remove-kotlin-dsl.patch"
                          "patches/gradle-4.5.1-unshaded-groovy.patch"))))
     (native-inputs (list
                      apache-commons-parent-pom-42 java-commons-cli
@@ -1719,11 +1710,13 @@ browser window. It is completely customizable as well via CSS.")
 ;                            "--debug"
 ;                            "--info"
 ;                            "--stacktrace"
+                            "--full-stacktrace"
                             "-x" "check"
                             "install" (string-append "-Pgradle_installPath=" (assoc-ref outputs "out"))
-;                            ":dependencyManagement:dependencies"
                           )))))
+                  (delete 'install)
+                  (delete 'generate-jar-indices)
                   (delete 'reorder-jar-content)
-                  (delete 'generate-jar-indices))))))))
+                  (delete 'strip-jar-timestamps))))))))
 
 gradle
