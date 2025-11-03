@@ -1,0 +1,22 @@
+--- a/buildSrc/src/main/groovy/org/gradle/build/Install.groovy
++++ b/buildSrc/src/main/groovy/org/gradle/build/Install.groovy
+@@ -28,6 +28,19 @@
+ 
+     def Install() {
+         addPropertyCheck()
++        def toPreserve = new ArrayList<String>()
++        eachFile {
++            java.nio.file.Path copySource = it.file.toPath()
++            if (java.nio.file.Files.isSymbolicLink(copySource)) {
++                java.nio.file.Path linkTarget = java.nio.file.Files.readSymbolicLink(copySource).toAbsolutePath()
++                java.nio.file.Path newLinkItself = destinationDir.toPath().resolve(it.path)
++                java.nio.file.Files.createDirectories(newLinkItself.parent)
++                java.nio.file.Files.createSymbolicLink(newLinkItself, linkTarget)
++                it.exclude()
++                toPreserve.add(it.path)
++            }
++            preserve { include(toPreserve) }
++        }
+         doLast {
+             ant.chmod(file: "$installDir/bin/gradle", perm: 'ugo+x')
+         }
