@@ -1,0 +1,13 @@
+--- a/build.gradle
++++ b/build.gradle
+@@ -219,6 +219,10 @@
+     }
+ 
+     apply from: "$rootDir/gradle/codeQuality.gradle"
++    tasks.withType(AbstractArchiveTask) {
++        preserveFileTimestamps = false
++        reproducibleFileOrder = true
++    }
+ }
+ 
+ configurations {

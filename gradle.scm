@@ -1375,11 +1375,13 @@ browser window. It is completely customizable as well via CSS.")
               (patches `(,@common-gradle-patches
                          "patches/gradle-4.5.1-default-methods.patch"
                          "patches/gradle-4.5.1-dekotlinize-build-files.patch"
+                         "patches/gradle-4.5.1-disable-minifying.patch" ; so that Guix link optimization works
                          "patches/gradle-4.5.1-jcifs-new-coordinates.patch" "patches/gradle-4.5.1-guix-dependencies.patch"
                          "patches/gradle-4.5.1-local-repository.patch" "patches/gradle-4.5.1-maven-dependencies.patch"
                          "patches/gradle-4.5.1-no-remote-cache.patch"
                          "patches/gradle-4.5.1-remove-complex-dependencies.patch"
                          "patches/gradle-4.5.1-remove-kotlin-dsl.patch"
+                         "patches/gradle-4.5.1-reproducible-artifacts.patch"
                          "patches/gradle-4.5.1-unshaded-groovy.patch"))))
     (native-inputs (list
                      apache-commons-parent-pom-42 java-commons-cli
@@ -1536,6 +1538,17 @@ browser window. It is completely customizable as well via CSS.")
                                                       (mkdir-p (dirname path))
                                                       (symlink (string-append pkg source-path) path)
                                                       path)))
+                                ; TODO: replace the fixed jars in outputs back to unfixed onesd to allow link optimization
+                                (fix-grafted-jar (lambda (out-jar)
+                                  (let* ((unzip-command (string-append ,unzip "/bin/unzip"))
+                                          (zip-command (string-append ,zip "/bin/zip")))
+                                    (with-directory-excursion (mkdtemp "jar-contents.XXXXXX")
+                                      ; This command is expected to return a non-zero code but still extract all files
+                                      (system* unzip-command out-jar)
+                                      (delete-file out-jar)
+                                      (let* ((files (find-files "." ".*" #:directories? #t))
+                                              (command `(,zip-command "-0" "-X" ,out-jar ,@files)))
+                                        (apply invoke command))))))
 
                                 (groovyLocalMavenPath
                                   (mavenize-package ,groovy ,(package-version groovy)
@@ -1614,8 +1627,10 @@ browser window. It is completely customizable as well via CSS.")
                             "org.apache.httpcomponents" "httpclient" "/share/java/httpcomponents-httpclient.jar")
                           (mavenize-package ,java-httpcomponents-httpcore ,(package-version java-httpcomponents-httpcore)
                             "org.apache.httpcomponents" "httpcore" "/share/java/httpcomponents-httpcore.jar")
-                          (mavenize-package ,java-apache-ivy ,(package-version java-apache-ivy)
-                            "org.apache.ivy" "ivy" "/share/java/ivy.jar")
+
+                          (fix-grafted-jar (mavenize-package ,java-apache-ivy ,(package-version java-apache-ivy)
+                                     "org.apache.ivy" "ivy" "/share/java/ivy.jar"))
+
                           (mavenize-package ,maven-resolver-transport-wagon ,(package-version maven-resolver-transport-wagon)
                             "org.apache.maven.resolver" "maven-resolver-transport-wagon" "/share/java/maven-resolver-transport-wagon.jar")
                           (mavenize-package ,maven-wagon-file ,(package-version maven-wagon-file)
@@ -1637,8 +1652,10 @@ browser window. It is completely customizable as well via CSS.")
                             "org.eclipse.jgit" "org.eclipse.jgit" "/share/java/jgit.jar")
                           (mavenize-package ,java-jsoup ,(package-version java-jsoup)
                             "org.jsoup" "jsoup" "/share/java/jsoup.jar")
-                          (mavenize-package ,rhino ,(package-version rhino)
-                            "org.mozilla" "rhino" "/share/java/js.jar")
+
+                          (fix-grafted-jar (mavenize-package ,rhino ,(package-version rhino)
+                            "org.mozilla" "rhino" "/share/java/js.jar"))
+
                           (mavenize-package ,java-testng ,(package-version java-testng)
                             "org.testng" "testng" "/share/java/java-testng.jar")
                           (mavenize-package ,java-jaxp ,(package-version java-jaxp)
@@ -1712,7 +1729,9 @@ browser window. It is completely customizable as well via CSS.")
 ;                            "--stacktrace"
                             "--full-stacktrace"
                             "-x" "check"
-                            "install" (string-append "-Pgradle_installPath=" (assoc-ref outputs "out"))
+                            "install"
+                            "-PbuildTimestamp=19700101000000+0000"
+                            (string-append "-Pgradle_installPath=" (assoc-ref outputs "out"))
                           )))))
                   (delete 'install)
                   (delete 'generate-jar-indices)
