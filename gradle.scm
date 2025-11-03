@@ -1382,6 +1382,7 @@ browser window. It is completely customizable as well via CSS.")
                          "patches/gradle-4.5.1-remove-complex-dependencies.patch"
                          "patches/gradle-4.5.1-remove-kotlin-dsl.patch"
                          "patches/gradle-4.5.1-reproducible-artifacts.patch"
+                         "patches/gradle-4.5.1-symlink-during-install.patch"
                          "patches/gradle-4.5.1-unshaded-groovy.patch"))))
     (native-inputs (list
                      apache-commons-parent-pom-42 java-commons-cli
@@ -1397,13 +1398,6 @@ browser window. It is completely customizable as well via CSS.")
          ,@(substitute-keyword-arguments (package-arguments gradle-bootstrap)
              ((#:phases phases) ; TODO: verify gradle and gradle-wrapper hashes against well-known ones
                `(modify-phases %standard-phases
-                  ;                    (add-before 'build 'remove-src-tests
-                  ;                      (lambda _ ; remove tests as they depend on groovy test classes not present in Guix
-                  ;                        (delete-file-recursively "src/test")))
-                  ;                    (add-before 'build 'remove-build-src-tests
-                  ;                      (lambda _ ; remove tests as they depend on groovy test classes not present in Guix
-                  ;                        (delete-file-recursively "buildSrc/src/test")))
-
                   (add-before 'build 'unshade-imports ; TODO: how to use the same lambda here and in the -bootstrap?
                     (lambda _
                       (substitute* (find-files "." ".*\\.(java|groovy)$")
@@ -1518,9 +1512,16 @@ browser window. It is completely customizable as well via CSS.")
                         (mkdir-p (string-append dir "/.m2/repository"))
                         (for-each
                           (lambda (m2-root)
-                            (copy-recursively
-                              m2-root
-                              (string-append dir "/.m2/repository")))
+                            (with-directory-excursion m2-root
+                              (for-each
+                                (lambda (path-with-dot)
+                                  (let* ((path-relative-to-m2-root (substring path-with-dot 2))
+                                         (link-itself (string-append dir "/.m2/repository/" path-relative-to-m2-root)))
+                                    (mkdir-p (dirname link-itself))
+                                    (symlink
+                                      (string-append m2-root "/" path-relative-to-m2-root)
+                                      link-itself)))
+                                (find-files "." ".+"))))
                           m2-roots)
 
                         (use-modules (ice-9 regex)) ; for string-match
@@ -1723,16 +1724,20 @@ browser window. It is completely customizable as well via CSS.")
                             "--init-script" "init.gradle"
                             "--no-build-cache"
                             ; TODO: set number of worker threads based on '--cores' Guix argument
-;                            "--offline"
 ;                            "--debug"
 ;                            "--info"
 ;                            "--stacktrace"
-                            "--full-stacktrace"
                             "-x" "check"
                             "install"
                             "-PbuildTimestamp=19700101000000+0000"
-                            (string-append "-Pgradle_installPath=" (assoc-ref outputs "out"))
-                          )))))
+                            (string-append "-Pgradle_installPath=" (assoc-ref outputs "out")))))
+
+                      ;; copied from strip-jar-timestamps where it was copied from (gnu build install)
+                      (for-each (lambda (file)
+                                  (let ((s (lstat file)))
+                                    (unless (eq? (stat:type s) 'symlink)
+                                      (utime file 0 0 0 0))))
+                        (find-files (assoc-ref outputs "out") #:directories? #t))))
                   (delete 'install)
                   (delete 'generate-jar-indices)
                   (delete 'reorder-jar-content)
