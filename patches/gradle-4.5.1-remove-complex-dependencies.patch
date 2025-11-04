@@ -1,7 +1,7 @@
 TODO: review if something need to be restored in a non-bootstrap build:
 --- a/buildSrc/build.gradle
 +++ b/buildSrc/build.gradle
-@@ -53,23 +53,9 @@
+@@ -53,10 +53,6 @@
      compile("com.google.guava:guava-jdk5:14.0.1@jar")
      compile("commons-lang:commons-lang:2.6@jar")
      compile(localGroovy())
@@ -9,13 +9,10 @@ TODO: review if something need to be restored in a non-bootstrap build:
 -        exclude(module: "groovy")
 -        exclude(module: "xercesImpl")
 -    }
--    testCompile("junit:junit:4.12@jar")
--    testCompile("org.spockframework:spock-core:2.0-M4-groovy-3.0") {
--        exclude(group = "org.codehaus.groovy")
--    }
--    testCompile("cglib:cglib-nodep:3.2.5")
--    testCompile("org.objenesis:objenesis:1.2")
--    testCompile("org.hamcrest:hamcrest-core:1.3")
+     testCompile("junit:junit:4.12@jar")
+     testCompile("org.spockframework:spock-core:2.0-M4-groovy-3.0") {
+         exclude(group = "org.codehaus.groovy")
+@@ -68,9 +68,6 @@
  
      compile("org.pegdown:pegdown:1.6.0")
      compile("org.jsoup:jsoup:1.6.3")
@@ -881,3 +878,10 @@ TODO: Call asciidoctor directly
  
      testFixturesCompile project(':internalTesting')
  }
+diff --git a/subprojects/ide-native/src/main/resources/META-INF/services/org.gradle.internal.service.scopes.PluginServiceRegistry b/subprojects/ide-native/src/main/resources/META-INF/services/org.gradle.internal.service.scopes.PluginServiceRegistry
+deleted file mode 100644
+index 9298808ac5b4b4931d8d2d4908c816d6e4b69d06..0000000000000000000000000000000000000000
+--- a/subprojects/ide-native/src/main/resources/META-INF/services/org.gradle.internal.service.scopes.PluginServiceRegistry
++++ /dev/null
+@@ -1,1 +0,0 @@
+-org.gradle.ide.xcode.internal.services.XcodeServices

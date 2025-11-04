@@ -155,8 +155,91 @@
       (list java-junit java-plexus-component-metadata
             java-sonatype-aether-test-util-1.13))))
 
+(define groovy-spock-core
+  (package
+    (name "groovy-spock-core")
+    (version "2.3")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/spockframework/spock/archive/refs/tags/spock-" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "0jv36c54r5c7yqbjp7pmh2773h97gcvfa6b3wyf3js74ra99f1rp"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (build-system ant-build-system)
+    (native-inputs (list groovy-ant-patched java-jetbrains-annotations java-asm-8 java-byte-buddy-dep java-cglib
+                         java-junit-platform-engine-5 java-objenesis))
+    (propagated-inputs (list groovy java-geantyref-1 java-hamcrest-all))
+    (arguments
+      `(#:jdk ,openjdk9 ; TODO: fix groovy package to allow JDK 8 and remove this
+         #:jar-name "spock-core.jar"
+         #:source-dir "spock-core/src/main"
+         #:tests? #f  ; this module doesn't have tests. TODO: run tests from spock-testkit
+         #:phases (modify-phases %standard-phases ; TOOD: use groovy compiler
+                    (add-before 'build 'allow-underscore-field
+                      (lambda _
+                        (mkdir-p "spock-core/src/main/groovy/spock/lang")
+                        (rename-file
+                          "spock-core/src/main/java/spock/lang/Specification.java"
+                          "spock-core/src/main/groovy/spock/lang/Specification.groovy")))
+                    (add-before 'build 'patch-build.xml
+                      (lambda _
+                        (substitute* "build.xml"
+                          (("<javac ([^>]+)>" all args) (string-append
+                                                          "<taskdef name=\"groovyc\" classname=\"org.codehaus.groovy.ant.Groovyc\" classpathref=\"classpath\"/>"
+                                                          "<groovyc " args " fork=\"true\"><classpath refid=\"classpath\"/>"
+                                                          "<javac debug=\"true\" " args ">"))
+                          (("</javac>" all) (string-append all "</groovyc>")))))
+                    (add-after 'build 'build-resources
+                      (lambda _
+;                        (substitute* (find-files "spock-core/src/main/resources" ".*")
+;                          (("@version@") ,version)
+;                          (("@minGroovyVersion@" "3.0.0")) ; TODO: compute from groovy version
+;                          (("@maxGroovyVersion@" "3.9.99")))
+                        (copy-recursively "spock-core/src/main/resources" "build/classes")))
+                    (replace 'install
+                      (install-from-pom "pom.xml")))))
+    (home-page "https://spockframework.org/")
+    (synopsis "BDD-style developer testing and specification framework for Java and Groovy applications.
+     This is the core framework module - the only mandatory module.")
+    (description "Spock is a testing and specification framework for Java and Groovy applications.
+     What makes it stand out from the crowd is its beautiful and highly expressive specification language.
+      Thanks to its JUnit runner, Spock is compatible with most IDEs, build tools, and continuous integration servers.")
+    (license license:asl2.0)))
+
+(define java-apiguardian
+  (package
+    (name "java-apiguardian")
+    (version "1.1.2")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/apiguardian-team/apiguardian/archive/refs/tags/r" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "1v3hx78gbhvri2n5v7cgc1spszz10ghd6iapx258c0gkn9l5hrar"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (build-system ant-build-system)
+    (arguments
+      `(#:jar-name "apiguardian.jar"
+        #:source-dir "src/main/java"
+         #:tests? #f)) ; no tests in the project
+    (home-page "https://apiguardian-team.github.io/apiguardian/docs/current/api/")
+    (synopsis "Java annotation for documenting the @API status of types and members in Java APIs. Maintained by the JUnit team.")
+    (description "Library that provides the @API annotation that is used to annotate public types, methods, constructors,
+     and fields within a framework or application in order to publish their status and level of stability and to indicate
+      how they are intended to be used by consumers of the API.")
+    (license license:asl2.0)))
+
 ; Avoid pack200 as it depends on old version of ASM library
-(define java-commons-compress-no-pack200 ; TODO: patch package instead
+(define java-commons-compress-no-pack200 ; TODO: patch dependent package instead
   (package
     (inherit java-commons-compress)
     (propagated-inputs
@@ -175,6 +258,52 @@
                  (delete-file-recursively "src/main/java/org/apache/commons/compress/harmony")
                  (delete-file "src/main/java/org/apache/commons/compress/compressors/CompressorStreamFactory.java")
                  (delete-file "src/main/java/org/apache/commons/compress/java/util/jar/Pack200.java")))))))))
+
+(define java-junit-platform-commons-5 ; TODO: should it be java-junit-5-platform-commons instead?
+  (package
+    (name "java-junit-platform-commons")
+    (version "5.14.1")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/junit-team/junit-framework/archive/refs/tags/r" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "0k2xb9ym5lf18cyw7g9iif9s5an4cwg82ik9by8316xi7ccvq53n"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (build-system ant-build-system) ; Repackage with Gradle once we have it and Kotlin in Guix?
+    (native-inputs (list java-apiguardian))
+    (arguments
+      `(#:jar-name "junit-platform-commons.jar"
+        #:source-dir "junit-platform-commons/src/main/java" ; TODO: build java9 dir separately with jdk9
+        #:tests? #f ; TODO
+        ))
+    (home-page "https://junit.org/")
+    (synopsis "The programmer-friendly testing framework for Java and the JVM. This is JUnit Platform Commons module.")
+    (description "Unlike previous versions of JUnit, JUnit 5 is composed of several different modules from three different sub-projects.
+    JUnit 5 = JUnit Platform + JUnit Jupiter + JUnit Vintage
+    - The JUnit Platform serves as a foundation for launching testing frameworks on the JVM.
+    - JUnit Jupiter is the combination of the programming model and extension model for writing tests and extensions in JUnit 5.
+    - JUnit Vintage provides a TestEngine for running JUnit 3 and JUnit 4 based tests on the platform.")
+    (license license:epl2.0)))
+
+(define java-junit-platform-engine-5
+  (package
+    (inherit java-junit-platform-commons-5)
+    (name "java-junit-platform-engine")
+    (propagated-inputs (list java-junit-platform-commons-5 java-opentest4j))
+    (arguments
+      `(#:jar-name "junit-platform-engine.jar"
+        #:source-dir "junit-platform-engine/src/main"
+        #:tests? #f ; TODO
+        #:phases (modify-phases %standard-phases
+           (add-before 'build 'copy-resources
+             (lambda _
+               (copy-recursively "junit-platform-engine/src/main/resources" "build/classes"))))))
+    (synopsis "The programmer-friendly testing framework for Java and the JVM. This module provides JUnit Platform Engine API.")))
 
 (define java-minlog
   (package
@@ -477,6 +606,42 @@
     (description "fastutil extends the Java™ Collections Framework by providing type-specific maps, sets, lists and queues with a small memory footprint and fast access and insertion; provides also big (64-bit) arrays, sets and lists, and fast, practical I/O classes for binary and text files.")
     (license (list license:asl2.0))))
 
+(define java-geantyref-1
+  (package
+    (name "java-geantyref")
+    (version "1.3.16")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/leangen/geantyref/archive/refs/tags/geantyref-v" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "0021vyfb05n8qzq501f7rvqa6wbcwz7ks23cch1bngn256qq5mzx"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (build-system ant-build-system)
+    (native-inputs (list java-junit))
+    (arguments
+      `(#:jar-name "geantyref.jar"
+        #:tests? #f ; TODO
+        #:phases (modify-phases %standard-phases
+                   (add-before 'build 'backport-instanceof
+                     (lambda _
+                       (substitute* (find-files "." "\\.java$")
+                         (("\\(([a-z0-9_]+) instanceof ([A-Za-z0-9_<>?]+) ([a-z0-9_]+)(\\) \\{)"
+                            _ variable type new-variable suffix)
+                           (string-append "(" variable " instanceof " type suffix
+                             type " " new-variable " = (" type ") " variable ";")))))
+                   (replace 'install
+                     (install-from-pom "pom.xml")))))
+    (home-page "https://github.com/leangen/geantyref")
+    (synopsis "Advanced generic type reflection library with support for working with AnnotatedTypes (for Java 8+)")
+    (description "This library aims to provide a simple way to analyse generic type information and dynamically create (Annotated)Type instances, all at runtime.
+    A fork of the excellent GenTyRef library, adding support for working with AnnotatedTypes introduced in Java 8 plus many nifty features.")
+    (license license:asl2.0)))
+
 (define java-jatl
   (package
     (name "java-jatl")
@@ -685,6 +850,43 @@
     (home-page "https://www.slf4j.org/api/org/slf4j/jul/JDK14LoggerAdapter.html")
     (synopsis "Binding/provider for java.util.logging, also referred to as JDK 1.4 logging")
     (license license:expat)))
+
+(define java-opentest4j
+  (package
+    (name "java-opentest4j")
+    (version "1.3.0")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/ota4j-team/opentest4j/archive/refs/tags/r" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "1d3czx8y0iyrw3gj8gqk0pxs4ik5jyh0wjln6wg2awzcr0i9jzwd"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (build-system ant-build-system)
+    (native-inputs (list java-junit))
+    (arguments
+      `(#:jar-name "opentest4j.jar"
+        #:jdk ,openjdk10
+        #:source-dir "src/main/java"
+        #:phases (modify-phases %standard-phases 
+                   (add-before 'build 'patch-build.xml
+                     (lambda _ ; tests require JDK10+, but the output jar should be compatible with JDK1.6
+                       (substitute* "build.xml"
+                         (("(<javac ([^>]+)srcdir=\"src/main/java\"([^>]+))>" _ prefix)
+                           (string-append prefix " release=\"6\">"))))))))
+    (home-page "https://github.com/ota4j-team/opentest4j")
+    (synopsis "Common Java exception classes to represent test failures. Maintained by the JUnit team.")
+    (description "The primary goal of the project is to enable testing frameworks like JUnit, TestNG, Spock, etc. and
+     third-party assertion libraries like Hamcrest, AssertJ, etc. to use a common set of exceptions that IDEs and build
+     tools can support in a consistent manner across all testing scenarios -- for example, for consistent handling of
+     failed assertions and failed assumptions as well as visualization of test execution in IDEs and reports.
+     Currently there is a small set of errors and exceptions that is considered to be common for all testing and
+     assertion frameworks.")
+    (license license:asl2.0)))
 
 (define java-sonatype-oss-parent-pom-5
   (hidden-package
@@ -1386,7 +1588,8 @@ browser window. It is completely customizable as well via CSS.")
                          "patches/gradle-4.5.1-unshaded-groovy.patch"))))
     (native-inputs (list
                      apache-commons-parent-pom-42 java-commons-cli
-                     java-commons-codec java-jsoup java-jcl-over-slf4j java-log4j-over-slf4j java-jcifs java-nekohtml
+                     java-commons-codec java-jsoup java-jcl-over-slf4j java-log4j-over-slf4j java-jcifs
+                     java-hamcrest-library java-nekohtml
                      java-pegdown zip java-plexus-cipher-1.7 java-plexus-container-default-1.7
                      java-plexus-component-annotations-1.7 java-sonatype-oss-parent-pom-5 java-simple-web-4
                      java-sonatype-aether-api-1.13 java-sonatype-aether-impl-1.13 java-sonatype-aether-util-1.13
@@ -1438,7 +1641,6 @@ browser window. It is completely customizable as well via CSS.")
                           ))
                       (delete-file-recursively "buildSrc/src/main/groovy/org/gradle/binarycompatibility") ; dependends on previous versions of Gradle
                       (delete-file-recursively "buildSrc/src/main/groovy/org/gradle/testing/performance") ; dependends on previous versions of Gradle
-                      (delete-file-recursively "buildSrc/src/test") ; has dependency loops back to Gradle (spock)
 
                       ; Depend on dd-plist library and only required for a properietary IDE:
                       (delete-file-recursively "subprojects/ide-native/src/main/java/org/gradle/ide/xcode")
@@ -1450,7 +1652,7 @@ browser window. It is completely customizable as well via CSS.")
                   (add-before 'build 'generate-groovy-pom
                     (generate-pom.xml "groovy-pom.xml" "org.codehaus.groovy" "groovy" ,(package-version groovy)))
                   (add-before 'build 'patch-versions
-                    (lambda _ ; TODO: implement it in init.gradle instead and limit to the same major version
+                    (lambda _ ; TODO: implement it in init.gradle instead
                       (substitute* "gradle/dependencies.gradle"
                         (("(com.google.guava:)guava-jdk5:([0-9][0-9.]+)([:'@\"])" _ prefix version suffix)
                           (string-append prefix "guava:[" version ",)" suffix))
@@ -1458,12 +1660,12 @@ browser window. It is completely customizable as well via CSS.")
                            "|com.google.code.findbugs:jsr305"
                            "|org.apache.maven.wagon:wagon-[^'\":]+"
                            "|org.apache.xbean:xbean-[^'\":]+"
-;                           "|org.codehaus.plexus:plexus-[^'\":]+"
+                           "|org.objenesis:objenesis"
                            "):)([0-9]+[0-9.]*)([:'@\"])") _ prefix _ version suffix)
                           (string-append prefix "[" version ",)" suffix))
                         (("net.jcip:jcip-annotations:([0-9][0-9.]+)([:'@\"])" _ _ suffix)
                           (string-append "com.google.code.findbugs:jsr305:[3,)" suffix))
-                        (("(org.fusesource.jansi:jansi:)([0-9][0-9.]+)([:'@\"])" _ prefix _ suffix) ; TODO update the package instead
+                        (("(org.fusesource.jansi:jansi:)([0-9][0-9.]+)([:'@\"])" _ prefix _ suffix)
                           (string-append prefix "[1.16,2)" suffix))
                         (("([:'\"])([0-9]+)([0-9a-z.-]*)([:'@\"])" _ prefix major-version rest-version suffix)
                           (string-append prefix "["
@@ -1479,7 +1681,10 @@ browser window. It is completely customizable as well via CSS.")
                                       "subprojects/reporting/reporting.gradle")
                         (("(com.google.guava:)guava-jdk5:([0-9][0-9.]+)([:'@\"])" _ prefix version suffix)
                           (string-append prefix "guava:[" version ",)" suffix))
-                        (("((org.ow2.asm:asm[^'\":]+|com.google.code.findbugs:jsr305):)([0-9]+[0-9.]*)([:'@\"])" _ prefix _ version suffix)
+                        (((string-append "((org.ow2.asm:asm[^'\":]+"
+                            "|com.google.code.findbugs:jsr305"
+                            "|org.objenesis:objenesis"
+                            "):)([0-9]+[0-9.]*)([:'@\"])") _ prefix _ version suffix)
                           (string-append prefix "[" version ",)" suffix))
                         (("net.jcip:jcip-annotations:([0-9][0-9.]+)([:'@\"])" _ _ suffix)
                           (string-append "com.google.code.findbugs:jsr305:[3,)" suffix))
@@ -1596,6 +1801,9 @@ browser window. It is completely customizable as well via CSS.")
                             (list "ant" "datetime" "dateutil" "groovydoc" "json" "templates" "xml"))
                           (mavenize-package ,groovy-test ,(package-version groovy-test)
                             "org.codehaus.groovy" "groovy-test" "/share/java/groovy-test.jar")
+                          (mavenize-package ,java-cglib ,(package-version java-cglib)
+                            "cglib" "cglib"
+                            "/share/java/cglib.jar")
                           (mavenize-package ,java-commons-collections ,(package-version java-commons-collections)
                             "commons-collections" "commons-collections"
                             (string-append "/share/java/commons-collections-" ,(package-version java-commons-collections) ".jar"))
@@ -1651,12 +1859,21 @@ browser window. It is completely customizable as well via CSS.")
 
                           (mavenize-package ,java-jgit ,(package-version java-jgit)
                             "org.eclipse.jgit" "org.eclipse.jgit" "/share/java/jgit.jar")
+
+                          (mavenize-package ,java-jmock ,(package-version java-jmock)
+                            "org.jmock" "jmock" "/share/java/java-jmock.jar")
+                          (mavenize-package ,java-jmock-junit4 ,(package-version java-jmock-junit4)
+                            "org.jmock" "jmock-junit4" "/share/java/java-jmock-junit4.jar")
+                          (mavenize-package ,java-jmock-legacy ,(package-version java-jmock-legacy)
+                            "org.jmock" "jmock-legacy" "/share/java/java-jmock-legacy.jar")
+
                           (mavenize-package ,java-jsoup ,(package-version java-jsoup)
                             "org.jsoup" "jsoup" "/share/java/jsoup.jar")
 
                           (fix-grafted-jar (mavenize-package ,rhino ,(package-version rhino)
                             "org.mozilla" "rhino" "/share/java/js.jar"))
-
+                          (mavenize-package ,java-objenesis ,(package-version java-objenesis)
+                            "org.objenesis" "objenesis" "/share/java/objenesis.jar")
                           (mavenize-package ,java-testng ,(package-version java-testng)
                             "org.testng" "testng" "/share/java/java-testng.jar")
                           (mavenize-package ,java-jaxp ,(package-version java-jaxp)
@@ -1724,10 +1941,10 @@ browser window. It is completely customizable as well via CSS.")
                             "--init-script" "init.gradle"
                             "--no-build-cache"
                             ; TODO: set number of worker threads based on '--cores' Guix argument
-;                            "--debug"
 ;                            "--info"
 ;                            "--stacktrace"
-                            "-x" "check"
+                            "test"
+                            ; TODO "integTest"
                             "install"
                             "-PbuildTimestamp=19700101000000+0000"
                             (string-append "-Pgradle_installPath=" (assoc-ref outputs "out")))))
@@ -1743,4 +1960,5 @@ browser window. It is completely customizable as well via CSS.")
                   (delete 'reorder-jar-content)
                   (delete 'strip-jar-timestamps))))))))
 
-gradle
+;gradle
+groovy-spock-core

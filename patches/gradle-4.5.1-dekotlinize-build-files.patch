@@ -57,7 +57,7 @@ rename to buildSrc/build.gradle
      gradlePluginPortal()
  }
  
-@@ -60,8 +58,8 @@
+@@ -60,12 +58,12 @@
      compile("commons-lang:commons-lang:2.6@jar")
      compile(localGroovy())
      compile("org.codehaus.groovy.modules.http-builder:http-builder:0.7.2") {
@@ -67,7 +67,12 @@ rename to buildSrc/build.gradle
 +        exclude(module: "xercesImpl")
      }
      testCompile("junit:junit:4.12@jar")
-     testCompile("org.spockframework:spock-core:1.0-groovy-2.4@jar")
+     testCompile("org.spockframework:spock-core:2.0-M4-groovy-3.0") {
+-        exclude(group = "org.codehaus.groovy")
++        exclude(group: "org.codehaus.groovy")
+     }
+     testCompile("cglib:cglib-nodep:3.2.5")
+     testCompile("org.objenesis:objenesis:1.2")
 @@ -76,23 +74,23 @@
      compile("com.github.javaparser:javaparser-core:2.4.0")
  }
