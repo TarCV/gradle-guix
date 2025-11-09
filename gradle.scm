@@ -166,26 +166,21 @@
         (file-name (string-append name "-" version ".tar.gz"))
         (sha256 (base32 "0jv36c54r5c7yqbjp7pmh2773h97gcvfa6b3wyf3js74ra99f1rp"))
         (modules '((guix build utils)))
+        (patches '("patches/groovy-spock-core-patch-underscore.patch"))
         (snippet '(begin
                     (for-each delete-file
                       (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
                     #t))))
     (build-system ant-build-system)
     (native-inputs (list groovy-ant-patched java-jetbrains-annotations java-asm-8 java-byte-buddy-dep java-cglib
-                         java-junit-platform-engine-5 java-objenesis))
+                         java-junit-platform-testkit-5 java-objenesis))
     (propagated-inputs (list groovy java-geantyref-1 java-hamcrest-all))
     (arguments
-      `(#:jdk ,openjdk9 ; TODO: fix groovy package to allow JDK 8 and remove this
-         #:jar-name "spock-core.jar"
+      `(#:jar-name "spock-core.jar"
+         #:jdk ,openjdk9
          #:source-dir "spock-core/src/main"
          #:tests? #f  ; this module doesn't have tests. TODO: run tests from spock-testkit
          #:phases (modify-phases %standard-phases ; TOOD: use groovy compiler
-                    (add-before 'build 'allow-underscore-field
-                      (lambda _
-                        (mkdir-p "spock-core/src/main/groovy/spock/lang")
-                        (rename-file
-                          "spock-core/src/main/java/spock/lang/Specification.java"
-                          "spock-core/src/main/groovy/spock/lang/Specification.groovy")))
                     (add-before 'build 'patch-build.xml
                       (lambda _
                         (substitute* "build.xml"
@@ -196,11 +191,16 @@
                           (("</javac>" all) (string-append all "</groovyc>")))))
                     (add-after 'build 'build-resources
                       (lambda _
-;                        (substitute* (find-files "spock-core/src/main/resources" ".*")
-;                          (("@version@") ,version)
-;                          (("@minGroovyVersion@" "3.0.0")) ; TODO: compute from groovy version
-;                          (("@maxGroovyVersion@" "3.9.99")))
+                        (substitute* (find-files "spock-core/src/main/resources" ".*")
+                          (("@version@") ,version)
+                          (("@minGroovyVersion@") "3.0.0")
+                          (("@maxGroovyVersion@") "3.9.99")) ; TODO: compute from groovy version
                         (copy-recursively "spock-core/src/main/resources" "build/classes")))
+                    (add-before 'install 'generate-pom.xml
+                      (generate-pom.xml "pom.xml"
+                        "org.spockframework"
+                        "spock-core"
+                        (string-append ,version "-groovy-3.0"))) ; TODO: compute from groovy version
                     (replace 'install
                       (install-from-pom "pom.xml")))))
     (home-page "https://spockframework.org/")
@@ -210,6 +210,37 @@
      What makes it stand out from the crowd is its beautiful and highly expressive specification language.
       Thanks to its JUnit runner, Spock is compatible with most IDEs, build tools, and continuous integration servers.")
     (license license:asl2.0)))
+
+(define groovy-spock-junit4
+  (package
+    (inherit groovy-spock-core)
+    (propagated-inputs (list java-junit groovy-spock-core))
+    (arguments
+      `(#:jar-name "spock-junit4.jar"
+        #:jdk ,openjdk9
+        #:source-dir "spock-junit4/src/main"
+        #:tests? #f  ; TODO
+        #:phases (modify-phases %standard-phases
+                   (add-before 'build 'patch-build.xml
+                     (lambda _
+                       (substitute* "build.xml"
+                         (("<javac ([^>]+)>" all args) (string-append
+                                                         "<taskdef name=\"groovyc\" classname=\"org.codehaus.groovy.ant.Groovyc\" classpathref=\"classpath\"/>"
+                                                         "<groovyc " args " fork=\"true\"><classpath refid=\"classpath\"/>"
+                                                         "<javac debug=\"true\" " args ">"))
+                         (("</javac>" all) (string-append all "</groovyc>")))))
+                   (add-after 'build 'copy-resources
+                     (lambda _
+                       (copy-recursively "spock-junit4/src/main/resources" "build/classes")))
+                   (add-before 'install 'generate-pom.xml
+                     (generate-pom.xml "pom.xml"
+                       "org.spockframework"
+                       "spock-junit4"
+                       (string-append ,(package-version groovy-spock-core) "-groovy-3.0"))) ; TODO: compute from groovy version
+                   (replace 'install
+                     (install-from-pom "pom.xml")))))
+    (synopsis "BDD-style developer testing and specification framework for Java and Groovy applications.
+     This package provides the module for JUnit 4.")))
 
 (define java-apiguardian
   (package
@@ -238,6 +269,22 @@
       how they are intended to be used by consumers of the API.")
     (license license:asl2.0)))
 
+(define java-assertj-new ; TODO: update the inherited package
+  (package
+    (inherit java-assertj)
+    (version "3.27.6")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/assertj/assertj")
+                     (commit (string-append "assertj-build-" version))))
+              (file-name (git-file-name (package-name java-assertj) version))
+              (sha256 (base32 "13zs88wblk71kqz1g6j71mybabqibcms7p1pl5fkjyb4w7baz6la"))))
+    (propagated-inputs (list java-byte-buddy-dep java-junit-jupiter-java-api-5))
+    (arguments
+      `(,@(substitute-keyword-arguments (package-arguments java-assertj)
+        ((#:source-dir _) "assertj-core/src/main/java"))))))
+
 ; Avoid pack200 as it depends on old version of ASM library
 (define java-commons-compress-no-pack200 ; TODO: patch dependent package instead
   (package
@@ -259,6 +306,66 @@
                  (delete-file "src/main/java/org/apache/commons/compress/compressors/CompressorStreamFactory.java")
                  (delete-file "src/main/java/org/apache/commons/compress/java/util/jar/Pack200.java")))))))))
 
+(define java-jte-runtime
+  (package
+    (name "java-jte-runtime")
+    (version "3.2.1")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/casid/jte/archive/refs/tags/" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "1sp31cmj9vn4d933vvdqg6ibv1ixvndrhawyr4m4amkh9nh3cdsf"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (build-system ant-build-system)
+    (arguments
+      `(#:jar-name "java-jte-runtime.jar"
+        #:jdk ,openjdk17
+        #:tests? #f ; circular dependency on JUnit Jupiter and AssertJ
+        #:source-dir "jte-runtime/src/main/java"
+        #:phases (modify-phases %standard-phases
+                   (replace 'install
+                     (install-from-pom "jte-runtime/pom.xml")))))
+    (home-page "https://jte.gg")
+    (synopsis "Secure and speedy templates for Java and Kotlin. This package provides the runtime")
+    (description "Designed to introduce as few new keywords as possible and builds upon existing language features,
+     making it straightforward to reason about what a template does.")
+    (license license:asl2.0)))
+
+(define java-jte-extension-api
+  (package
+    (inherit java-jte-runtime)
+    (name "java-jte-extension-api")
+    (propagated-inputs (list java-jte-runtime))
+    (arguments
+      `(#:jar-name "java-jte-runtime.jar"
+        #:jdk ,openjdk17
+        #:tests? #f ; this module has no tests
+        #:source-dir "jte-extension-api/src/main/java"
+        #:phases (modify-phases %standard-phases
+                   (replace 'install
+                     (install-from-pom "jte-extension-api/pom.xml")))))
+    (synopsis "Secure and speedy templates for Java and Kotlin. This package provides the extension API")))
+
+(define java-jte
+  (package
+    (inherit java-jte-runtime)
+    (name "java-jte")
+    (propagated-inputs (list java-jte-extension-api java-jte-runtime))
+    (arguments
+      `(#:jar-name "java-jte.jar"
+        #:jdk ,openjdk17
+        #:tests? #f ; TODO
+        #:source-dir "jte/src/main/java"
+        #:phases (modify-phases %standard-phases
+                   (replace 'install
+                     (install-from-pom "jte/pom.xml")))))
+    (synopsis "Secure and speedy templates for Java and Kotlin")))
+
 (define java-junit-platform-commons-5 ; TODO: should it be java-junit-5-platform-commons instead?
   (package
     (name "java-junit-platform-commons")
@@ -270,12 +377,13 @@
         (file-name (string-append name "-" version ".tar.gz"))
         (sha256 (base32 "0k2xb9ym5lf18cyw7g9iif9s5an4cwg82ik9by8316xi7ccvq53n"))
         (modules '((guix build utils)))
+        (patches '("patches/java-junit-jupiter-java-api-5.14.1.patch"))
         (snippet '(begin
                     (for-each delete-file
                       (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
                     #t))))
     (build-system ant-build-system) ; Repackage with Gradle once we have it and Kotlin in Guix?
-    (native-inputs (list java-apiguardian))
+    (propagated-inputs (list java-apiguardian))
     (arguments
       `(#:jar-name "junit-platform-commons.jar"
         #:source-dir "junit-platform-commons/src/main/java" ; TODO: build java9 dir separately with jdk9
@@ -289,6 +397,37 @@
     - JUnit Jupiter is the combination of the programming model and extension model for writing tests and extensions in JUnit 5.
     - JUnit Vintage provides a TestEngine for running JUnit 3 and JUnit 4 based tests on the platform.")
     (license license:epl2.0)))
+
+(define java-junit-jupiter-java-api-5
+  (package
+    (inherit java-junit-platform-commons-5)
+    (name "java-junit-jupiter-java-api")
+    (native-inputs (list java-fasterxml-jackson-annotations java-fasterxml-jackson-core java-fasterxml-jackson-databind
+                         java-fasterxml-jackson-dataformat-yaml java-jte java-snakeyaml))
+    (propagated-inputs (list java-junit-platform-commons-5 java-opentest4j))
+    (arguments
+      `(#:jar-name "junit-jupiter-api.jar"
+        #:source-dir "junit-jupiter-api/src/main/java"
+        #:tests? #f ; TODO
+        #:phases (modify-phases %standard-phases
+           (add-before 'build 'generate-classes
+             (lambda _
+               (mkdir-p "generator")
+               (copy-file "gradle/base/code-generator-model/src/main/resources/jre.yaml" "generator/jre.yaml")
+               (invoke (string-append ,(gexp-input openjdk17 "jdk") "/bin/javac")
+                 "-cp" (getenv "CLASSPATH")
+                 "-g"
+                 "-d" "generator"
+                 "gradle/plugins/code-generator/src/main/kotlin/junitbuild/generator/GenerateJreRelatedSourceCode.java"
+                 "gradle/base/code-generator-model/src/main/kotlin/junitbuild/generator/model/JRE.java")
+               (invoke (string-append ,(gexp-input openjdk17 "jdk") "/bin/java")
+                 "-cp" (string-append (getenv "CLASSPATH")
+                                      ":generator")
+                 "junitbuild.generator.GenerateJreRelatedSourceCode"
+                 "junit-jupiter-api/src/templates/resources/main"
+                 "junit-jupiter-api/src/main/java"
+                 "gradle/config/spotless/eclipse-public-license-2.0.java"))))))
+    (synopsis "The programmer-friendly testing framework for Java and the JVM. This module provides JUnit Jupiter Java API.")))
 
 (define java-junit-platform-engine-5
   (package
@@ -304,6 +443,33 @@
              (lambda _
                (copy-recursively "junit-platform-engine/src/main/resources" "build/classes"))))))
     (synopsis "The programmer-friendly testing framework for Java and the JVM. This module provides JUnit Platform Engine API.")))
+
+(define java-junit-platform-launcher-5
+  (package
+    (inherit java-junit-platform-commons-5)
+    (name "java-junit-platform-launcher")
+    (propagated-inputs (list java-junit-platform-engine-5))
+    (arguments
+      `(#:jar-name "junit-platform-launcher.jar"
+        #:source-dir "junit-platform-launcher/src/main"
+        #:tests? #f ; TODO
+        #:phases (modify-phases %standard-phases
+           (add-before 'build 'copy-resources
+             (lambda _
+               (copy-recursively "junit-platform-launcher/src/main/resources" "build/classes"))))))
+    (synopsis "The programmer-friendly testing framework for Java and the JVM. This module provides JUnit Platform Engine API.")))
+
+(define java-junit-platform-testkit-5
+  (package
+    (inherit java-junit-platform-commons-5)
+    (name "java-junit-platform-testkit")
+    (propagated-inputs (list java-assertj-new java-junit-platform-launcher-5))
+    (arguments
+      `(#:jar-name "junit-platform-testkit.jar"
+        #:source-dir "junit-platform-testkit/src/main"
+        #:tests? #f ; TODO
+        ))
+    (synopsis "The programmer-friendly testing framework for Java and the JVM. This module is JUnit Platform Test Kit.")))
 
 (define java-minlog
   (package
@@ -1587,7 +1753,7 @@ browser window. It is completely customizable as well via CSS.")
                          "patches/gradle-4.5.1-symlink-during-install.patch"
                          "patches/gradle-4.5.1-unshaded-groovy.patch"))))
     (native-inputs (list
-                     apache-commons-parent-pom-42 java-commons-cli
+                     apache-commons-parent-pom-42 groovy-spock-junit4 java-commons-cli
                      java-commons-codec java-jsoup java-jcl-over-slf4j java-log4j-over-slf4j java-jcifs
                      java-hamcrest-library java-nekohtml
                      java-pegdown zip java-plexus-cipher-1.7 java-plexus-container-default-1.7
@@ -1640,7 +1806,9 @@ browser window. It is completely customizable as well via CSS.")
                           "subprojects/ide-native/src/main/java/org/gradle/plugins/ide/internal/generator/PropertyListPersistableConfigurationObject.java"
                           ))
                       (delete-file-recursively "buildSrc/src/main/groovy/org/gradle/binarycompatibility") ; dependends on previous versions of Gradle
+                      (delete-file-recursively "buildSrc/src/test/groovy/org/gradle/binarycompatibility") ; dependends on previous versions of Gradle
                       (delete-file-recursively "buildSrc/src/main/groovy/org/gradle/testing/performance") ; dependends on previous versions of Gradle
+                      (delete-file-recursively "buildSrc/src/test/groovy/org/gradle/testing/performance") ; dependends on previous versions of Gradle
 
                       ; Depend on dd-plist library and only required for a properietary IDE:
                       (delete-file-recursively "subprojects/ide-native/src/main/java/org/gradle/ide/xcode")
@@ -1667,7 +1835,7 @@ browser window. It is completely customizable as well via CSS.")
                           (string-append "com.google.code.findbugs:jsr305:[3,)" suffix))
                         (("(org.fusesource.jansi:jansi:)([0-9][0-9.]+)([:'@\"])" _ prefix _ suffix)
                           (string-append prefix "[1.16,2)" suffix))
-                        (("([:'\"])([0-9]+)([0-9a-z.-]*)([:'@\"])" _ prefix major-version rest-version suffix)
+                        (("([:'\"])([0-9]+)([0-9Ma-z.-]*)([:'@\"])" _ prefix major-version rest-version suffix)
                           (string-append prefix "["
                             major-version rest-version ", "
                             (number->string (1+ (string->number major-version))) ")"
@@ -1688,7 +1856,7 @@ browser window. It is completely customizable as well via CSS.")
                           (string-append prefix "[" version ",)" suffix))
                         (("net.jcip:jcip-annotations:([0-9][0-9.]+)([:'@\"])" _ _ suffix)
                           (string-append "com.google.code.findbugs:jsr305:[3,)" suffix))
-                        (("(:)([0-9]+)([0-9.Rr-]*)([:'@\"])" _ prefix major-version rest-version suffix)
+                        (("(:)([0-9]+)([0-9.MRa-z-]*)([:'@\"])" _ prefix major-version rest-version suffix)
                           (string-append prefix "["
                             major-version rest-version ", "
                             (number->string (1+ (string->number major-version))) ")"
@@ -1960,5 +2128,4 @@ browser window. It is completely customizable as well via CSS.")
                   (delete 'reorder-jar-content)
                   (delete 'strip-jar-timestamps))))))))
 
-;gradle
-groovy-spock-core
+gradle

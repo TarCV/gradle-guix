@@ -1,0 +1,146 @@
+diff --git a/gradle/plugins/code-generator/src/main/kotlin/junitbuild/generator/GenerateJreRelatedSourceCode.kt b/gradle/plugins/code-generator/src/main/kotlin/junitbuild/generator/GenerateJreRelatedSourceCode.java
+rename from gradle/plugins/code-generator/src/main/kotlin/junitbuild/generator/GenerateJreRelatedSourceCode.kt
+rename to gradle/plugins/code-generator/src/main/kotlin/junitbuild/generator/GenerateJreRelatedSourceCode.java
+--- a/gradle/plugins/code-generator/src/main/kotlin/junitbuild/generator/GenerateJreRelatedSourceCode.kt
++++ b/gradle/plugins/code-generator/src/main/kotlin/junitbuild/generator/GenerateJreRelatedSourceCode.java
+@@ -1,76 +1,64 @@
+-package junitbuild.generator
+-
+-import com.fasterxml.jackson.core.type.TypeReference
+-import com.fasterxml.jackson.databind.ObjectMapper
+-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+-import com.fasterxml.jackson.module.kotlin.KotlinModule
+-import gg.jte.ContentType
+-import gg.jte.TemplateEngine
+-import gg.jte.output.FileOutput
+-import gg.jte.resolve.DirectoryCodeResolver
+-import junitbuild.generator.model.JRE
+-import org.gradle.api.DefaultTask
+-import org.gradle.api.file.DirectoryProperty
+-import org.gradle.api.file.RegularFileProperty
+-import org.gradle.api.tasks.CacheableTask
+-import org.gradle.api.tasks.InputDirectory
+-import org.gradle.api.tasks.InputFile
+-import org.gradle.api.tasks.OutputDirectory
+-import org.gradle.api.tasks.PathSensitive
+-import org.gradle.api.tasks.PathSensitivity
+-import org.gradle.api.tasks.SkipWhenEmpty
+-import org.gradle.api.tasks.TaskAction
++package junitbuild.generator;
++
++import com.fasterxml.jackson.core.type.TypeReference;
++import com.fasterxml.jackson.databind.ObjectMapper;
++import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
++import junitbuild.generator.model.JRE;
++import gg.jte.ContentType;
++import gg.jte.TemplateEngine;
++import gg.jte.output.FileOutput;
++import gg.jte.resolve.DirectoryCodeResolver;
+ 
+-@CacheableTask
+-abstract class GenerateJreRelatedSourceCode : DefaultTask() {
+ 
+-    @get:InputDirectory
+-    @get:SkipWhenEmpty
+-    @get:PathSensitive(PathSensitivity.RELATIVE)
+-    abstract val templateDir: DirectoryProperty
++import java.io.File;
++import java.io.IOException;
++import java.nio.file.Files;
++import java.nio.file.Paths;
++import java.util.Comparator;
++import java.util.List;
++import java.util.Map;
+ 
+-    @get:OutputDirectory
+-    abstract val targetDir: DirectoryProperty
++public class GenerateJreRelatedSourceCode {
+ 
+-    @get:InputFile
+-    @get:PathSensitive(PathSensitivity.NONE)
+-    abstract val licenseHeaderFile: RegularFileProperty
++    public static void main(String[] args) throws IOException {
++        String templateDirStr = args[0];
++        String targetDir = args[1];
++        String licenseHeaderFile = args[2];
++        var mainTargetDir = new File(targetDir);
+ 
+-    @TaskAction
+-    fun generateSourceCode() {
+-        val mainTargetDir = targetDir.get().asFile
+-        mainTargetDir.deleteRecursively()
+ 
+-        val templateDir = templateDir.get().asFile
+-        val codeResolver = DirectoryCodeResolver(templateDir.toPath())
+-        val templateEngine =
+-            TemplateEngine.create(codeResolver, temporaryDir.toPath(), ContentType.Plain, javaClass.classLoader)
++        var templateDir = Paths.get(templateDirStr);
++        var codeResolver = new DirectoryCodeResolver(templateDir);
++        var templateEngine =
++            TemplateEngine.create(codeResolver, Files.createTempDirectory("jte"), ContentType.Plain, GenerateJreRelatedSourceCode.class.getClassLoader());
+ 
+-        val templates = templateDir.walkTopDown()
+-            .filter { it.extension == "jte" }
+-            .map { it.relativeTo(templateDir) }
+-            .toList()
+-
+-        if (templates.isNotEmpty()) {
+-            val jres = javaClass.getResourceAsStream("/jre.yaml").use { input ->
+-                val mapper = ObjectMapper(YAMLFactory())
+-                mapper.registerModule(KotlinModule.Builder().build())
+-                mapper.readValue(input, object : TypeReference<List<JRE>>() {})
++        var templates = Files.walk(templateDir)
++            .filter(it -> it.toString().endsWith(".jte"))
++            .map(it -> templateDir.relativize(it))
++            .toList();
++        if (!templates.isEmpty()) {
++            List<JRE> jres;
++            try (var input = GenerateJreRelatedSourceCode.class.getResourceAsStream("/jre.yaml")) {
++                var mapper = new ObjectMapper(new YAMLFactory());
++                jres = mapper.readValue(input, new TypeReference<List<JRE>>() {});
+             }
+-            val params = mapOf(
+-                "jres" to jres,
+-                "jresSortedByStringValue" to jres.sortedBy { it.version.toString() },
+-                "licenseHeader" to licenseHeaderFile.asFile.get().readText()
+-            )
+-            templates.forEach {
+-                val targetFile = mainTargetDir.toPath().resolve(it.resolveSibling(it.nameWithoutExtension).path)
++            var params = Map.of(
++                "jres", jres,
++                "jresSortedByStringValue", jres.stream().sorted(Comparator.comparing(it -> String.valueOf(it.version))).toList(),
++                "licenseHeader", Files.readString(Paths.get(licenseHeaderFile))
++            );
++            templates.forEach(it -> {
++                int indexOfExtensionPart = it.getFileName().toString().lastIndexOf(".");
++                var targetFile = mainTargetDir.toPath().resolve(it.resolveSibling(it.getFileName().toString().substring(0, indexOfExtensionPart)));
+ 
+-                FileOutput(targetFile).use { output ->
++                try (var output = new FileOutput(targetFile)) {
+                     // JTE does not support Windows paths, so we need to replace them
+-                    val safePath = it.path.replace('\\', '/')
+-                    templateEngine.render(safePath, params, output)
++                    var safePath = it.toString().replace('\\', '/');
++                    templateEngine.render(safePath, params, output);
++                } catch (IOException e) {
++                    throw new RuntimeException(e);
+                 }
+-            }
++            });
+         }
+     }
+ 
+diff --git a/gradle/base/code-generator-model/src/main/kotlin/junitbuild/generator/model/JRE.kt b/gradle/base/code-generator-model/src/main/kotlin/junitbuild/generator/model/JRE.java
+rename from gradle/base/code-generator-model/src/main/kotlin/junitbuild/generator/model/JRE.kt
+rename to gradle/base/code-generator-model/src/main/kotlin/junitbuild/generator/model/JRE.java
+--- a/gradle/base/code-generator-model/src/main/kotlin/junitbuild/generator/model/JRE.kt
++++ b/gradle/base/code-generator-model/src/main/kotlin/junitbuild/generator/model/JRE.java
+@@ -1,3 +1,6 @@
+-package junitbuild.generator.model
++package junitbuild.generator.model;
+ 
+-data class JRE(val version: Int, val since: String?)
++public class JRE {
++    public int version; public int getVersion() { return version; }
++    public String since; public String getSince() { return since; }
++}
