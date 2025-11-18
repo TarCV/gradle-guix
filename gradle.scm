@@ -117,11 +117,16 @@
   (package
     (inherit java-sonatype-aether-api-1.13)
     (name "java-sonatype-aether-impl")
+    (source
+      (origin
+        (inherit (package-source java-sonatype-aether-api-1.13))
+        (patches (append
+                   (origin-patches (package-source java-sonatype-aether-api-1.13))
+                   '("patches/java-sonatype-aether-impl-1.13-test-fix.patch")))))
     (arguments
       `(#:jar-name "aether-impl.jar"
          #:source-dir "aether-impl/src/main/java"
          #:test-dir "aether-impl/src/test"
-         #:tests? #f ; TODO
          #:phases
          (modify-phases %standard-phases
            (add-before 'install 'fix-pom
@@ -242,7 +247,7 @@
     (synopsis "BDD-style developer testing and specification framework for Java and Groovy applications.
      This package provides the module for JUnit 4.")))
 
-(define java-apiguardian
+(define-public java-apiguardian
   (package
     (name "java-apiguardian")
     (version "1.1.2")
@@ -471,7 +476,7 @@
         ))
     (synopsis "The programmer-friendly testing framework for Java and the JVM. This module is JUnit Platform Test Kit.")))
 
-(define java-minlog
+(define-public java-minlog
   (package
     (name "java-minlog")
     (version "1.3.1")
@@ -568,168 +573,6 @@
     (description
       "Kryo is a fast and efficient binary object graph serialization framework for Java. The goals of the project are high speed, low size, and an easy to use API. The project is useful any time objects need to be persisted, whether to a file, database, or over the network.")
     (license license:bsd-3)))
-
-;(define java-jnr-constants
-;  (package
-;    (name "java-jnr-constants")
-;    (version "0.7")
-;    (source
-;      (origin
-;        (method url-fetch)
-;        (uri (string-append "https://github.com/jnr/jnr-constants/archive/refs/tags/" version ".tar.gz"))
-;        (file-name (string-append name "-" version ".tar.gz"))
-;        (sha256 (base32 "1bj45843skcn6nwp6cwqyzfq6r4d8jmzd7h2pwfa86r5g81h9lnf"))
-;        (modules '((guix build utils)))
-;        (snippet '(begin ; TODO: Java files in this repo are pregenerated, should they be regenerated before build?
-;                    (for-each delete-file
-;                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
-;                    #t))))
-;    (build-system ant-build-system)
-;    (arguments
-;      `(#:make-flags
-;         ,#~(list
-;              (string-append "-Ddist.jar=" #$output "/share/java/jnr-constants.jar")
-;              (string-append
-;                 "-Dlibs.junit_4.classpath="
-;                 #$java-junit "/lib/m2/junit/junit/" #$(package-version java-junit) "/junit-" #$(package-version java-junit) ".jar"
-;                 ":" #$java-hamcrest-all "/share/java/hamcrest-all.jar"))
-;         #:test-target "test"
-;         #:phases (modify-phases %standard-phases
-;           (delete 'install))))
-;    (home-page "https://github.com/jnr/jnr-constants")
-;    (synopsis "Java Native Runtime constants")
-;    (description "This project contains Java enums for common POSIX constants. It is predominately used to make calls into jnr-posix far simpler.")
-;    (license (list license:expat))))
-;
-;(define java-jnr-jffi-0.6
-;  (package
-;    (name "java-jnr-jffi")
-;    (version "0.6.5")
-;    (source
-;      (origin
-;        (method url-fetch)
-;        (uri (string-append "https://github.com/jnr/jffi/archive/refs/tags/" version ".tar.gz"))
-;        (file-name (string-append name "-" version ".tar.gz"))
-;        (sha256 (base32 "1wm1h6zmv3jnv4mg7zk38ryxfphbwfgmkha1qawrpi0djpi6hnr4"))
-;        (modules '((guix build utils)))
-;        (patches '("patches/java-jnr-jffi-build.patch"))
-;        (snippet '(begin
-;                    (for-each delete-file
-;                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
-;                    #t))))
-;    (build-system ant-build-system)
-;    (native-inputs (list libffi pkg-config))
-;    (arguments
-;      `(#:test-target "test"
-;        #:make-flags ,#~(list "-Duse.system.libffi=1"
-;                           "-Dmkdist.disabled=true"
-;                           (string-append "-Dcomplete.jar=" #$output "/share/java/jnr-jffi.jar")
-;                           (string-append
-;                             "-Dlibs.junit_4.classpath="
-;                             #$java-junit "/lib/m2/junit/junit/" #$(package-version java-junit)
-;                             "/junit-" #$(package-version java-junit) ".jar"
-;                             ":" #$java-hamcrest-all "/share/java/hamcrest-all.jar"))
-;        #:phases (modify-phases %standard-phases
-;                    (add-before 'build 'setup-gnu-build-env
-;                      (lambda _
-;                        (substitute* '("jni/GNUmakefile" "libtest/GNUmakefile")
-;                          (("(:.+)\\$\\(LIBFFI_LIBS\\)" all before) before)
-;                          (("-mimpure-text") ""))
-;                        (setenv "CC" "gcc")
-;                        (setenv "MAKE" "make")))
-;                    (delete 'install)))) ; complete.jar property already takes care of installing the jar
-;    (home-page "https://github.com/jnr/jnr-jffi")
-;    (synopsis "Java Foreign Function Interface")
-;    (description "Java wrapper around libffi.")
-;    (license (list license:lgpl3))))
-;
-;(define java-jnr-ffi
-;  (package
-;    (name "java-jnr-ffi")
-;    (version "0.4.1")
-;    (source
-;      (origin
-;        (method url-fetch)
-;        (uri (string-append "https://github.com/jnr/jnr-ffi/archive/0462926916f8bf93e0a029248c3bfe9107bb99aa.tar.gz"))
-;        (file-name (string-append name "-" version ".tar.gz"))
-;        (sha256 (base32 "0lj0l8jyp36z2qx5d8gc31vck4m5gbsljrbminfnacqmgh3xarlk"))
-;        (patches '("patches/java-jnr-ffi-asm.patch" "patches/java-jnr-ffi-generics.patch"))
-;        (modules '((guix build utils)))
-;        (snippet '(begin
-;                    (for-each delete-file
-;                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
-;                    #t))))
-;    (build-system ant-build-system)
-;    (propagated-inputs (list java-asm java-jnr-jffi-0.6 java-native-access))
-;    (arguments
-;      `(#:test-target "test"
-;         #:make-flags ,#~(list "-Duse.system.libffi=1"
-;                               (string-append "-Ddist.jar=" #$output "/share/java/jnr-ffi.jar")
-;                               (string-append "-Dfile.reference.asm-3.2.jar=" #$java-asm "/lib/m2/org/ow2/asm/asm/"
-;                                 #$(package-version java-asm) "/asm-" #$(package-version java-asm) ".jar")
-;                               (string-append "-Dreference.JNA_Library.jar=" #$java-native-access "/share/java/jna.jar")
-;                               (string-append
-;                                 "-Dlibs.junit_4.classpath="
-;                                 #$java-junit "/lib/m2/junit/junit/" #$(package-version java-junit) "/junit-" #$(package-version java-junit) ".jar"
-;                                 ":" #$java-hamcrest-all "/share/java/hamcrest-all.jar")
-;                               (string-append "-Dfile.reference.jffi-complete.jar=" #$java-jnr-jffi-0.6 "/share/java/jnr-jffi.jar"))
-;         #:phases (modify-phases %standard-phases
-;                    (add-before 'build 'setup-gnu-build-env
-;                      (lambda _
-;                        (substitute* "libtest/GNUmakefile"
-;                          (("-mimpure-text") ""))
-;                        (setenv "CC" "gcc")
-;                        (setenv "MAKE" "make")))
-;                    (add-before 'build 'remove-nb-dependency
-;                      (lambda _
-;                        (substitute* "nbproject/build-impl.xml"
-;                          ((",-do-jar-with-libraries[^,\"']+") ""))))
-;                    (delete 'install)))) ; dist.jar property already takes care of installing the jar
-;    (home-page "https://github.com/jnr/jnr-ffi")
-;    (synopsis "Java Abstracted Foreign Function Layer")
-;    (description "JNR-FFI is a Java library for loading native libraries without writing JNI code by hand, or using tools such as SWIG.")
-;    (license (list license:expat))))
-;
-;(define java-jnr-posix
-;  (package
-;    (name "java-jnr-posix")
-;    (version "1.0.8")
-;    (source
-;      (origin
-;        (method url-fetch)
-;        (uri (string-append "https://github.com/jnr/jnr-posix/archive/refs/tags/" version ".tar.gz"))
-;        (file-name (string-append name "-" version ".tar.gz"))
-;        (sha256 (base32 "1lrrislf8rzw9dz751721pki6wn92p36prb4hqd20rxgkjbqp2my"))
-;        (modules '((guix build utils)))
-;        (snippet '(begin
-;                    (for-each delete-file
-;                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
-;                    #t))))
-;    (build-system ant-build-system)
-;    (propagated-inputs (list coreutils-minimal java-jnr-constants java-jnr-ffi))
-;    (arguments
-;      `(#:make-flags
-;         ,#~(list
-;           "-Dno.dependencies=true"
-;           (string-append "-Ddist.jar=" #$output "/share/java/jnr-posix.jar")
-;           (string-append "-Dreference.constantine.jar=" #$java-jnr-constants "/share/java/jnr-constants.jar")
-;           (string-append "-Dreference.jaffl.jar=" #$java-jnr-ffi "/share/java/jnr-ffi.jar")
-;           (string-append
-;             "-Dlibs.junit_4.classpath="
-;             #$java-junit "/lib/m2/junit/junit/" #$(package-version java-junit) "/junit-" #$(package-version java-junit) ".jar"
-;             ":" #$java-hamcrest-all "/share/java/hamcrest-all.jar"))
-;         #:test-target "test"
-;         #:tests? #f ; TODO: fix libc related tests
-;         #:phases ,#~(modify-phases %standard-phases
-;                    (add-before 'build 'patch-bin-paths
-;                      (lambda _
-;                        (substitute* (find-files "src" ".*\\.java$")
-;                          (("\"/usr/bin/") (string-append "\"" #$coreutils-minimal "/bin/")))))
-;                    (delete 'install))))
-;    (home-page "https://github.com/jnr/jnr-posix")
-;    (synopsis "Java Posix layer")
-;    (description "jnr-posix is a lightweight cross-platform POSIX emulation layer for Java, written in Java.")
-;    (license (list license:cpl1.0 license:gpl2+ license:lgpl2.1+))))
 
 (define java-fastutil-7
   (package
@@ -839,7 +682,7 @@
     (description "JATL is an extremely lightweight efficient Java library that generates XHTML or XML by using an a elegant fluent styled micro DSL.")
     (license (list license:asl2.0))))
 
-(define java-jcifs
+(define-public java-jcifs
   (package
     (name "java-jcifs")
     (version "1.3.19")
@@ -909,12 +752,12 @@
               (method url-fetch)
               (uri (string-append "mirror://sourceforge/simpleweb/simpleweb/" version "/simple-" version ".tar.gz"))
               (file-name (string-append name "-" version ".tar.gz"))
-              (sha256 (base32 "049nfqmlgdpkki03n4iyc53fpbwlfkk1znjk4jj1xpvf1nw3zlrn"))))
+              (sha256 (base32 "049nfqmlgdpkki03n4iyc53fpbwlfkk1znjk4jj1xpvf1nw3zlrn"))
+              (patches '("patches/java-simple-web-4.1.21-fix-tests.patch"))))
     (build-system ant-build-system)
     (arguments
       `(#:build-target "build"
         #:test-target "test"
-        #:tests? #f ; TODO
         #:phases
         (modify-phases %standard-phases
           (add-after 'unpack 'remove-jars
@@ -2109,7 +1952,7 @@ browser window. It is completely customizable as well via CSS.")
                             "--init-script" "init.gradle"
                             "--no-build-cache"
                             ; TODO: set number of worker threads based on '--cores' Guix argument
-;                            "--info"
+                            "--info"
 ;                            "--stacktrace"
                             "test"
                             ; TODO "integTest"
