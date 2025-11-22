@@ -42,6 +42,30 @@
   #:use-module (guix svn-download))
 
 ; TODO: ensure all packages here reproducible
+; TODO: review all comments for if they should start with ; or ;; or ;;;
+
+(define groovy-nio
+  (module-ref (resolve-module '(gnu packages groovy)) 'groovy-nio))
+(define groovy-nio-fixed
+  (package
+    (inherit groovy-nio)
+    (arguments
+      (substitute-keyword-arguments (package-arguments groovy-nio)
+        ((#:phases phases)
+          `(modify-phases ,phases
+              (add-before 'build 'generate-metadata
+                (lambda _
+                  (let ((dir "build/classes/META-INF/groovy"))
+                    (mkdir-p dir)
+                    (call-with-output-file (string-append dir "/org.codehaus.groovy.runtime.ExtensionModule")
+                      (lambda (port)
+                        (format port "moduleName=~a~%" ,(package-name groovy-nio))
+                        (format port "moduleVersion=~a~%" ,(package-version groovy-nio))
+                        (format port "extensionClasses=org.apache.groovy.nio.extensions.NioExtensions~%")
+                        (format port "staticExtensionClasses=~%"))))))))))))
+(define groovy-fixed
+  ((package-input-rewriting `((,groovy-nio . ,groovy-nio-fixed)))
+    groovy))
 
 (define groovy-test  ; TODO: make the package public instead
   (module-ref (resolve-module '(gnu packages groovy)) 'groovy-test))
@@ -50,6 +74,38 @@
   (module-ref (resolve-module '(gnu packages java)) 'java-plexus-containers-parent-pom-1.7))
 (define make-apache-commons-parent-pom ; TODO: add this dependency to the relevant package?
   (module-ref (resolve-module '(gnu packages maven-parent-pom)) 'make-apache-commons-parent-pom))
+
+(define-public ant-junitlauncher
+  (package
+    (inherit ant/java8)
+    (name "ant-junitlauncher")
+    (arguments
+      (substitute-keyword-arguments (package-arguments ant/java8)
+        ((#:phases phases)
+          #~(modify-phases #$phases
+              (add-after 'unpack 'link-junit-platform
+                (lambda* (#:key inputs #:allow-other-keys)
+                  (for-each (lambda (pkg)
+                              (for-each (lambda (file)
+                                          (symlink file
+                                            (string-append "lib/optional/"
+                                              (basename file))))
+                                (find-files (assoc-ref inputs pkg) "\\.jar$")))
+                    (list "java-junit-platform-commons"
+                          "java-junit-platform-engine"
+                          "java-junit-platform-launcher"))))
+              (add-after 'build 'install
+                (lambda _
+                  (let ((share (string-append #$output "/share/java"))
+                         (bin   (string-append #$output "/bin"))
+                         (lib   (string-append #$output "/lib")))
+                    (mkdir-p share)
+                    (install-file (string-append lib "/ant-junitlauncher.jar") share)
+                    (delete-file-recursively bin)
+                    (delete-file-recursively lib))))))))
+    (inputs
+      (modify-inputs (package-inputs ant/java8)
+        (prepend java-junit-platform-commons-5 java-junit-platform-engine-5 java-junit-platform-launcher-5)))))
 
 (define-public apache-commons-parent-pom-42
   (make-apache-commons-parent-pom
@@ -160,7 +216,7 @@
       (list java-junit java-plexus-component-metadata
             java-sonatype-aether-test-util-1.13))))
 
-(define groovy-spock-core
+(define-public groovy-spock-core
   (package
     (name "groovy-spock-core")
     (version "2.3")
@@ -171,36 +227,66 @@
         (file-name (string-append name "-" version ".tar.gz"))
         (sha256 (base32 "0jv36c54r5c7yqbjp7pmh2773h97gcvfa6b3wyf3js74ra99f1rp"))
         (modules '((guix build utils)))
-        (patches '("patches/groovy-spock-core-patch-underscore.patch"))
+        (patches '("patches/groovy-spock-core-2.3-groovy-before-3.0.6.patch"
+                   "patches/groovy-spock-core-2.3-no-h2.patch"))
         (snippet '(begin
                     (for-each delete-file
                       (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
                     #t))))
     (build-system ant-build-system)
-    (native-inputs (list groovy-ant-patched java-jetbrains-annotations java-asm-8 java-byte-buddy-dep java-cglib
-                         java-junit-platform-testkit-5 java-objenesis))
-    (propagated-inputs (list groovy java-geantyref-1 java-hamcrest-all))
+    (native-inputs (list ant-junitlauncher groovy-ant-patched groovy-test java-jetbrains-annotations java-asm-8
+                         java-byte-buddy-dep java-cglib java-junit-platform-testkit-5 java-objenesis))
+    (propagated-inputs (list groovy-fixed java-geantyref-1 java-hamcrest-all))
     (arguments
-      `(#:jar-name "spock-core.jar"
-         #:jdk ,openjdk9
+      `(#:ant ,ant/java8 ; required for ant-junitlauncher 
+         #:jar-name "spock-core.jar"
+         #:jdk ,openjdk10
          #:source-dir "spock-core/src/main"
-         #:tests? #f  ; this module doesn't have tests. TODO: run tests from spock-testkit
-         #:phases (modify-phases %standard-phases ; TOOD: use groovy compiler
+         #:test-dir "spock-specs/src/test"
+         #:phases (modify-phases %standard-phases
                     (add-before 'build 'patch-build.xml
                       (lambda _
                         (substitute* "build.xml"
-                          (("<javac ([^>]+)>" all args) (string-append
+                          (("<javac ([^>]+)>(([^/]+(/[^j])?)*)</javac>" all args body) (string-append
                                                           "<taskdef name=\"groovyc\" classname=\"org.codehaus.groovy.ant.Groovyc\" classpathref=\"classpath\"/>"
-                                                          "<groovyc " args " fork=\"true\"><classpath refid=\"classpath\"/>"
-                                                          "<javac debug=\"true\" " args ">"))
-                          (("</javac>" all) (string-append all "</groovyc>")))))
+                                                          "<groovyc " args " fork=\"true\">"
+                                                          body
+                                                          ; release=8 is needed because of '_' field in Specification.java
+                                                          ; (such names are disallowed in newer language versions):
+                                                          "<javac debug=\"true\" " args " release=\"8\">"
+                                                          body
+                                                          "</javac></groovyc>")))))
                     (add-after 'build 'build-resources
                       (lambda _
                         (substitute* (find-files "spock-core/src/main/resources" ".*")
-                          (("@version@") ,version)
+                          (("@version@") (string-append ,version "-groovy-3.0")) ; TODO: compute from groovy version
                           (("@minGroovyVersion@") "3.0.0")
-                          (("@maxGroovyVersion@") "3.9.99")) ; TODO: compute from groovy version
-                        (copy-recursively "spock-core/src/main/resources" "build/classes")))
+                          (("@maxGroovyVersion@") "3.9.99"))
+                        (copy-recursively "spock-core/src/main/resources" "build/classes")
+                        (invoke "ant" "-Dant.executor.class=org.apache.tools.ant.helper.IgnoreDependenciesExecutor" "jar"))) ; TODO: use this trick in other Guix packages
+                    (add-before 'check 'configure-check
+                      (lambda _
+                        (substitute* "build.xml"
+                          (("<junit[ >].*</junit>|<junit[[:space:]]*/>")
+                            "<junitlauncher printsummary=\"true\" haltonfailure=\"yes\">
+  <classpath>
+    <pathelement path=\"${env.CLASSPATH}\"/>
+    <pathelement location=\"${test.home}/resources\"/>
+    <pathelement location=\"${classes.dir}\"/>
+    <pathelement location=\"${test.classes.dir}\"/>
+  </classpath>
+  <listener type=\"legacy-brief\" sendSysOut=\"true\" sendSysErr=\"true\"/>
+  <testclasses outputdir=\"${test.home}/test-reports\">
+    <fork>
+      <jvmarg value=\"-Dorg.spockframework.mock.testType=all\"/><!-- any value except 'plain' is good here -->
+    </fork>
+    <fileset dir=\"${test.classes.dir}\"/>
+  </testclasses></junitlauncher>"))
+
+                        (delete-file ; depends on h2database
+                          "spock-specs/src/test/groovy/org/spockframework/smoke/parameterization/SqlDataSource.groovy")
+                        (copy-recursively "spock-specs/src/test-groovy-ge-3.0" "spock-specs/src/test") ; for Groovy >= 3.0
+                        (copy-recursively "spock-specs/mock-integration/src/test" "spock-specs/src/test")))
                     (add-before 'install 'generate-pom.xml
                       (generate-pom.xml "pom.xml"
                         "org.spockframework"
@@ -216,27 +302,52 @@
       Thanks to its JUnit runner, Spock is compatible with most IDEs, build tools, and continuous integration servers.")
     (license license:asl2.0)))
 
-(define groovy-spock-junit4
+(define-public groovy-spock-junit4
   (package
     (inherit groovy-spock-core)
+    (name "groovy-spock-junit4")
+    (native-inputs (list ant-junitlauncher groovy-ant-patched groovy-test java-jetbrains-annotations
+                         java-junit-platform-testkit-5))
     (propagated-inputs (list java-junit groovy-spock-core))
     (arguments
-      `(#:jar-name "spock-junit4.jar"
+      `(#:ant ,ant/java8 ; required for ant-junitlauncher
+        #:jar-name "spock-junit4.jar"
         #:jdk ,openjdk9
         #:source-dir "spock-junit4/src/main"
-        #:tests? #f  ; TODO
+        #:test-dir "spock-junit4/src/test"
         #:phases (modify-phases %standard-phases
                    (add-before 'build 'patch-build.xml
-                     (lambda _
-                       (substitute* "build.xml"
-                         (("<javac ([^>]+)>" all args) (string-append
-                                                         "<taskdef name=\"groovyc\" classname=\"org.codehaus.groovy.ant.Groovyc\" classpathref=\"classpath\"/>"
-                                                         "<groovyc " args " fork=\"true\"><classpath refid=\"classpath\"/>"
-                                                         "<javac debug=\"true\" " args ">"))
-                         (("</javac>" all) (string-append all "</groovyc>")))))
-                   (add-after 'build 'copy-resources
+                      (lambda _
+                        (substitute* "build.xml"
+                          (("<javac ([^>]+)>(([^/]+(/[^j])?)*)</javac>" all args body) (string-append
+                                                          "<taskdef name=\"groovyc\" classname=\"org.codehaus.groovy.ant.Groovyc\" classpathref=\"classpath\"/>"
+                                                          "<groovyc " args " fork=\"true\">"
+                                                          body
+                                                          "<javac debug=\"true\" " args ">"
+                                                          body
+                                                          "</javac></groovyc>")))))
+                   (add-before 'build 'copy-resources
                      (lambda _
                        (copy-recursively "spock-junit4/src/main/resources" "build/classes")))
+                   (add-before 'check 'configure-check
+                     (lambda _
+                       (substitute* "build.xml"
+                         (("<junit[ >].*</junit>|<junit[[:space:]]*/>")
+                           "<junitlauncher printsummary=\"true\" haltonfailure=\"yes\">
+ <classpath>
+   <pathelement path=\"${env.CLASSPATH}\"/>
+   <pathelement location=\"${test.home}/resources\"/>
+   <pathelement location=\"${classes.dir}\"/>
+   <pathelement location=\"${test.classes.dir}\"/>
+ </classpath>
+ <listener type=\"legacy-brief\" sendSysOut=\"true\" sendSysErr=\"true\"/>
+ <testclasses outputdir=\"${test.home}/test-reports\">
+   <fork/>
+   <fileset dir=\"${test.classes.dir}\"/>
+ </testclasses></junitlauncher>"))
+
+                       (copy-recursively "spock-junit4/src/test-groovy-le-3.0" "spock-junit4/src/test") ; for Groovy <= 3.0
+                     ))
                    (add-before 'install 'generate-pom.xml
                      (generate-pom.xml "pom.xml"
                        "org.spockframework"
@@ -672,7 +783,7 @@
     (arguments
       `(#:jar-name "jatl.jar"
          #:phases ,#~(modify-phases %standard-phases
-                         (add-after 'build 'copy-resources
+                         (add-before 'build 'copy-resources
                            (lambda _
                              (copy-recursively "src/etc" "build/classes")))
                          (replace 'install
@@ -788,7 +899,7 @@
          #:source-dir "jcl-over-slf4j/src/main"
          #:test-dir  "jcl-over-slf4j/src/test"
          #:phases ,#~(modify-phases %standard-phases
-                       (add-after 'build 'copy-resources
+                       (add-before 'build 'copy-resources
                          (lambda _
                            (copy-recursively "jcl-over-slf4j/src/main/resources" "build/classes")))
                        (replace 'install
@@ -807,7 +918,7 @@
          #:source-dir "jul-to-slf4j/src/main"
          #:tests? #f ; tests require a newer version of java-log4j-1.2-api 2.17.2
          #:phases ,#~(modify-phases %standard-phases
-                         (add-after 'build 'copy-resources
+                         (add-before 'build 'copy-resources
                            (lambda _
                              (copy-recursively "jul-to-slf4j/src/main/resources" "build/classes")))
                          (replace 'install
@@ -827,7 +938,7 @@
          #:source-dir "log4j-over-slf4j/src/main"
          #:test-dir  "log4j-over-slf4j/src/test"
          #:phases ,#~(modify-phases %standard-phases
-                         (add-after 'build 'copy-resources
+                         (add-before 'build 'copy-resources
                            (lambda _
                              (copy-recursively "log4j-over-slf4j/src/main/resources" "build/classes")))
                          (replace 'install
@@ -848,7 +959,7 @@
          #:test-dir  "slf4j-jdk14/src/test"
          #:tests? #f ; TODO
          #:phases ,#~(modify-phases %standard-phases
-                       (add-after 'build 'copy-resources
+                       (add-before 'build 'copy-resources
                          (lambda _
                            (copy-recursively "slf4j-jdk14/src/main/resources" "build/classes")))
                        (add-before 'check 'copy-helpers
@@ -951,7 +1062,8 @@
                                "net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions"
                                "net.rubygrapefruit.platform.internal.jni.MemoryFunctions"
                                "net.rubygrapefruit.platform.internal.jni.OsxMemoryFunctions"
-                               ))))))
+                               )
+                             (invoke "ant" "-Dant.executor.class=org.apache.tools.ant.helper.IgnoreDependenciesExecutor" "jar"))))))
     (home-page "https://github.com/gradle/native-platform/")
     (synopsis "Native-platform: Java bindings for various native APIs")
     (description
@@ -1175,7 +1287,7 @@ browser window. It is completely customizable as well via CSS.")
     (license (list license:expat license:gpl1+))))
 
 (define groovy-ant-patched
-  (let ((original-groovy-ant (lookup-package-input groovy "groovy-ant")))
+  (let ((original-groovy-ant (lookup-package-input groovy-fixed "groovy-ant")))
     (package
       (inherit original-groovy-ant)
       (source (origin
@@ -1253,7 +1365,7 @@ browser window. It is completely customizable as well via CSS.")
 (define maven-sonatype-polyglot-groovy
   (package
     (inherit maven-sonatype-polyglot-common)
-    (native-inputs (list groovy-ant-patched groovy
+    (native-inputs (list groovy-ant-patched groovy-fixed
                          maven-embedder maven-3.0-model-builder)) ; TODO: remove this once propagated-inputs of the polyglot-common is fixed
     (propagated-inputs (list maven-sonatype-polyglot-parent-pom maven-sonatype-polyglot-common))
     (arguments
@@ -1303,7 +1415,7 @@ browser window. It is completely customizable as well via CSS.")
                     #t))))
     (build-system ant-build-system)
     (propagated-inputs
-      (list groovy-ant-patched groovy
+      (list groovy-ant-patched groovy-fixed
               java-asm-9 java-asm-commons-9
             java-apache-ivy java-bouncycastle java-commons-collections java-commons-compress-no-pack200
             java-commons-io java-commons-lang java-commons-logging-minimal
@@ -1661,7 +1773,7 @@ browser window. It is completely customizable as well via CSS.")
                         ((" crossVersionTest[A-Za-z]+ " all) (string-append "// " all)) ; dependencies for tests depending on previous versions of Gradle
                         )))
                   (add-before 'build 'generate-groovy-pom
-                    (generate-pom.xml "groovy-pom.xml" "org.codehaus.groovy" "groovy" ,(package-version groovy)))
+                    (generate-pom.xml "groovy-pom.xml" "org.codehaus.groovy" "groovy" ,(package-version groovy-fixed)))
                   (add-before 'build 'patch-versions
                     (lambda _ ; TODO: implement it in init.gradle instead
                       (substitute* "gradle/dependencies.gradle"
@@ -1768,7 +1880,7 @@ browser window. It is completely customizable as well via CSS.")
                                         (apply invoke command))))))
 
                                 (groovyLocalMavenPath
-                                  (mavenize-package ,groovy ,(package-version groovy)
+                                  (mavenize-package ,groovy-fixed ,(package-version groovy-fixed)
                                     "org.codehaus.groovy" "groovy" "/lib/groovy.jar"))
                                 (antlrMavenPath (mavenize-package ,antlr2 ,(package-version antlr2)
                                   "antlr" "antlr" "/lib/antlr.jar"))
@@ -1806,7 +1918,7 @@ browser window. It is completely customizable as well via CSS.")
                             "org.apache.ant" "ant-launcher" "/lib/ant-launcher.jar")
                           (for-each
                             (lambda (suffix)
-                              (mavenize-package ,groovy ,(package-version groovy)
+                              (mavenize-package ,groovy-fixed ,(package-version groovy-fixed)
                                 "org.codehaus.groovy"
                                 (string-append "groovy-" suffix) (string-append "/lib/groovy-" suffix ".jar")))
                             (list "ant" "datetime" "dateutil" "groovydoc" "json" "templates" "xml"))
@@ -1971,4 +2083,5 @@ browser window. It is completely customizable as well via CSS.")
                   (delete 'reorder-jar-content)
                   (delete 'strip-jar-timestamps))))))))
 
-gradle
+;gradle
+groovy-spock-core

@@ -1,0 +1,38 @@
+TODO: Remove once Groovy version packaged in Guix is 3.0.6+
+--- a/spock-core/src/main/java/org/spockframework/util/MopUtil.java
++++ b/spock-core/src/main/java/org/spockframework/util/MopUtil.java
+@@ -24,7 +24,7 @@
+ 
+ public abstract class MopUtil {
+   private static final Field ReflectionMetaMethod_method  = getDeclaredField(ReflectionMetaMethod.class, "method");
+-  private static final Field CachedField_field = getDeclaredField(CachedField.class, "field");
++  private static final Field CachedField_field = getDeclaredField(CachedField.class, "cachedField");
+ 
+   private static Field getDeclaredField(Class clazz, String name) {
+     try {
+--- a/spock-specs/src/test/groovy/org/spockframework/docs/utilities/CollectionConditions.groovy
++++ b/spock-specs/src/test/groovy/org/spockframework/docs/utilities/CollectionConditions.groovy
+@@ -38,8 +38,8 @@
+ | false
+ [2, 2, 1, 3, 3]
+ 
+-Expected: iterable with items [<4>, <1>, <2>] in any order
+-     but: not matched: <2>
++Expected: iterable over [<4>, <1>, <2>] in any order
++     but: Not matched: <2>
+     """ // end::strict-matcher-result[]
+     )
+   }
+--- a/spock-specs/src/test/groovy/org/spockframework/smoke/condition/CollectionConditionRendering.groovy
++++ b/spock-specs/src/test/groovy/org/spockframework/smoke/condition/CollectionConditionRendering.groovy
+@@ -73,8 +73,8 @@
+ | false
+ [1]
+ 
+-Expected: iterable with items [<2>] in any order
+-     but: not matched: <1>
++Expected: iterable over [<2>] in any order
++     but: Not matched: <1>
+     """, {
+       def x = [1]
+       def y = [2]
