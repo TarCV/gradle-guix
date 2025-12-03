@@ -422,7 +422,7 @@
                  (delete-file "src/main/java/org/apache/commons/compress/compressors/CompressorStreamFactory.java")
                  (delete-file "src/main/java/org/apache/commons/compress/java/util/jar/Pack200.java")))))))))
 
-(define java-jte-runtime
+(define-public java-jte-runtime
   (package
     (name "java-jte-runtime")
     (version "3.2.1")
@@ -438,12 +438,34 @@
                       (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
                     #t))))
     (build-system ant-build-system)
+    (native-inputs (list java-junit))
     (arguments
       `(#:jar-name "java-jte-runtime.jar"
         #:jdk ,openjdk17
-        #:tests? #f ; circular dependency on JUnit Jupiter and AssertJ
         #:source-dir "jte-runtime/src/main/java"
+        #:test-dir "jte-runtime/src/test"
         #:phases (modify-phases %standard-phases
+                   (add-before 'check 'remove-assertj-jupiter ; to break dependency loops via JUnit Jupiter and AssertJ
+                     (lambda _
+                       (substitute* (find-files "jte-runtime/src/test" ".*\\.java$")
+                         (("org.junit.jupiter.api.Test") "org.junit.Test")
+                         (("import org.assertj.core.api.Assertions;") "")
+                         (("import static org.assertj.core.api.Assertions.assertThat;") "")
+                         (("Assertions\\.") "")
+                         (("^[[:space:]]*class ") "public class ")
+                         (("^[[:space:]]*void ") "public void ")
+                         (("assertThat\\((.+)\\).isFalse\\(\\);" _ argument)
+                           (string-append "org.junit.Assert.assertFalse("argument ");"))
+                         (("assertThat\\((.+)\\).isTrue\\(\\);" _ argument)
+                           (string-append "org.junit.Assert.assertTrue("argument ");"))
+                         (("assertThat\\((.+)\\).isEqualTo\\((.+)\\);" _ left right)
+                           (string-append "org.junit.Assert.assertEquals(" left ", " right ");"))
+                         (("assertThat\\((.+)\\).isNotEqualTo\\((.+)\\);" _ left right)
+                           (string-append "org.junit.Assert.assertNotEquals(" left ", " right ");"))
+                         (("assertThat\\((.+)\\).hasSameHashCodeAs\\((.+)\\);" _ left right)
+                           (string-append "org.junit.Assert.assertEquals((" left ").hashCode(), (" right ").hashCode());"))
+                         (("assertThat\\((.+)\\).doesNotHaveSameHashCodeAs\\((.+)\\);" _ left right)
+                           (string-append "org.junit.Assert.assertNotEquals((" left ").hashCode(), (" right ").hashCode());")))))
                    (replace 'install
                      (install-from-pom "jte-runtime/pom.xml")))))
     (home-page "https://jte.gg")
@@ -452,7 +474,7 @@
      making it straightforward to reason about what a template does.")
     (license license:asl2.0)))
 
-(define java-jte-extension-api
+(define-public java-jte-extension-api
   (package
     (inherit java-jte-runtime)
     (name "java-jte-extension-api")
