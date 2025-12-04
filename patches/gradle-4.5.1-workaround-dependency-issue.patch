@@ -1,0 +1,11 @@
+TODO: remove this patch
+--- a/subprojects/dependency-management/src/main/java/org/gradle/api/internal/artifacts/ivyservice/resolveengine/oldresult/DefaultResolvedConfigurationBuilder.java
++++ b/subprojects/dependency-management/src/main/java/org/gradle/api/internal/artifacts/ivyservice/resolveengine/oldresult/DefaultResolvedConfigurationBuilder.java
+@@ -45,6 +45,7 @@
+ 
+     @Override
+     public void addChild(DependencyGraphNode parent, DependencyGraphNode child, int artifactsId) {
++        builder.resolvedDependency(parent.getNodeId(), parent.getResolvedConfigurationId());
+         builder.parentChildMapping(parent.getNodeId(), child.getNodeId(), artifactsId);
+     }
+ 

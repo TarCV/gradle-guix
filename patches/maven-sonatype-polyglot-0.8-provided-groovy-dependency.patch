@@ -1,0 +1,11 @@
+Groovy package in Guix is not mavenized, so it have to be marked as optional to prevent install-from-pom failure
+--- a/pmaven-groovy/pom.xml
++++ b/pmaven-groovy/pom.xml
+@@ -38,6 +38,7 @@
+         <dependency>
+             <groupId>org.codehaus.groovy</groupId>
+             <artifactId>groovy</artifactId>
++            <optional>true</optional>
+         </dependency>
+     </dependencies>
+ 

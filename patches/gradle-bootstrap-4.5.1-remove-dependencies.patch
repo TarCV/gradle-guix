@@ -1,0 +1,108 @@
+--- a/subprojects/native/src/main/java/org/gradle/internal/nativeintegration/services/NativeServices.java
++++ b/subprojects/native/src/main/java/org/gradle/internal/nativeintegration/services/NativeServices.java
+@@ -33,7 +33,6 @@
+ import org.gradle.internal.nativeintegration.console.ConsoleDetector;
+ import org.gradle.internal.nativeintegration.console.NativePlatformConsoleDetector;
+ import org.gradle.internal.nativeintegration.console.NoOpConsoleDetector;
+-import org.gradle.internal.nativeintegration.console.WindowsConsoleDetector;
+ import org.gradle.internal.nativeintegration.filesystem.FileMetadataAccessor;
+ import org.gradle.internal.nativeintegration.filesystem.services.FallbackFileMetadataAccessor;
+ import org.gradle.internal.nativeintegration.filesystem.services.FileSystemServices;
+@@ -171,14 +170,6 @@
+                 LOGGER.debug("Unable to load from native-platform backed ConsoleDetector. Continuing with fallback. Failure: {}", format(ex));
+             }
+ 
+-            try {
+-                if (operatingSystem.isWindows()) {
+-                    return new WindowsConsoleDetector();
+-                }
+-            } catch (LinkageError e) {
+-                // Thrown when jna cannot initialize the native stuff
+-                LOGGER.debug("Unable to load native library. Continuing with fallback. Failure: {}", format(e));
+-            }
+         }
+ 
+         return new NoOpConsoleDetector();
+--- a/subprojects/plugin-development/src/main/java/org/gradle/plugin/devel/plugins/JavaGradlePluginPlugin.java
++++ b/subprojects/plugin-development/src/main/java/org/gradle/plugin/devel/plugins/JavaGradlePluginPlugin.java
+@@ -184,18 +184,6 @@
+     }
+ 
+     private void configurePublishing(final Project project) {
+-        project.getPluginManager().withPlugin("maven-publish", new Action<AppliedPlugin>() {
+-            @Override
+-            public void execute(AppliedPlugin appliedPlugin) {
+-                project.getPluginManager().apply(MavenPluginPublishingRules.class);
+-            }
+-        });
+-        project.getPluginManager().withPlugin("ivy-publish", new Action<AppliedPlugin>() {
+-            @Override
+-            public void execute(AppliedPlugin appliedPlugin) {
+-                project.getPluginManager().apply(IvyPluginPublishingRules.class);
+-            }
+-        });
+     }
+ 
+     private void configureDescriptorGeneration(final Project project, final GradlePluginDevelopmentExtension extension) {
+--- a/subprojects/resources-http/src/main/java/org/gradle/internal/resource/transport/http/HttpClientConfigurer.java
++++ b/subprojects/resources-http/src/main/java/org/gradle/internal/resource/transport/http/HttpClientConfigurer.java
+@@ -64,8 +64,6 @@
+ import org.gradle.internal.authentication.AllSchemesAuthentication;
+ import org.gradle.internal.authentication.AuthenticationInternal;
+ import org.gradle.internal.resource.UriTextResource;
+-import org.gradle.internal.resource.transport.http.ntlm.NTLMCredentials;
+-import org.gradle.internal.resource.transport.http.ntlm.NTLMSchemeFactory;
+ import org.gradle.util.CollectionUtils;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+@@ -109,7 +107,6 @@
+         builder.setDefaultAuthSchemeRegistry(RegistryBuilder.<AuthSchemeProvider>create()
+             .register(AuthSchemes.BASIC, new BasicSchemeFactory())
+             .register(AuthSchemes.DIGEST, new DigestSchemeFactory())
+-            .register(AuthSchemes.NTLM, new NTLMSchemeFactory())
+             .register(AuthSchemes.SPNEGO, new SPNegoSchemeFactory())
+             .register(AuthSchemes.KERBEROS, new KerberosSchemeFactory())
+             .build()
+@@ -146,13 +143,6 @@
+             String scheme = getAuthScheme(authentication);
+             PasswordCredentials credentials = getPasswordCredentials(authentication);
+ 
+-            if (authentication instanceof AllSchemesAuthentication) {
+-                NTLMCredentials ntlmCredentials = new NTLMCredentials(credentials);
+-                httpCredentials = new NTCredentials(ntlmCredentials.getUsername(), ntlmCredentials.getPassword(), ntlmCredentials.getWorkstation(), ntlmCredentials.getDomain());
+-                credentialsProvider.setCredentials(new AuthScope(host, port, AuthScope.ANY_REALM, AuthSchemes.NTLM), httpCredentials);
+-
+-                LOGGER.debug("Using {} and {} for authenticating against '{}:{}' using {}", credentials, ntlmCredentials, host, port, AuthSchemes.NTLM);
+-            }
+ 
+             httpCredentials = new UsernamePasswordCredentials(credentials.getUsername(), credentials.getPassword());
+             credentialsProvider.setCredentials(new AuthScope(host, port, AuthScope.ANY_REALM, scheme), httpCredentials);
+--- a/subprojects/resources-http/src/main/java/org/gradle/internal/resource/transport/http/HttpResourceLister.java
++++ b/subprojects/resources-http/src/main/java/org/gradle/internal/resource/transport/http/HttpResourceLister.java
+@@ -34,25 +34,6 @@
+     }
+ 
+     public List<String> list(final URI directory) {
+-        final ExternalResourceReadResponse response = accessor.openResource(directory, true);
+-        if (response == null) {
+-            return null;
+-        }
+-        try {
+-            try {
+-                String contentType = response.getMetaData().getContentType();
+-                ApacheDirectoryListingParser directoryListingParser = new ApacheDirectoryListingParser();
+-                InputStream inputStream = response.openStream();
+-                try {
+-                    return directoryListingParser.parse(directory, inputStream, contentType);
+-                } catch (Exception e) {
+-                    throw new ResourceException(directory, String.format("Unable to parse HTTP directory listing for '%s'.", directory), e);
+-                }
+-            } finally {
+-                response.close();
+-            }
+-        } catch (IOException e) {
+-            throw ResourceExceptions.getFailed(directory, e);
+-        }
++        throw new ResourceException(directory, "Listing HTTP Resources is not supported in a bootstrap build.");
+     }
+ }

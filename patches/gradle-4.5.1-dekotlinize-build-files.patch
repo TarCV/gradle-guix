@@ -1,0 +1,179 @@
+diff --git a/buildSrc/build.gradle.kts b/buildSrc/build.gradle
+rename from buildSrc/build.gradle.kts
+rename to buildSrc/build.gradle
+--- a/buildSrc/build.gradle.kts
++++ b/buildSrc/build.gradle
+@@ -15,31 +15,29 @@
+  */
+ 
+ import org.gradle.api.internal.PropertiesUtils
+-import java.util.Properties
++import java.nio.charset.StandardCharsets
+ 
+ plugins {
+-    groovy
+-    `java-gradle-plugin`
+-    idea
+-    eclipse
++    id 'groovy'
++    id 'java-gradle-plugin'
++//    idea
++//    eclipse
+ }
+ 
+-java {
+-    sourceCompatibility = JavaVersion.VERSION_1_7
+-    targetCompatibility = JavaVersion.VERSION_1_7
+-}
++sourceCompatibility = JavaVersion.VERSION_1_7
++targetCompatibility = JavaVersion.VERSION_1_7
+ 
+ gradlePlugin {
+-    (plugins) {
+-        "jsoup" {
++    plugins {
++        jsoup {
+             id = "jsoup"
+             implementationClass = "org.gradle.plugins.jsoup.JsoupPlugin"
+         }
+-        "buildTypes" {
++        buildTypes {
+             id = "build-types"
+             implementationClass = "org.gradle.plugins.buildtypes.BuildTypesPlugin"
+         }
+-        "pegdown" {
++        pegdown {
+             id = "pegdown"
+             implementationClass = "org.gradle.plugins.pegdown.PegDownPlugin"
+         }
+@@ -47,8 +45,8 @@
+ }
+ 
+ repositories {
+-    maven { url = uri("https://repo.gradle.org/gradle/libs-releases") }
+-    maven { url = uri("https://repo.gradle.org/gradle/libs-snapshots") }
++    maven { url "https://repo.gradle.org/gradle/libs-releases" }
++    maven { url "https://repo.gradle.org/gradle/libs-snapshots" }
+     gradlePluginPortal()
+ }
+ 
+@@ -60,8 +58,8 @@
+     compile("commons-lang:commons-lang:2.6@jar")
+     compile(localGroovy())
+     compile("org.codehaus.groovy.modules.http-builder:http-builder:0.7.2") {
+-        exclude(module = "groovy")
+-        exclude(module = "xercesImpl")
++        exclude(module: "groovy")
++        exclude(module: "xercesImpl")
+     }
+     testCompile("junit:junit:4.12@jar")
+     testCompile("org.spockframework:spock-core:1.0-groovy-2.4@jar")
+@@ -76,23 +74,23 @@
+     compile("com.github.javaparser:javaparser-core:2.4.0")
+ }
+ 
+-val isCiServer: Boolean by extra { System.getenv().containsKey("CI") }
++ext.isCiServer = System.getenv().containsKey("CI")
+ 
+-apply {
+-    from("../gradle/compile.gradle")
+-    from("../gradle/dependencies.gradle")
+-    from("../gradle/classycle.gradle")
+-}
++apply from: "../gradle/compile.gradle"
++apply from: "../gradle/dependencies.gradle"
++apply from: "../gradle/classycle.gradle"
+ 
+ if (!isCiServer || System.getProperty("enableCodeQuality")?.toLowerCase() == "true") {
+-    apply { from("../gradle/codeQuality.gradle") }
++    apply from: "../gradle/codeQuality.gradle"
+ }
+ 
+-apply { from("../gradle/ciReporting.gradle") }
++apply from:"../gradle/ciReporting.gradle"
+ 
+-fun readProperties(propertiesFile: File) = Properties().apply {
+-    propertiesFile.inputStream().use { fis ->
+-        load(fis)
++def readProperties(File propertiesFile) {
++    new Properties().tap {
++        propertiesFile.withInputStream { fis ->
++            load(fis)
++        }
+     }
+ }
+ 
+@@ -104,25 +102,24 @@
+     }
+ }
+ 
+-tasks.withType<GeneratePluginDescriptors> {
++tasks.withType(GeneratePluginDescriptors) {
+     doLast {
+-        outputDirectory.listFiles().forEach { descriptorFile ->
+-            val descriptorContents = readProperties(descriptorFile)
+-            descriptorFile.outputStream().use {
+-                PropertiesUtils.store(descriptorContents, it, null, Charsets.ISO_8859_1, "\n")
++        outputDirectory.listFiles().each { descriptorFile ->
++            def descriptorContents = readProperties(descriptorFile)
++            descriptorFile.withOutputStream {
++                PropertiesUtils.store(descriptorContents, it, null, StandardCharsets.ISO_8859_1, "\n")
+             }
+         }
+     }
+ }
+ // ^^^^^
+ 
+-tasks {
+-    val checkSameDaemonArgs by creating {
++    task('checkSameDaemonArgs') {
+         doLast {
+-            val buildSrcProperties = readProperties(File(project.rootDir, "gradle.properties"))
+-            val rootProperties = readProperties(File(project.rootDir, "../gradle.properties"))
+-            val jvmArgs = listOf(buildSrcProperties, rootProperties).map { it.getProperty("org.gradle.jvmargs") }.toSet()
+-            if (jvmArgs.size > 1) {
++            def buildSrcProperties = readProperties(new File(project.rootDir, "gradle.properties"))
++            def rootProperties = readProperties(new File(project.rootDir, "../gradle.properties"))
++            def jvmArgs = [buildSrcProperties, rootProperties].collect { it.getProperty("org.gradle.jvmargs") }.toSet()
++            if (jvmArgs.size() > 1) {
+                 throw GradleException("gradle.properties and buildSrc/gradle.properties have different org.gradle.jvmargs " +
+                     "which may cause two daemons to be spawned on CI and in IDEA. " +
+                     "Use the same org.gradle.jvmargs for both builds.")
+@@ -130,6 +127,4 @@
+         }
+     }
+ 
+-    val build by getting
+-    build.dependsOn(checkSameDaemonArgs)
+-}
++tasks['build'].dependsOn(checkSameDaemonArgs)
+diff --git a/settings.gradle.kts b/settings.gradle
+rename from settings.gradle.kts
+rename to settings.gradle
+--- a/settings.gradle.kts
++++ b/settings.gradle
+@@ -96,16 +96,17 @@
+ include("coreApi")
+ include("versionControl")
+ 
+-val upperCaseLetters = "\\p{Upper}".toRegex()
+ 
+-fun String.toKebabCase() =
+-    replace(upperCaseLetters) { "-${it.value.toLowerCase()}" }
++String.metaClass.toKebabCase = { ->
++    def upperCaseLetters = ~"\\p{Upper}"
++    delegate.replaceAll(upperCaseLetters) { "-${it[0].toLowerCase()}" }
++}
+ 
+ rootProject.name = "gradle"
+ for (project in rootProject.children) {
+-    val projectDirName = project.name.toKebabCase()
++    def projectDirName = project.name.toKebabCase()
+     project.projectDir = file("subprojects/$projectDirName")
+-    project.buildFileName = "$projectDirName.gradle"
+-    assert(project.projectDir.isDirectory)
+-    assert(project.buildFile.isFile)
++    project.buildFileName = "${projectDirName}.gradle"
++    assert(project.projectDir.isDirectory())
++    assert(project.buildFile.isFile())
+ }

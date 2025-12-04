@@ -1,0 +1,20 @@
+--- a/build.xml
++++ b/build.xml
+@@ -187,15 +187,14 @@
+ 	</target>
+ 
+ 	<target name="junit" depends="compile-tests" description="Runs JUnit tests">
+-		<junit printsummary="yes" fork="yes" haltonfailure="off"  haltonerror="off">
++		<junit printsummary="yes" fork="yes" haltonfailure="on"  haltonerror="on" maxmemory="2G">
+ 			<classpath location="${build}"/>
+ 			<classpath location="${src}"/>
+-			<jvmarg value="-Xmx1G" />
+ 
+ 			<formatter type="xml"/>
+ 			<formatter type="plain"/>
+
+-			<batchtest fork="yes" todir="${reports}">
++			<batchtest fork="yes" skipNonTests="yes" todir="${reports}">
+ 				<fileset dir="${build}">
+ 					<include name="**/*Test.class"/>
+ 				</fileset>

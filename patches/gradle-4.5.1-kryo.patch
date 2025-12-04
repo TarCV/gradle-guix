@@ -1,0 +1,11 @@
+--- a/subprojects/messaging/src/main/java/org/gradle/internal/serialize/kryo/KryoBackedEncoder.java
++++ b/subprojects/messaging/src/main/java/org/gradle/internal/serialize/kryo/KryoBackedEncoder.java
+@@ -78,7 +78,7 @@
+      * Returns the total number of bytes written by this encoder, some of which may still be buffered.
+      */
+     public int getWritePosition() {
+-        return output.total();
++        return Math.toIntExact(output.total());
+     }
+ 
+     public void flush() {

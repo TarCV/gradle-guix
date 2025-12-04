@@ -1,0 +1,49 @@
+--- a/buildSrc/build.gradle
++++ b/buildSrc/build.gradle
+@@ -42,9 +42,8 @@
+ }
+ 
+ repositories {
+-    maven { url "https://repo.gradle.org/gradle/libs-releases" }
+-    maven { url "https://repo.gradle.org/gradle/libs-snapshots" }
+-    gradlePluginPortal()
++    clear()
++    mavenLocal()
+ }
+ 
+ dependencies {
+--- /dev/null
++++ b/init.gradle
+@@ -0,0 +1,22 @@
++gradle.projectsEvaluated {
++    allprojects {
++        buildscript {
++            repositories {
++                clear()
++                mavenLocal()
++            }
++        }
++        repositories {
++            clear()
++            mavenLocal()
++        }
++    }
++}
++settingsEvaluated { settings ->
++    settings.pluginManagement {
++        repositories {
++            clear()
++            mavenLocal()
++        }
++    }
++}
+--- a/subprojects/docs/src/transforms/release-notes.gradle
++++ b/subprojects/docs/src/transforms/release-notes.gradle
+@@ -1,6 +1,6 @@
+ buildscript {
+     repositories {
+-        mavenCentral()
++        mavenLocal()
+     }
+     dependencies {
+         classpath('com.uwyn:jhighlight:1.0') {

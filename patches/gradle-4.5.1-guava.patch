@@ -1,0 +1,75 @@
+--- a/subprojects/core/src/main/java/org/gradle/internal/filewatch/jdk7/WatchServiceFileWatcherBacking.java
++++ b/subprojects/core/src/main/java/org/gradle/internal/filewatch/jdk7/WatchServiceFileWatcherBacking.java
+@@ -117,7 +117,7 @@
+                 public void onFailure(Throwable t) {
+                     running.set(false);
+                 }
+-            });
++            }, com.google.common.util.concurrent.MoreExecutors.directExecutor());
+             return fileWatcher;
+         } else {
+             throw new IllegalStateException("file watcher is started");
+Avoid dependency on errorprone annotations
+--- a/gradle/strictCompile.gradle
++++ b/gradle/strictCompile.gradle
+@@ -17,7 +17,7 @@
+ allprojects {
+     ext.strictCompile = {
+         tasks.withType(AbstractCompile) {
+-            options.compilerArgs << "-Werror" << "-Xlint:all" << "-Xlint:-options" << "-Xlint:-serial"
++            options.compilerArgs << "-Werror" << "-Xlint:all" << "-Xlint:-classfile" << "-Xlint:-options" << "-Xlint:-serial"
+         }
+     }
+     ext.strictCompileIgnoreDeprecations = {
+--- a/subprojects/platform-jvm/src/main/java/org/gradle/jvm/toolchain/internal/JavaInstallationProbe.java
++++ b/subprojects/platform-jvm/src/main/java/org/gradle/jvm/toolchain/internal/JavaInstallationProbe.java
+@@ -18,7 +18,7 @@
+ import com.google.common.cache.CacheBuilder;
+ import com.google.common.cache.CacheLoader;
+ import com.google.common.cache.LoadingCache;
+-import com.google.common.io.Files;
++import java.nio.file.Files;
+ import org.apache.commons.io.FileUtils;
+ import org.gradle.api.GradleException;
+ import org.gradle.api.JavaVersion;
+@@ -141,7 +141,12 @@
+     private EnumMap<SysProp, String> getMetadataInternal(File jdkPath) {
+         JavaExecAction exec = factory.newJavaExecAction();
+         exec.executable(javaExe(jdkPath, "java"));
+-        File workingDir = Files.createTempDir();
++        File workingDir;
++        try {
++            workingDir = Files.createTempDirectory(null).toFile();
++        } catch (IOException e) {
++            throw new GradleException("Unable to create temp directory", e);
++        }
+         exec.setWorkingDir(workingDir);
+         exec.setClasspath(new SimpleFileCollection(workingDir));
+         try {
+--- a/subprojects/plugin-development/src/main/java/org/gradle/plugin/devel/tasks/ValidateTaskProperties.java
++++ b/subprojects/plugin-development/src/main/java/org/gradle/plugin/devel/tasks/ValidateTaskProperties.java
+@@ -200,7 +200,7 @@
+             File output = outputFile.get().getAsFile();
+             //noinspection ResultOfMethodCallIgnored
+             output.createNewFile();
+-            Files.write(Joiner.on('\n').join(problemMessages), output, Charsets.UTF_8);
++            Files.asCharSink(output, Charsets.UTF_8).write(Joiner.on('\n').join(problemMessages));
+         }
+     }
+ 
+--- a/subprojects/testing-native/src/main/java/org/gradle/nativeplatform/test/xctest/tasks/InstallXCTestBundle.java
++++ b/subprojects/testing-native/src/main/java/org/gradle/nativeplatform/test/xctest/tasks/InstallXCTestBundle.java
+@@ -104,11 +104,11 @@
+ 
+         File outputFile = new File(bundleDir, "Contents/Info.plist");
+ 
+-        Files.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
++        Files.asCharSink(outputFile, Charset.forName("UTF-8")).write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+             + "<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n"
+             + "<plist version=\"1.0\">\n"
+             + "<dict/>\n"
+-            + "</plist>", outputFile, Charset.forName("UTF-8"));
++            + "</plist>");
+ 
+         getProject().exec(new Action<ExecSpec>() {
+             @Override

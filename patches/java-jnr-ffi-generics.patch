@@ -1,0 +1,10 @@
+--- a/src/com/kenai/jaffl/provider/jna/JNATypeMapper.java
++++ b/src/com/kenai/jaffl/provider/jna/JNATypeMapper.java
+@@ -75,6 +75,6 @@
+         @SuppressWarnings("unchecked")
+         public Object fromNative(Object nativeValue, com.sun.jna.FromNativeContext context) {
+             return nativeValue != null
+-                    ? EnumMapper.getInstance().valueOf((Integer) nativeValue, context.getTargetType())
++                    ? EnumMapper.getInstance().valueOf((Integer) nativeValue, (Class) context.getTargetType())
+                     : 0;
+         }

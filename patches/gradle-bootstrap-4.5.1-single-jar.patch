@@ -1,0 +1,85 @@
+--- a/subprojects/launcher/src/main/java/org/gradle/launcher/cli/BuildActionsFactory.java
++++ b/subprojects/launcher/src/main/java/org/gradle/launcher/cli/BuildActionsFactory.java
+@@ -87,7 +87,7 @@
+         if (parameters.getDaemonParameters().isEnabled()) {
+             return runBuildWithDaemon(parameters.getStartParameter(), parameters.getDaemonParameters(), loggingServices);
+         }
+-        if (canUseCurrentProcess(parameters.getDaemonParameters())) {
++        if (true) {
+             return runBuildInProcess(parameters.getStartParameter(), parameters.getDaemonParameters(), loggingServices);
+         }
+ 
+--- a/subprojects/core/src/main/java/org/gradle/api/internal/classpath/DefaultModuleRegistry.java
++++ b/subprojects/core/src/main/java/org/gradle/api/internal/classpath/DefaultModuleRegistry.java
+@@ -47,6 +47,15 @@
+     private final Map<String, Module> modules = new HashMap<String, Module>();
+     private final List<File> classpath = new ArrayList<File>();
+     private final Map<String, File> classpathJars = new LinkedHashMap<String, File>();
++    private final Module singleModule = new DefaultModule("gradle", splitClasspath(), splitClasspath());
++
++    private static Set<File> splitClasspath() {
++        Set<File> result = new java.util.HashSet<>();
++        for (String path : System.getProperty("java.class.path").split(File.pathSeparator)) {
++            result.add(new File(path));
++        }
++        return result;
++    }
+ 
+     public DefaultModuleRegistry(@Nullable GradleInstallation gradleInstallation) {
+         this(ClassPath.EMPTY, gradleInstallation);
+@@ -73,33 +81,17 @@
+     }
+ 
+     public Module getExternalModule(String name) {
+-        File externalJar = findJar(name);
+-        if (externalJar == null) {
+-            throw new UnknownModuleException(String.format("Cannot locate JAR for module '%s' in distribution directory '%s'.", name, gradleInstallation.getGradleHome()));
+-        }
+-        return new DefaultModule(name, Collections.singleton(externalJar), Collections.<File>emptySet());
++        return singleModule;
+     }
+ 
+     public Module getModule(String name) {
+-        Module module = modules.get(name);
+-        if (module == null) {
+-            module = loadModule(name);
+-            modules.put(name, module);
+-        }
+-        return module;
++        return singleModule;
+     }
+ 
+     @Override
+     @Nullable
+     public Module findModule(String name) {
+-        Module module = modules.get(name);
+-        if (module == null) {
+-            module = loadOptionalModule(name);
+-            if (module != null) {
+-                modules.put(name, module);
+-            }
+-        }
+-        return module;
++        return singleModule;
+     }
+ 
+     private Module loadModule(String moduleName) {
+--- a/subprojects/core/src/main/java/org/gradle/api/internal/classpath/DefaultPluginModuleRegistry.java
++++ b/subprojects/core/src/main/java/org/gradle/api/internal/classpath/DefaultPluginModuleRegistry.java
+@@ -33,14 +33,12 @@
+ 
+     @Override
+     public Set<Module> getApiModules() {
+-        Properties properties = loadPluginProperties("/gradle-plugins.properties");
+-        return loadModules(properties);
++        return java.util.Collections.emptySet();
+     }
+ 
+     @Override
+     public Set<Module> getImplementationModules() {
+-        Properties properties = loadPluginProperties("/gradle-implementation-plugins.properties");
+-        return loadModules(properties);
++        return java.util.Collections.emptySet();
+     }
+ 
+     private Set<Module> loadModules(Properties properties) {

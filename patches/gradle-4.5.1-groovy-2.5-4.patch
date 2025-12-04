@@ -1,0 +1,138 @@
+Backported changes from the PR #6682, #6799, #7245, and #12432 (this patch) updating Groovy to version 2.5.
+Skipped most of #6903, #7376, #7763, #7796, #10241 as they consist of Groovy version bumps or changes to code not yet
+ existing in this Gradle version only. Skipped #6844 as it reverts a workaround that was already skipped.
+Skipped [7/7] patch here as it introduces a workaround for an issue already fixed in Groovy version in Guix.
+
+From 08356d1ee2450de52137494cb967c0a7c99f6eac Mon Sep 17 00:00:00 2001
+From: Vaidotas Valuckas <vvaluckas@gradle.com>
+Date: Tue, 3 Mar 2020 15:35:17 +0200
+Subject: [PATCH 1/7] Upgrade Groovy dependency to version 2.5.10
+
+---
+ gradle/dependencies.gradle                    |  2 +-
+ .../templates/library-versions.properties     |  2 +-
+ ...ourcesAndJavadocJarsIntegrationTest.groovy |  2 +-
+ ...ioMockupCrossVersionPerformanceTest.groovy |  4 ++--
+ .../provider/PropertyIntegrationTest.groovy   | 22 +++++++++++++++++++
+ .../metaobject/AbstractDynamicObject.java     | 16 +++++++++++++-
+ ...vaLibraryInteractionIntegrationTest.groovy |  8 +++----
+ 7 files changed, 46 insertions(+), 10 deletions(-)
+
+diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
+index 244e6eeaa4f6a..922bcda3abb5a 100644
+--- a/gradle/dependencies.gradle
++++ b/gradle/dependencies.gradle
+@@ -17,7 +17,7 @@
+ ext {
+     versions = [:]
+     libraries = [:]
+-    groovyVersion = '2.5.2'
++    groovyVersion = '2.5.10'
+ }
+ 
+ versions.gradle_kotlin_dsl = '0.14.2'
+diff --git a/subprojects/build-init/src/main/resources/org/gradle/buildinit/tasks/templates/library-versions.properties b/subprojects/build-init/src/main/resources/org/gradle/buildinit/tasks/templates/library-versions.properties
+index 5e6d7941d9987..a2acb92af86f3 100644
+--- a/subprojects/build-init/src/main/resources/org/gradle/buildinit/tasks/templates/library-versions.properties
++++ b/subprojects/build-init/src/main/resources/org/gradle/buildinit/tasks/templates/library-versions.properties
+@@ -8,6 +8,6 @@
+ guava=23.0
+ commons-math=3.6.1
+ scala=2.11
+-groovy=2.4.12
++groovy=2.5.10
+ junit=4.12
+ spock=1.0-groovy-2.4
+\ No newline at end of file
+diff --git a/subprojects/internal-performance-testing/src/main/groovy/org/gradle/performance/AbstractAndroidStudioMockupCrossVersionPerformanceTest.groovy b/subprojects/internal-performance-testing/src/main/groovy/org/gradle/performance/AbstractAndroidStudioMockupCrossVersionPerformanceTest.groovy
+index a3755745bceac..292e039c52220 100644
+--- a/subprojects/internal-performance-testing/src/main/groovy/org/gradle/performance/AbstractAndroidStudioMockupCrossVersionPerformanceTest.groovy
++++ b/subprojects/internal-performance-testing/src/main/groovy/org/gradle/performance/AbstractAndroidStudioMockupCrossVersionPerformanceTest.groovy
+@@ -53,13 +53,13 @@ public abstract class AbstractAndroidStudioMockupCrossVersionPerformanceTest ext
+ 
+         void action(String className, @DelegatesTo(value=BuildActionExecuter, strategy = Closure.DELEGATE_FIRST) Closure config) {
+             action {
+-                test.tapiClassLoader.loadClass("org.gradle.tooling.BuildAction") //make sure BuildAction is available in the Gradle version we are currently running
++                AbstractAndroidStudioMockupCrossVersionPerformanceTest.this.tapiClassLoader.loadClass("org.gradle.tooling.BuildAction") //make sure BuildAction is available in the Gradle version we are currently running
+                 def proxy = { exec ->
+                     config.delegate = exec
+                     config.resolveStrategy = Closure.DELEGATE_FIRST
+                     config.call()
+                 }.asType(it.class.classLoader.loadClass(Action.name))
+-                test.tapiClassLoader.loadClass(className).invokeMethod('withProjectConnection', [it, proxy] as Object[])
++                AbstractAndroidStudioMockupCrossVersionPerformanceTest.this.tapiClassLoader.loadClass(className).invokeMethod('withProjectConnection', [it, proxy] as Object[])
+             }
+         }
+ 
+diff --git a/subprojects/core/src/integTest/groovy/org/gradle/api/provider/PropertyIntegrationTest.groovy b/subprojects/core/src/integTest/groovy/org/gradle/api/provider/PropertyIntegrationTest.groovy
+index d58e9e63417c7..a4816df0619ba 100644
+--- a/subprojects/core/src/integTest/groovy/org/gradle/api/provider/PropertyIntegrationTest.groovy
++++ b/subprojects/core/src/integTest/groovy/org/gradle/api/provider/PropertyIntegrationTest.groovy
+@@ -17,6 +17,7 @@ package org.gradle.api.provider
+ package org.gradle.api.provider
+ 
+ import org.gradle.integtests.fixtures.AbstractIntegrationSpec
++import spock.lang.Issue
+ import spock.lang.Unroll
+ 
+ import static PropertyStateProjectUnderTest.Language
+ @@ -250,4 +250,25 @@
+         failure.assertHasDescription("Execution failed for task ':wrongRuntimeType'.")
+         failure.assertHasCause("Cannot get the value of a property of type java.lang.String as the provider associated with this property returned a value of type java.lang.Integer.")
+     }
++
++    @Issue("https://github.com/gradle/gradle/issues/10248#issuecomment-592528234")
++    def "can use findProperty from a closure passed to ConfigureUtil.configure via an extension"() {
++        when:
++        buildFile << """
++        class SomeExtension {
++            def innerThing(Closure closure) {
++                org.gradle.util.ConfigureUtil.configure(closure, new InnerThing())
++            }
++            class InnerThing {}
++        }
++        extensions.create('someExtension', SomeExtension)
++        someExtension {
++            innerThing {
++                findProperty('foo')
++            }
++        }
++        """
++        then:
++        succeeds()
++    }
+ }
+diff --git a/subprojects/core/src/main/java/org/gradle/internal/metaobject/AbstractDynamicObject.java b/subprojects/core/src/main/java/org/gradle/internal/metaobject/AbstractDynamicObject.java
+index 516ac4d9ed8ee..ffbdb95518e9a 100644
+--- a/subprojects/core/src/main/java/org/gradle/internal/metaobject/AbstractDynamicObject.java
++++ b/subprojects/core/src/main/java/org/gradle/internal/metaobject/AbstractDynamicObject.java
+@@ -18,6 +18,7 @@
+ import groovy.lang.GroovyRuntimeException;
+ import groovy.lang.MissingMethodException;
+ import groovy.lang.MissingPropertyException;
++import org.codehaus.groovy.runtime.metaclass.MissingMethodExecutionFailed;
+ 
+ import javax.annotation.Nullable;
+ import java.util.Arrays;
+@@ -179,7 +180,20 @@ public MissingMethodException methodMissingException(String name, Object... para
+             // Include the display name anyway
+             message = String.format("Could not find method %s() for arguments %s on %s.", name, Arrays.toString(params), getDisplayName());
+         }
+-        return new CustomMessageMissingMethodException(name, publicType, message, params);
++        // https://github.com/apache/groovy/commit/75c068207ba24648ea2d698c520601c6fcf0a45b
++        return new CustomMissingMethodExecutionFailed(name, publicType, message, params);
++    }
++
++    private static class CustomMissingMethodExecutionFailed extends MissingMethodExecutionFailed {
++
++        public CustomMissingMethodExecutionFailed(String name, Class<?> publicType, String message, Object... params) {
++            super(name, publicType, params, false, new CustomMessageMissingMethodException(name, publicType, message, params));
++        }
++
++        @Override
++        public String getMessage() {
++            return getCause().getMessage();
++        }
+     }
+ 
+     private static class CustomMessageMissingMethodException extends MissingMethodException {

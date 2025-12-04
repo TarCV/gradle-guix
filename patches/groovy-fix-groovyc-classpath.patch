@@ -1,0 +1,10 @@
+--- a/subprojects/groovy-ant/src/main/java/org/codehaus/groovy/ant/Groovyc.java
++++ b/subprojects/groovy-ant/src/main/java/org/codehaus/groovy/ant/Groovyc.java
+@@ -1105,6 +1105,7 @@
+             bootstrapClasspath = ((AntClassLoader) loader).getClasspath().split(File.pathSeparator);
+         } else {
+             Class<?>[] bootstrapClasses = {
++                    org.apache.groovy.parser.antlr4.Antlr4PluginFactory.class,
+                     FileSystemCompilerFacade.class,
+                     FileSystemCompiler.class,
+                     ParseTreeVisitor.class,

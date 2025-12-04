@@ -1,0 +1,11 @@
+--- a/subprojects/dependency-management/src/main/java/org/gradle/api/internal/artifacts/ivyservice/ivyresolve/parser/IvyXmlModuleDescriptorParser.java
++++ b/subprojects/dependency-management/src/main/java/org/gradle/api/internal/artifacts/ivyservice/ivyresolve/parser/IvyXmlModuleDescriptorParser.java
+@@ -1215,7 +1215,7 @@
+                 buffer = null;
+                 state = State.INFO;
+             } else if (state == State.EXTRA_INFO) {
+-                getMd().getExtraInfo().put(new NamespaceId(uri, localName), buffer == null ? "" : buffer.toString());
++                ((Map) getMd().getExtraInfo()).put(new NamespaceId(uri, localName), buffer == null ? "" : buffer.toString());
+                 buffer = null;
+                 state = State.INFO;
+             } else if (state == State.DESCRIPTION) {

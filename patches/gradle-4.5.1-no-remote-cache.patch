@@ -1,0 +1,35 @@
+--- a/build.gradle
++++ b/build.gradle
+@@ -339,11 +339,5 @@
+     }
+ }
+ 
+-gradle.buildFinished { result ->
+-    def rootProject = result.gradle.rootProject
+-    if (rootProject.remoteBuildCacheEnabled && !rootProject.java7HomeSet) {
+-        logger.warn("In order to have cache hits from the remote build cache you need to set 'java7Home' in your gradle.properties!")
+-    }
+-}
+ 
+ apply from: "gradle/ciReporting.gradle"
+--- a/settings.gradle
++++ b/settings.gradle
+@@ -14,9 +14,6 @@
+  * limitations under the License.
+  */
+ 
+-apply {
+-    from("gradle/remoteHttpCacheSettings.gradle")
+-}
+ 
+ include("distributions")
+ include("baseServices")
+--- a/buildSrc/settings.gradle.kts
++++ b/buildSrc/settings.gradle.kts
+@@ -14,6 +14,3 @@
+  * limitations under the License.
+  */
+ 
+-apply {
+-    from("../gradle/remoteHttpCacheSettings.gradle")
+-}

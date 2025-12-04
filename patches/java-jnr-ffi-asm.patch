@@ -1,0 +1,22 @@
+--- a/src/com/kenai/jaffl/provider/jffi/SkinnyMethodAdapter.java
++++ b/src/com/kenai/jaffl/provider/jffi/SkinnyMethodAdapter.java
+@@ -17,17 +17,19 @@
+  *
+  * @author headius
+  */
+-public class SkinnyMethodAdapter implements MethodVisitor, Opcodes {
++public class SkinnyMethodAdapter extends MethodVisitor implements Opcodes {
+     private final static boolean DEBUG = Boolean.getBoolean("jaffl.compile.dump");
+     private MethodVisitor method;
+     
+     /** Creates a new instance of SkinnyMethodAdapter */
+     public SkinnyMethodAdapter(MethodVisitor method) {
++        super(Opcodes.ASM4);
+         setMethodVisitor(method);
+     }
+     
+     public SkinnyMethodAdapter() {
++        super(Opcodes.ASM4);
+     }
+     
+     public MethodVisitor getMethodVisitor() {
