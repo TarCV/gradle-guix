@@ -1,0 +1,10 @@
+--- a/jte/src/test/java/gg/jte/PreCompileTemplatesTest.java
++++ b/jte/src/test/java/gg/jte/PreCompileTemplatesTest.java
+@@ -33,6 +33,7 @@
+     }
+ 
+     @Test
++    @org.junit.jupiter.api.Disabled("Precompiled binaries are not allowed in Guix")
+     void precompileAll_externalClassLoader() {
+         ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+         try {

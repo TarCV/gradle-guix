@@ -422,7 +422,7 @@
                  (delete-file "src/main/java/org/apache/commons/compress/compressors/CompressorStreamFactory.java")
                  (delete-file "src/main/java/org/apache/commons/compress/java/util/jar/Pack200.java")))))))))
 
-(define-public java-jte-runtime
+(define java-jte-runtime/no-tests
   (package
     (name "java-jte-runtime")
     (version "3.2.1")
@@ -433,39 +433,19 @@
         (file-name (string-append name "-" version ".tar.gz"))
         (sha256 (base32 "1sp31cmj9vn4d933vvdqg6ibv1ixvndrhawyr4m4amkh9nh3cdsf"))
         (modules '((guix build utils)))
+        (patches '("patches/java-jte-skip-tests.patch"))
         (snippet '(begin
                     (for-each delete-file
                       (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
                     #t))))
     (build-system ant-build-system)
-    (native-inputs (list java-junit))
     (arguments
       `(#:jar-name "java-jte-runtime.jar"
         #:jdk ,openjdk17
         #:source-dir "jte-runtime/src/main/java"
+        #:tests? #f ; tests are implemented in java-jte-runtime package to break dependency loops
         #:test-dir "jte-runtime/src/test"
         #:phases (modify-phases %standard-phases
-                   (add-before 'check 'remove-assertj-jupiter ; to break dependency loops via JUnit Jupiter and AssertJ
-                     (lambda _
-                       (substitute* (find-files "jte-runtime/src/test" ".*\\.java$")
-                         (("org.junit.jupiter.api.Test") "org.junit.Test")
-                         (("import org.assertj.core.api.Assertions;") "")
-                         (("import static org.assertj.core.api.Assertions.assertThat;") "")
-                         (("Assertions\\.") "")
-                         (("^[[:space:]]*class ") "public class ")
-                         (("^[[:space:]]*void ") "public void ")
-                         (("assertThat\\((.+)\\).isFalse\\(\\);" _ argument)
-                           (string-append "org.junit.Assert.assertFalse("argument ");"))
-                         (("assertThat\\((.+)\\).isTrue\\(\\);" _ argument)
-                           (string-append "org.junit.Assert.assertTrue("argument ");"))
-                         (("assertThat\\((.+)\\).isEqualTo\\((.+)\\);" _ left right)
-                           (string-append "org.junit.Assert.assertEquals(" left ", " right ");"))
-                         (("assertThat\\((.+)\\).isNotEqualTo\\((.+)\\);" _ left right)
-                           (string-append "org.junit.Assert.assertNotEquals(" left ", " right ");"))
-                         (("assertThat\\((.+)\\).hasSameHashCodeAs\\((.+)\\);" _ left right)
-                           (string-append "org.junit.Assert.assertEquals((" left ").hashCode(), (" right ").hashCode());"))
-                         (("assertThat\\((.+)\\).doesNotHaveSameHashCodeAs\\((.+)\\);" _ left right)
-                           (string-append "org.junit.Assert.assertNotEquals((" left ").hashCode(), (" right ").hashCode());")))))
                    (replace 'install
                      (install-from-pom "jte-runtime/pom.xml")))))
     (home-page "https://jte.gg")
@@ -474,11 +454,45 @@
      making it straightforward to reason about what a template does.")
     (license license:asl2.0)))
 
-(define-public java-jte-extension-api
+(define-public java-jte-runtime
   (package
-    (inherit java-jte-runtime)
+    (inherit java-jte-runtime/no-tests)
+    (native-inputs (modify-inputs (package-native-inputs java-jte-runtime/no-tests)
+                     (append ant-junitlauncher java-assertj-new java-jte-runtime/no-tests java-junit-jupiter-engine-5
+                       java-junit-platform-launcher-5)))
+    (arguments
+      `(#:ant ,ant/java8
+         ,@(substitute-keyword-arguments (package-arguments java-jte-runtime/no-tests)
+             ((#:tests? _) #t)
+             ((#:phases _) `(modify-phases %standard-phases
+                              (delete 'build)
+                              (add-before 'check 'configure-check ; TODO: extract this phase for use in other packages
+                                (lambda _
+                                  (substitute* "build.xml"
+                                    (("<junit[ >].*</junit>|<junit[[:space:]]*/>")
+                                      "<junitlauncher printsummary=\"true\" haltonfailure=\"yes\">
+             <classpath>
+               <pathelement path=\"${env.CLASSPATH}\"/>
+               <pathelement location=\"${test.home}/resources\"/>
+               <pathelement location=\"${classes.dir}\"/>
+               <pathelement location=\"${test.classes.dir}\"/>
+             </classpath>
+             <listener type=\"legacy-brief\" sendSysOut=\"true\" sendSysErr=\"true\"/>
+             <testclasses outputdir=\"${test.home}/test-reports\">
+               <fork dir=\"${test.home}/../..\"/>
+               <fileset dir=\"${test.classes.dir}\"/>
+             </testclasses></junitlauncher>"))))
+                              ,#~(replace 'install
+                                   (lambda _
+                                     (copy-recursively
+                                       (string-append #$java-jte-runtime/no-tests "/lib")
+                                       (string-append #$output "/lib")))))))))))
+
+(define java-jte-extension-api/no-tests
+  (package
+    (inherit java-jte-runtime/no-tests)
     (name "java-jte-extension-api")
-    (propagated-inputs (list java-jte-runtime))
+    (propagated-inputs (list java-jte-runtime/no-tests))
     (arguments
       `(#:jar-name "java-jte-runtime.jar"
         #:jdk ,openjdk17
@@ -489,22 +503,65 @@
                      (install-from-pom "jte-extension-api/pom.xml")))))
     (synopsis "Secure and speedy templates for Java and Kotlin. This package provides the extension API")))
 
-(define java-jte
+(define-public java-jte-extension-api
   (package
-    (inherit java-jte-runtime)
+    (inherit java-jte-extension-api/no-tests)
+    (native-inputs (modify-inputs (package-native-inputs java-jte-extension-api/no-tests)
+                     (replace "java-jte-runtime1" java-jte-runtime)))))
+
+(define java-jte/no-tests
+  (package
+    (inherit java-jte-runtime/no-tests)
     (name "java-jte")
-    (propagated-inputs (list java-jte-extension-api java-jte-runtime))
+    (propagated-inputs (list java-jte-extension-api/no-tests java-jte-runtime/no-tests))
     (arguments
       `(#:jar-name "java-jte.jar"
         #:jdk ,openjdk17
         #:tests? #f ; TODO
         #:source-dir "jte/src/main/java"
+        #:test-dir "jte/src/test"
         #:phases (modify-phases %standard-phases
                    (replace 'install
                      (install-from-pom "jte/pom.xml")))))
     (synopsis "Secure and speedy templates for Java and Kotlin")))
 
-(define java-junit-platform-commons-5 ; TODO: should it be java-junit-5-platform-commons instead?
+(define-public java-jte
+  (package
+    (inherit java-jte/no-tests)
+    (native-inputs (modify-inputs (package-native-inputs java-jte/no-tests)
+                     (replace "java-jte-extension-api1" java-jte-extension-api)
+                     (replace "java-jte-runtime1" java-jte-runtime)
+                     (append ant-junitlauncher java-assertj-new java-jte/no-tests java-junit-jupiter-engine-5
+                             java-junit-platform-launcher-5)))
+    (arguments
+      `(#:ant ,ant/java8
+        ,@(substitute-keyword-arguments (package-arguments java-jte/no-tests)
+            ((#:tests? _) #t)
+            ((#:phases _) `(modify-phases %standard-phases
+                            (delete 'build)
+                            (add-before 'check 'configure-check ; TODO: extract this phase for use in other packages
+                              (lambda _
+                                (substitute* "build.xml"
+                                  (("<junit[ >].*</junit>|<junit[[:space:]]*/>")
+                                    "<junitlauncher printsummary=\"true\" haltonfailure=\"yes\">
+           <classpath>
+             <pathelement path=\"${env.CLASSPATH}\"/>
+             <pathelement location=\"${test.home}/resources\"/>
+             <pathelement location=\"${classes.dir}\"/>
+             <pathelement location=\"${test.classes.dir}\"/>
+           </classpath>
+           <listener type=\"legacy-brief\" sendSysOut=\"true\" sendSysErr=\"true\"/>
+           <testclasses outputdir=\"${test.home}/test-reports\">
+             <fork dir=\"${test.home}/../..\"/>
+             <fileset dir=\"${test.classes.dir}\"/>
+           </testclasses></junitlauncher>"))))
+                             ,#~(replace 'install
+                                  (lambda _
+                                    (copy-recursively
+                                      (string-append #$java-jte/no-tests "/lib")
+                                      (string-append #$output "/lib")))))))))))
+
+(define java-junit-platform-commons-5
   (package
     (name "java-junit-platform-commons")
     (version "5.14.1")
@@ -536,12 +593,28 @@
     - JUnit Vintage provides a TestEngine for running JUnit 3 and JUnit 4 based tests on the platform.")
     (license license:epl2.0)))
 
+(define java-junit-jupiter-engine-5
+  (package
+    (inherit java-junit-platform-commons-5)
+    (name "java-junit-jupiter-engine")
+    (native-inputs (list java-apiguardian))
+    (propagated-inputs (list java-junit-jupiter-java-api-5 java-junit-platform-engine-5))
+    (arguments
+      `(#:jar-name "junit-jupiter-engine.jar"
+         #:source-dir "junit-jupiter-engine/src/main/java"
+         #:tests? #f ; TODO
+         #:phases (modify-phases %standard-phases
+           (add-before 'build 'copy-resources
+             (lambda _
+               (copy-recursively "junit-jupiter-engine/src/main/resources" "build/classes"))))))
+    (synopsis "The programmer-friendly testing framework for Java and the JVM. This module provides JUnit Jupiter Engine.")))
+
 (define java-junit-jupiter-java-api-5
   (package
     (inherit java-junit-platform-commons-5)
     (name "java-junit-jupiter-java-api")
     (native-inputs (list java-fasterxml-jackson-annotations java-fasterxml-jackson-core java-fasterxml-jackson-databind
-                         java-fasterxml-jackson-dataformat-yaml java-jte java-snakeyaml))
+                         java-fasterxml-jackson-dataformat-yaml java-jte/no-tests java-snakeyaml))
     (propagated-inputs (list java-junit-platform-commons-5 java-opentest4j))
     (arguments
       `(#:jar-name "junit-jupiter-api.jar"
@@ -2106,4 +2179,4 @@ browser window. It is completely customizable as well via CSS.")
                   (delete 'strip-jar-timestamps))))))))
 
 ;gradle
-groovy-spock-core
+java-jte
