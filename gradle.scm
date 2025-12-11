@@ -455,38 +455,39 @@
     (license license:asl2.0)))
 
 (define-public java-jte-runtime
-  (package
-    (inherit java-jte-runtime/no-tests)
-    (native-inputs (modify-inputs (package-native-inputs java-jte-runtime/no-tests)
-                     (append ant-junitlauncher java-assertj-new java-jte-runtime/no-tests java-junit-jupiter-engine-5
-                       java-junit-platform-launcher-5)))
-    (arguments
-      `(#:ant ,ant/java8
-         ,@(substitute-keyword-arguments (package-arguments java-jte-runtime/no-tests)
-             ((#:tests? _) #t)
-             ((#:phases _) `(modify-phases %standard-phases
-                              (delete 'build)
-                              (add-before 'check 'configure-check ; TODO: extract this phase for use in other packages
-                                (lambda _
-                                  (substitute* "build.xml"
-                                    (("<junit[ >].*</junit>|<junit[[:space:]]*/>")
-                                      "<junitlauncher printsummary=\"true\" haltonfailure=\"yes\">
-             <classpath>
-               <pathelement path=\"${env.CLASSPATH}\"/>
-               <pathelement location=\"${test.home}/resources\"/>
-               <pathelement location=\"${classes.dir}\"/>
-               <pathelement location=\"${test.classes.dir}\"/>
-             </classpath>
-             <listener type=\"legacy-brief\" sendSysOut=\"true\" sendSysErr=\"true\"/>
-             <testclasses outputdir=\"${test.home}/test-reports\">
-               <fork dir=\"${test.home}/../..\"/>
-               <fileset dir=\"${test.classes.dir}\"/>
-             </testclasses></junitlauncher>"))))
-                              ,#~(replace 'install
-                                   (lambda _
-                                     (copy-recursively
-                                       (string-append #$java-jte-runtime/no-tests "/lib")
-                                       (string-append #$output "/lib")))))))))))
+  (let ((base-package java-jte-runtime/no-tests))
+    (package
+      (inherit base-package)
+      (native-inputs (modify-inputs (package-native-inputs base-package)
+                       (append ant-junitlauncher java-assertj-new base-package java-junit-jupiter-engine-5
+                         java-junit-platform-launcher-5)))
+      (arguments
+        `(#:ant ,ant/java8
+           ,@(substitute-keyword-arguments (package-arguments base-package)
+               ((#:tests? _) #t)
+               ((#:phases _) `(modify-phases %standard-phases
+                                (delete 'build)
+                                (add-before 'check 'configure-check ; TODO: extract this phase for use in other packages
+                                  (lambda _
+                                    (substitute* "build.xml"
+                                      (("<junit[ >].*</junit>|<junit[[:space:]]*/>")
+                                        "<junitlauncher printsummary=\"true\" haltonfailure=\"yes\">
+               <classpath>
+                 <pathelement path=\"${env.CLASSPATH}\"/>
+                 <pathelement location=\"${test.home}/resources\"/>
+                 <pathelement location=\"${classes.dir}\"/>
+                 <pathelement location=\"${test.classes.dir}\"/>
+               </classpath>
+               <listener type=\"legacy-brief\" sendSysOut=\"true\" sendSysErr=\"true\"/>
+               <testclasses outputdir=\"${test.home}/test-reports\">
+                 <fork dir=\"${test.home}/../..\"/>
+                 <fileset dir=\"${test.classes.dir}\"/>
+               </testclasses></junitlauncher>"))))
+                                ,#~(replace 'install
+                                     (lambda _
+                                       (copy-recursively
+                                         (string-append #$base-package "/lib")
+                                         (string-append #$output "/lib"))))))))))))
 
 (define java-jte-extension-api/no-tests
   (package
@@ -517,7 +518,7 @@
     (arguments
       `(#:jar-name "java-jte.jar"
         #:jdk ,openjdk17
-        #:tests? #f ; TODO
+        #:tests? #f ; tests are implemented in java-jte package
         #:source-dir "jte/src/main/java"
         #:test-dir "jte/src/test"
         #:phases (modify-phases %standard-phases
@@ -526,44 +527,45 @@
     (synopsis "Secure and speedy templates for Java and Kotlin")))
 
 (define-public java-jte
-  (package
-    (inherit java-jte/no-tests)
-    (native-inputs (modify-inputs (package-native-inputs java-jte/no-tests)
-                     (replace "java-jte-extension-api1" java-jte-extension-api)
-                     (replace "java-jte-runtime1" java-jte-runtime)
-                     (append ant-junitlauncher java-assertj-new java-jte/no-tests java-junit-jupiter-engine-5
-                             java-junit-platform-launcher-5)))
-    (arguments
-      `(#:ant ,ant/java8
-        ,@(substitute-keyword-arguments (package-arguments java-jte/no-tests)
-            ((#:tests? _) #t)
-            ((#:phases _) `(modify-phases %standard-phases
-                            (delete 'build)
-                            (add-before 'check 'configure-check ; TODO: extract this phase for use in other packages
-                              (lambda _
-                                (substitute* "build.xml"
-                                  (("<junit[ >].*</junit>|<junit[[:space:]]*/>")
-                                    "<junitlauncher printsummary=\"true\" haltonfailure=\"yes\">
-           <classpath>
-             <pathelement path=\"${env.CLASSPATH}\"/>
-             <pathelement location=\"${test.home}/resources\"/>
-             <pathelement location=\"${classes.dir}\"/>
-             <pathelement location=\"${test.classes.dir}\"/>
-           </classpath>
-           <listener type=\"legacy-brief\" sendSysOut=\"true\" sendSysErr=\"true\"/>
-           <testclasses outputdir=\"${test.home}/test-reports\">
-             <fork dir=\"${test.home}/../..\"/>
-             <fileset dir=\"${test.classes.dir}\"/>
-           </testclasses></junitlauncher>"))))
-                             ,#~(replace 'install
-                                  (lambda _
-                                    (copy-recursively
-                                      (string-append #$java-jte/no-tests "/lib")
-                                      (string-append #$output "/lib")))))))))))
+  (let ((base-package java-jte/no-tests))
+    (package
+      (inherit base-package)
+      (native-inputs (modify-inputs (package-native-inputs base-package)
+                       (replace "java-jte-extension-api1" java-jte-extension-api)
+                       (replace "java-jte-runtime1" java-jte-runtime)
+                       (append ant-junitlauncher java-assertj-new base-package java-junit-jupiter-engine-5
+                               java-junit-platform-launcher-5)))
+      (arguments
+        `(#:ant ,ant/java8
+          ,@(substitute-keyword-arguments (package-arguments base-package)
+              ((#:tests? _) #t)
+              ((#:phases _) `(modify-phases %standard-phases
+                              (delete 'build)
+                              (add-before 'check 'configure-check ; TODO: extract this phase for use in other packages
+                                (lambda _
+                                  (substitute* "build.xml"
+                                    (("<junit[ >].*</junit>|<junit[[:space:]]*/>")
+                                      "<junitlauncher printsummary=\"true\" haltonfailure=\"yes\">
+             <classpath>
+               <pathelement path=\"${env.CLASSPATH}\"/>
+               <pathelement location=\"${test.home}/resources\"/>
+               <pathelement location=\"${classes.dir}\"/>
+               <pathelement location=\"${test.classes.dir}\"/>
+             </classpath>
+             <listener type=\"legacy-brief\" sendSysOut=\"true\" sendSysErr=\"true\"/>
+             <testclasses outputdir=\"${test.home}/test-reports\">
+               <fork dir=\"${test.home}/../..\"/>
+               <fileset dir=\"${test.classes.dir}\"/>
+             </testclasses></junitlauncher>"))))
+                               ,#~(replace 'install
+                                    (lambda _
+                                      (copy-recursively
+                                        (string-append #$base-package "/lib")
+                                        (string-append #$output "/lib"))))))))))))
 
-(define java-junit-platform-commons-5
+(define java-junit-platform-base-5
   (package
-    (name "java-junit-platform-commons")
+    (name "java-junit-platform-base")
     (version "5.14.1")
     (source
       (origin
@@ -577,13 +579,7 @@
                     (for-each delete-file
                       (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
                     #t))))
-    (build-system ant-build-system) ; Repackage with Gradle once we have it and Kotlin in Guix?
-    (propagated-inputs (list java-apiguardian))
-    (arguments
-      `(#:jar-name "junit-platform-commons.jar"
-        #:source-dir "junit-platform-commons/src/main/java" ; TODO: build java9 dir separately with jdk9
-        #:tests? #f ; TODO
-        ))
+    (build-system ant-build-system)
     (home-page "https://junit.org/")
     (synopsis "The programmer-friendly testing framework for Java and the JVM. This is JUnit Platform Commons module.")
     (description "Unlike previous versions of JUnit, JUnit 5 is composed of several different modules from three different sub-projects.
@@ -593,25 +589,81 @@
     - JUnit Vintage provides a TestEngine for running JUnit 3 and JUnit 4 based tests on the platform.")
     (license license:epl2.0)))
 
-(define java-junit-jupiter-engine-5
+(define java-junit-platform-engine-5/no-tests
   (package
-    (inherit java-junit-platform-commons-5)
+    (inherit java-junit-platform-base-5)
+    (name "java-junit-platform-engine")
+    (propagated-inputs (list java-junit-platform-commons-5 java-opentest4j))
+    (arguments
+      `(#:jar-name "junit-platform-engine.jar"
+         #:source-dir "junit-platform-engine/src/main"
+         #:tests? #f ; tests depend on mockito 5
+         #:phases (modify-phases %standard-phases
+                    (add-before 'build 'copy-resources
+                      (lambda _
+                        (copy-recursively "junit-platform-engine/src/main/resources" "build/classes"))))))
+    (synopsis "The programmer-friendly testing framework for Java and the JVM. This module provides JUnit Platform Engine API.")))
+
+(define-public java-junit-platform-engine-5
+  (let ((base-package java-junit-platform-engine-5/no-tests))
+    (package
+      (inherit base-package)
+      (propagated-inputs (modify-inputs (package-propagated-inputs base-package)
+                           (delete "java-junit-platform-commons") (append java-junit-platform-commons-5))))))
+
+(define-public java-junit-platform-commons-5
+  (package
+    (inherit java-junit-platform-base-5)
+    (name "java-junit-platform-commons")
+    (propagated-inputs (list java-apiguardian))
+    (arguments
+      `(#:jar-name "junit-platform-commons.jar"
+        #:source-dir "junit-platform-commons/src/main/java"
+        #:tests? #f ; tests depend on mockito 5
+        #:test-dir "junit-platform-commons/src/test"
+        #:phases (modify-phases %standard-phases
+                   (add-after 'build 'build-for-jdk9
+                     (lambda _
+                       (mkdir-p "build/classes/META-INF/versions/9")
+                       (apply invoke (string-append ,(gexp-input openjdk9 "jdk") "/bin/javac")
+                         "-cp" (string-append (getenv "CLASSPATH") ":build/classes")
+                         "-g"
+                         "--release" "9"
+                         "-d" "build/classes/META-INF/versions/9"
+                         (find-files "junit-platform-commons/src/main/java9" ".+\\.java$"))
+                       (invoke "ant"
+                         "-Dant.executor.class=org.apache.tools.ant.helper.IgnoreDependenciesExecutor" "jar"))))))))
+
+(define-public java-junit-jupiter-params-5
+  (package
+    (inherit java-junit-platform-base-5)
+    (name "java-junit-jupiter-params")
+    (propagated-inputs (list java-apiguardian java-junit-jupiter-java-api-5 java-univocity-parsers-sonofab1rd))
+    (arguments
+      `(#:jar-name "junit-jupiter-params.jar"
+        #:source-dir "junit-jupiter-params/src/main/java"
+        #:tests? #f ; tests depend on mockito 5
+        ))))
+
+(define-public java-junit-jupiter-engine-5
+  (package
+    (inherit java-junit-platform-base-5)
     (name "java-junit-jupiter-engine")
     (native-inputs (list java-apiguardian))
     (propagated-inputs (list java-junit-jupiter-java-api-5 java-junit-platform-engine-5))
     (arguments
       `(#:jar-name "junit-jupiter-engine.jar"
          #:source-dir "junit-jupiter-engine/src/main/java"
-         #:tests? #f ; TODO
+         #:tests? #f ; tests depend on mockito 5
          #:phases (modify-phases %standard-phases
            (add-before 'build 'copy-resources
              (lambda _
                (copy-recursively "junit-jupiter-engine/src/main/resources" "build/classes"))))))
     (synopsis "The programmer-friendly testing framework for Java and the JVM. This module provides JUnit Jupiter Engine.")))
 
-(define java-junit-jupiter-java-api-5
+(define-public java-junit-jupiter-java-api-5
   (package
-    (inherit java-junit-platform-commons-5)
+    (inherit java-junit-platform-base-5)
     (name "java-junit-jupiter-java-api")
     (native-inputs (list java-fasterxml-jackson-annotations java-fasterxml-jackson-core java-fasterxml-jackson-databind
                          java-fasterxml-jackson-dataformat-yaml java-jte/no-tests java-snakeyaml))
@@ -619,7 +671,7 @@
     (arguments
       `(#:jar-name "junit-jupiter-api.jar"
         #:source-dir "junit-jupiter-api/src/main/java"
-        #:tests? #f ; TODO
+        #:tests? #f ; tests depend on mockito 5
         #:phases (modify-phases %standard-phases
            (add-before 'build 'generate-classes
              (lambda _
@@ -640,45 +692,30 @@
                  "gradle/config/spotless/eclipse-public-license-2.0.java"))))))
     (synopsis "The programmer-friendly testing framework for Java and the JVM. This module provides JUnit Jupiter Java API.")))
 
-(define java-junit-platform-engine-5
+(define-public java-junit-platform-launcher-5
   (package
-    (inherit java-junit-platform-commons-5)
-    (name "java-junit-platform-engine")
-    (propagated-inputs (list java-junit-platform-commons-5 java-opentest4j))
-    (arguments
-      `(#:jar-name "junit-platform-engine.jar"
-        #:source-dir "junit-platform-engine/src/main"
-        #:tests? #f ; TODO
-        #:phases (modify-phases %standard-phases
-           (add-before 'build 'copy-resources
-             (lambda _
-               (copy-recursively "junit-platform-engine/src/main/resources" "build/classes"))))))
-    (synopsis "The programmer-friendly testing framework for Java and the JVM. This module provides JUnit Platform Engine API.")))
-
-(define java-junit-platform-launcher-5
-  (package
-    (inherit java-junit-platform-commons-5)
+    (inherit java-junit-platform-base-5)
     (name "java-junit-platform-launcher")
     (propagated-inputs (list java-junit-platform-engine-5))
     (arguments
       `(#:jar-name "junit-platform-launcher.jar"
         #:source-dir "junit-platform-launcher/src/main"
-        #:tests? #f ; TODO
+        #:tests? #f ; tests depend on mockito 5
         #:phases (modify-phases %standard-phases
            (add-before 'build 'copy-resources
              (lambda _
                (copy-recursively "junit-platform-launcher/src/main/resources" "build/classes"))))))
     (synopsis "The programmer-friendly testing framework for Java and the JVM. This module provides JUnit Platform Engine API.")))
 
-(define java-junit-platform-testkit-5
+(define-public java-junit-platform-testkit-5
   (package
-    (inherit java-junit-platform-commons-5)
+    (inherit java-junit-platform-base-5)
     (name "java-junit-platform-testkit")
     (propagated-inputs (list java-assertj-new java-junit-platform-launcher-5))
     (arguments
       `(#:jar-name "junit-platform-testkit.jar"
         #:source-dir "junit-platform-testkit/src/main"
-        #:tests? #f ; TODO
+         #:tests? #f ; tests depend on mockito 5
         ))
     (synopsis "The programmer-friendly testing framework for Java and the JVM. This module is JUnit Platform Test Kit.")))
 
@@ -713,7 +750,7 @@
 ")
     (license license:bsd-3)))
 
-(define java-reflectasm
+(define-public java-reflectasm
   (package
     (name "java-reflectasm")
     (version "1.11.9")
@@ -747,7 +784,7 @@
       "ReflectASM is a very small Java library that provides high performance reflection by using code generation. An access class is generated to set/get fields, call methods, or create a new instance. The access class uses bytecode rather than Java's reflection, so it is much faster. It can also access primitive fields via bytecode to avoid boxing.")
     (license license:bsd-3)))
 
-(define java-kryo-2
+(define-public java-kryo-2
   (package
     (name "java-kryo")
     (version "2.24.0")
@@ -780,7 +817,7 @@
       "Kryo is a fast and efficient binary object graph serialization framework for Java. The goals of the project are high speed, low size, and an easy to use API. The project is useful any time objects need to be persisted, whether to a file, database, or over the network.")
     (license license:bsd-3)))
 
-(define java-fastutil-7
+(define-public java-fastutil-7
   (package
     (name "java-fastutil")
     (version "7.2.1")
@@ -840,7 +877,6 @@
     (native-inputs (list java-junit))
     (arguments
       `(#:jar-name "geantyref.jar"
-        #:tests? #f ; TODO
         #:phases (modify-phases %standard-phases
                    (add-before 'build 'backport-instanceof
                      (lambda _
@@ -1313,6 +1349,79 @@
     (synopsis "Java 1.6+ library providing a clean and lightweight markdown processor")
     (description "pegdown is a pure Java library for clean and lightweight Markdown processing based on a parboiled PEG parser.
 pegdown is nearly 100% compatible with the original Markdown specification and fully passes the original Markdown test suite.")
+    (license license:asl2.0)))
+
+(define-public java-univocity-output-tester
+  (package
+    (name "java-univocity-output-tester")
+    (version "3.0")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/univocity/univocity-output-tester/archive/refs/tags/v" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "1qa9kr73flsbpkdv69b0xywpxsqzdb4sslqskmwwqdxgqw3hzxhj"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (build-system ant-build-system)
+    (arguments
+      `(#:jar-name "univocity-output-tester.jar"
+         #:make-flags (list "-Dant.build.javac.target" "1.6"
+                            "-Dant.build.javac.source" "1.6")
+         #:tests? #f ; no tests in the package
+         #:phases (modify-phases %standard-phases
+                    (replace 'install
+                      (install-from-pom "pom.xml")))))
+    (home-page "https://github.com/univocity/univocity-output-tester/")
+    (synopsis "Simple project to validate expected outputs of test cases that produce data samples")
+    (description "Helps you validate the expected results of test cases that produce data samples and non-trivial
+     outputs, such as XML, CSV, collections and arrays, etc.
+     It enforces a consistent and organized testing structure and enables you to easily see what is going on with your
+     tests if you want to.")
+    (license license:asl2.0)))
+
+(define-public java-univocity-parsers-sonofab1rd
+  (package
+    (name "java-univocity-parsers-sonofab1rd")
+    (version "2.10.2")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/sonofab1rd/univocity-parsers/archive/refs/tags/v" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "157hvra9jnzs2kzgais2ffr6qj99646dbpjhxkk3h9q46aj5s6cq"))
+        (patches '("patches/java-univocity-parsers-sonafab1rd-remove-h2.patch"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (native-inputs (list java-testng java-univocity-output-tester))
+    (build-system ant-build-system)
+    (arguments
+      `(#:jar-name "univocity-parsers-sonofab1rd.jar"
+         #:make-flags (list "-Dant.build.javac.target" "1.6"
+                            "-Dant.build.javac.source" "1.6")
+         #:phases (modify-phases %standard-phases
+                    (add-before 'check 'prepare-testng
+                      (lambda _
+                        (substitute* "build.xml"
+                          (("<junit [^>]+>") "<taskdef resource=\"testngtasks\" classpathref=\"classpath\"/><testng haltonfailure=\"true\">")
+                          (("<batchtest[^>]*><fileset[^>]*>.*</fileset></batchtest>")
+                            "<classfileset dir=\"${test.classes.dir}\"/>")
+                          (("</junit>") "</testng>"))
+                        (substitute* "build.xml"
+                          (("(<testng[^>]*>.*)<formatter[^>]*/>(.*</testng>)" _ prefix suffix)
+                            (string-append prefix suffix)))))
+                    (replace 'install
+                      (install-from-pom "pom.xml")))))
+    (home-page "https://github.com/sonofab1rd/univocity-parsers/")
+    (synopsis "Suite of extremely fast and reliable parsers for handling different file formats for Java")
+    (description "Provides a consistent interface for handling different file formats, and a solid framework for
+     the development of new parsers. This is a fork continuing development of univocity-parsers project.")
     (license license:asl2.0)))
 
 ; TODO: (define js-jquery-1
@@ -2179,4 +2288,4 @@ browser window. It is completely customizable as well via CSS.")
                   (delete 'strip-jar-timestamps))))))))
 
 ;gradle
-java-jte
+java-geantyref-1
