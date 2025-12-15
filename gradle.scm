@@ -236,7 +236,7 @@
     (build-system ant-build-system)
     (native-inputs (list ant-junitlauncher groovy-ant-patched groovy-test java-jetbrains-annotations java-asm-8
                          java-byte-buddy-dep java-cglib java-junit-platform-testkit-5 java-objenesis))
-    (propagated-inputs (list groovy-fixed java-geantyref-1 java-hamcrest-all))
+    (propagated-inputs (list groovy-fixed java-geantyref-1 java-hamcrest-all java-junit-platform-engine-5))
     (arguments
       `(#:ant ,ant/java8 ; required for ant-junitlauncher 
          #:jar-name "spock-core.jar"
@@ -858,7 +858,7 @@
     (description "fastutil extends the Java™ Collections Framework by providing type-specific maps, sets, lists and queues with a small memory footprint and fast access and insertion; provides also big (64-bit) arrays, sets and lists, and fast, practical I/O classes for binary and text files.")
     (license (list license:asl2.0))))
 
-(define java-geantyref-1
+(define-public java-geantyref-1
   (package
     (name "java-geantyref")
     (version "1.3.16")
@@ -877,14 +877,15 @@
     (native-inputs (list java-junit))
     (arguments
       `(#:jar-name "geantyref.jar"
+        #:jdk ,openjdk17
+        #:source-dir "src/main"
         #:phases (modify-phases %standard-phases
-                   (add-before 'build 'backport-instanceof
+                   (add-before 'build 'patch-build.xml
                      (lambda _
-                       (substitute* (find-files "." "\\.java$")
-                         (("\\(([a-z0-9_]+) instanceof ([A-Za-z0-9_<>?]+) ([a-z0-9_]+)(\\) \\{)"
-                            _ variable type new-variable suffix)
-                           (string-append "(" variable " instanceof " type suffix
-                             type " " new-variable " = (" type ") " variable ";")))))
+                       (substitute* "build.xml"
+                         (("<javac ([^>]+)>" all args)
+                           (let ((release (if (string-contains args "test") "17" "8")))
+                            (string-append "<javac " args " release=\"" release "\">"))))))
                    (replace 'install
                      (install-from-pom "pom.xml")))))
     (home-page "https://github.com/leangen/geantyref")
@@ -893,7 +894,7 @@
     A fork of the excellent GenTyRef library, adding support for working with AnnotatedTypes introduced in Java 8 plus many nifty features.")
     (license license:asl2.0)))
 
-(define java-jatl
+(define-public java-jatl
   (package
     (name "java-jatl")
     (version "0.2.3")
@@ -913,7 +914,8 @@
     (propagated-inputs (list java-sonatype-oss-parent-pom-5))
     (arguments
       `(#:jar-name "jatl.jar"
-         #:phases ,#~(modify-phases %standard-phases
+        #:source-dir "src/main"
+        #:phases ,#~(modify-phases %standard-phases
                          (add-before 'build 'copy-resources
                            (lambda _
                              (copy-recursively "src/etc" "build/classes")))
@@ -958,13 +960,13 @@
      of them. So if SMB1 is disabled on your network, JCIFS' file related operations will NOT work.")
     (license license:lgpl2.1+)))
 
-(define java-jhighlight
+(define-public java-jhighlight-codelibs
   (package
     (name "java-jhighlight")
     (version "1.1.0")
     (source
       (origin
-        (method url-fetch) ; TODO: replace with SVN checkout from SF
+        (method url-fetch)
         (uri (string-append "https://github.com/codelibs/jhighlight/archive/refs/tags/jhighlight-" version ".tar.gz"))
         (file-name (string-append name "-" version ".tar.gz"))
         (sha256 (base32 "1p0pavvkmrmaljk89aadq9a861dvssiv9iv4gzklgbwxmgf15r19"))
@@ -975,6 +977,7 @@
     (propagated-inputs (list java-commons-io))
     (arguments
       `(#:jar-name "jhighlight.jar"
+        #:source-dir "src/main"
         #:phases (modify-phases %standard-phases
                    (add-before 'build 'copy-resources
                      (lambda _
@@ -983,7 +986,8 @@
     (synopsis "Embeddable pure Java syntax highlighting library")
     (description "JHighlight is an embeddable pure Java syntax highlighting library that supports Java, HTML, XHTML,
      XML and LZX languages and outputs to XHTML. It also supports RIFE templates tags and highlights them clearly so
-      that you can easily identify the difference between your RIFE markup and the actual marked up source.")
+      that you can easily identify the difference between your RIFE markup and the actual marked up source.
+      This is a fork continuing development of jhighlight project.")
     (license (list license:cddl1.0 license:lgpl2.1+))))
 
 (define-public java-simple-web-4
@@ -1018,7 +1022,7 @@
      transparent, monitoring system.")
     (license license:asl2.0)))
 
-(define java-jcl-over-slf4j
+(define-public java-jcl-over-slf4j
   (package
     (inherit java-slf4j-api)
     (name "java-jcl-over-slf4j")
@@ -1038,7 +1042,7 @@
     (synopsis "JCL 1.2 implemented over SLF4J")
     (license license:asl2.0)))
 
-(define java-jul-to-slf4j
+(define-public java-jul-to-slf4j
   (package
     (inherit java-slf4j-api)
     (name "java-jul-to-slf4j")
@@ -1057,7 +1061,7 @@
     (home-page "https://www.slf4j.org/legacy.html")
     (synopsis "java.util.logging to Simple logging facade for Java bridge")))
 
-(define java-log4j-over-slf4j
+(define-public java-log4j-over-slf4j
   (package
     (inherit java-slf4j-api)
     (name "java-log4j-over-slf4j")
@@ -1077,7 +1081,7 @@
     (home-page "http://www..slf4j.org/log4j-over-slf4j.html")
     (synopsis "Log4j Implemented Over SLF4J")))
 
-(define java-slf4j-jdk14
+(define-public java-slf4j-jdk14
   (package
     (inherit java-slf4j-api)
     (name "java-slf4j-jdk14")
@@ -1088,21 +1092,25 @@
       `(#:jar-name "slf4j-jdk14.jar"
          #:source-dir "slf4j-jdk14/src/main"
          #:test-dir  "slf4j-jdk14/src/test"
-         #:tests? #f ; TODO
          #:phases ,#~(modify-phases %standard-phases
                        (add-before 'build 'copy-resources
                          (lambda _
                            (copy-recursively "slf4j-jdk14/src/main/resources" "build/classes")))
-                       (add-before 'check 'copy-helpers
+                       (add-before 'check 'add-test-helpers
                          (lambda _
-                           (copy-recursively "slf4j-api/src/test/java" "slf4j-jdk14/src/test/java")))
+                           (mkdir-p "build/test-classes")
+                           (apply invoke "javac"
+                             "-cp" (getenv "CLASSPATH")
+                             "-g"
+                             "-d" "build/test-classes"
+                             (find-files "slf4j-api/src/test" ".+\\.java$"))))
                        (replace 'install
                          (install-from-pom "slf4j-jdk14/pom.xml")))))
     (home-page "https://www.slf4j.org/api/org/slf4j/jul/JDK14LoggerAdapter.html")
     (synopsis "Binding/provider for java.util.logging, also referred to as JDK 1.4 logging")
     (license license:expat)))
 
-(define java-opentest4j
+(define-public java-opentest4j
   (package
     (name "java-opentest4j")
     (version "1.3.0")
@@ -1139,7 +1147,7 @@
      assertion frameworks.")
     (license license:asl2.0)))
 
-(define java-sonatype-oss-parent-pom-5
+(define-public java-sonatype-oss-parent-pom-5
   (hidden-package
     (package
       (inherit java-sonatype-oss-parent-pom-7)
@@ -1153,7 +1161,7 @@
                   (base32
                     "1zr506sfkhb9nxkzqsmdii6yy7fiw1rwd06zaclxxxyqlzlv6q17")))))))
 
-(define java-native-platform-0.14
+(define java-native-platform-0.14/no-native-code
   (package
     (name "java-native-platform")
     (version "0.14")
@@ -1201,7 +1209,7 @@
       "A collection of cross-platform Java APIs for various native APIs. Supports OS X, Linux, Solaris and Windows. These APIs support Java 5 and later. Some of these APIs overlap with APIs available in later Java versions.")
     (license license:asl2.0)))
 
-(define java-nekohtml
+(define-public java-nekohtml
   (package
     (name "java-nekohtml")
     (version "1.9.22")
@@ -1244,7 +1252,7 @@
        XNI tools without modification or rewriting code.")
     (license license:asl2.0)))
 
-(define java-parboiled-core-1.1
+(define-public java-parboiled-core-1.1
   (package
     (name "java-parboiled-core")
     (version "1.1.8")
@@ -1290,7 +1298,7 @@
     (description "Elegant parsing in Java and Scala - lightweight, easy-to-use, powerful.")
     (license license:asl2.0)))
 
-(define java-parboiled-1.1
+(define-public java-parboiled-1.1
   (package
     (inherit java-parboiled-core-1.1)
     (name "java-parboiled")
@@ -1313,7 +1321,7 @@
                                (generate-pom.xml "pom.xml" "org.parboiled" "parboiled-java" ,(package-version java-parboiled-core-1.1)))))))
     (synopsis "Parboiled parsing library")))
 
-(define java-pegdown
+(define-public java-pegdown
   (package
     (name "java-parboiled-core")
     (version "1.6.0")
@@ -1445,7 +1453,7 @@ pegdown is nearly 100% compatible with the original Markdown specification and f
 ;     much simpler with an easy-to-use API that works across a multitude of browsers.")
 ;    (license license:expat)))
 
-(define js-jquery-tiptip
+(define-public js-jquery-tiptip
   (package
     (name "js-jquery-tiptip")
     (version "1.3")
@@ -1500,7 +1508,7 @@ browser window. It is completely customizable as well via CSS.")
                   (append (origin-patches (package-source original-groovy-ant))
                     (list "patches/groovy-fix-groovyc-classpath.patch"))))))))
 
-(define maven-sonatype-polyglot-common
+(define-public maven-sonatype-polyglot-common
   (package
     (name "maven-sonatype-polyglot-common")
     ; Version here uses the day before the day of the next commit. This is because any release between those two days
@@ -1513,8 +1521,8 @@ browser window. It is completely customizable as well via CSS.")
                ; Currently the source is only available on Software Heritage and only from forks. Originally it was
                ; hosted at https://github.com/sonatype/maven-polyglot which no longer exist, not even as an archive at
                ; Software Heritage, though there are some pages on Web Archive. Debian originally fetched the source
-               ; (albeit a different revision) from https://github.com/tobrien/maven-polyglot, but that repository
-               ; no longer exist either, but thankfully available at Software Heritage.
+               ; (albeit a different revision) from https://github.com/tobrien/maven-polyglot, and while that repository
+               ; no longer exist either, it is still available at Software Heritage.
                ; Commit used here is the newest commit that has datetime lessthan-or-equal to the snapshot used in
                ; Gradle. Also existence of this commit can be verified both against Web Archive and tobrien's repository
                ; on Software Heritage (on branch refs/heads/master).
@@ -1524,22 +1532,63 @@ browser window. It is completely customizable as well via CSS.")
         (file-name "swh_1_rev_64de179becc3ed324daab72f7238df1404723672-64de179")
         (sha256 (base32 "1lji0pjgcf16yqk6fj5r9n20q6872wr82rbzh0d22hdfrdfp1z9n"))
         (patches (list "patches/maven-sonatype-polyglot-0.8-update-maven.patch"
-                   "patches/maven-sonatype-polyglot-0.8-package-version.patch"
-                   "patches/maven-sonatype-polyglot-0.8-provided-groovy-dependency.patch"))
+                       "patches/maven-sonatype-polyglot-0.8-fix-tests.patch"
+                       "patches/maven-sonatype-polyglot-0.8-groovy-2.4.patch"
+                       "patches/maven-sonatype-polyglot-0.8-package-version.patch"
+                       "patches/maven-sonatype-polyglot-0.8-provided-groovy-dependency.patch"))
         (modules '((guix build utils)))
-        (snippet `(substitute* (find-files "." ".*pom\\.xml$")
+        (snippet `(substitute* (find-files "." ".*pom\\.xml$|.*\\.java$")
             (("\\$\\{GUIX_PACKAGE_VERSION\\}") ,version)))
         ))
-    ; TODO: Prevent propagating slf4j dependencies and make these propagated-inputs
-    (native-inputs (list maven-embedder maven-3.0-model-builder))
+    ; TODO: Prevent propagating slf4j dependencies from maven packages and make them propagated-inputs:
+    (native-inputs (list groovy-ant-patched groovy-fixed maven-embedder maven-3.0-model-builder))
     (propagated-inputs (list maven-sonatype-polyglot-parent-pom))
     (build-system ant-build-system)
     (arguments
       `(#:jar-name "lib.jar"
+         #:jdk ,openjdk9 ; to compile and run tests with groovy
+         #:make-flags (list "-Dant.build.javac.target" "1.7"
+                            "-Dant.build.javac.source" "1.7")
          #:source-dir "pmaven-common/src/main"
          #:test-dir  "pmaven-common/src/test"
-         #:tests? #f ; TODO: compile tests with groovyc
+         #:test-include (list "**/*Test.class")
+         #:test-exclude (list "**/Abstract*.class" "**/Test*.class")
          #:phases ,#~(modify-phases %standard-phases
+                       (add-after 'build 'generate-metadata
+                         (lambda* (#:key source-dir #:allow-other-keys)
+                           (use-modules (srfi srfi-1))
+                           (invoke "java"
+                             "-cp" (string-append
+                                     (getenv "CLASSPATH") ":"
+                                     "build/classes" ":"
+                                     (string-join
+                                       (append-map
+                                         (lambda (path) (find-files path ".+\\.jar"))
+                                         (list ; TODO How to generate this list of paths using package-propagated-inputs?
+                                           #$java-commons-cli #$java-guava #$java-jdom2
+                                           #$java-plexus-component-metadata #$java-plexus-container-default
+                                           #$java-plexus-classworlds #$java-plexus-cli #$java-plexus-utils
+                                           #$java-geronimo-xbean-reflect #$java-qdox))
+                                       ":"))
+                             "org.codehaus.plexus.metadata.PlexusMetadataGeneratorCli"
+                             "--source" source-dir
+                             "--output" "build/classes/META-INF/plexus/components.xml"
+                             "--classes" "build/classes"
+                             "--descriptors" "build/classes/META-INF")
+                           (invoke "ant" "-Dant.executor.class=org.apache.tools.ant.helper.IgnoreDependenciesExecutor" "jar")))
+                       (add-before 'check 'prepare-tests
+                         (lambda _
+                           (substitute* "build.xml"
+                             (("<javac ([^>]+)>(([^/]+(/[^j])?)*)</javac>" all args body)
+                               (string-append
+                                  "<taskdef name=\"groovyc\" classname=\"org.codehaus.groovy.ant.Groovyc\" classpathref=\"classpath\"/>"
+                                  "<groovyc " args " fork=\"true\">"
+                                  body
+                                  "<javac debug=\"true\" " args ">"
+                                  body
+                                  "</javac></groovyc>"))
+                             (("(<fileset [^>]*dir=\")\\$\\{test\\.home\\}[^\">]*(\"[^>]*>)" _ prefix suffix)
+                               (string-append prefix "${test.classes.dir}" suffix)))))
                        (replace 'install
                          (install-from-pom "pmaven-common/pom.xml")))))
     (home-page "https://web.archive.org/web/20100706134238/http://polyglot.sonatype.org/")
@@ -1549,7 +1598,7 @@ browser window. It is completely customizable as well via CSS.")
     Polyglot for Maven for new projects or packages instead.")
     (license license:asl2.0)))
 
-(define maven-sonatype-polyglot-parent-pom
+(define-public maven-sonatype-polyglot-parent-pom
   (hidden-package
     (package
       (inherit maven-sonatype-polyglot-common)
@@ -1566,27 +1615,55 @@ browser window. It is completely customizable as well via CSS.")
              (replace 'install
                (install-pom-file "pom.xml"))))))))
 
-(define maven-sonatype-polyglot-groovy
+(define-public maven-sonatype-polyglot-groovy
   (package
     (inherit maven-sonatype-polyglot-common)
-    (native-inputs (list groovy-ant-patched groovy-fixed
-                         maven-embedder maven-3.0-model-builder)) ; TODO: remove this once propagated-inputs of the polyglot-common is fixed
+    (name "maven-sonatype-polyglot-groovy")
+    (native-inputs (list groovy-ant-patched groovy-fixed maven-embedder maven-3.0-model-builder))
     (propagated-inputs (list maven-sonatype-polyglot-parent-pom maven-sonatype-polyglot-common))
     (arguments
       `(#:jar-name "lib.jar"
          #:jdk ,openjdk9 ; same as groovy
          #:source-dir "pmaven-groovy/src/main"
          #:test-dir  "pmaven-groovy/src/test"
-         #:tests? #f ; TODO
+         #:test-include (list "**/*Test.class")
+         #:test-exclude (list "**/Abstract*.class" "**/Test*.class")
          #:phases ,#~(modify-phases %standard-phases
+                       (add-after 'build 'generate-metadata
+                         (lambda* (#:key source-dir #:allow-other-keys)
+                           (use-modules (srfi srfi-1))
+                           (invoke "java"
+                             "-cp" (string-append
+                                     (getenv "CLASSPATH") ":"
+                                     "build/classes" ":"
+                                     (string-join
+                                       (append-map
+                                         (lambda (path) (find-files path ".+\\.jar"))
+                                         (list ; TODO How to generate this list of paths using package-propagated-inputs?
+                                           #$java-commons-cli #$java-guava #$java-jdom2
+                                           #$java-plexus-component-metadata #$java-plexus-container-default
+                                           #$java-plexus-classworlds #$java-plexus-cli #$java-plexus-utils
+                                           #$java-geronimo-xbean-reflect #$java-qdox))
+                                       ":"))
+                             "org.codehaus.plexus.metadata.PlexusMetadataGeneratorCli"
+                             "--source" source-dir
+                             "--output" "build/classes/META-INF/plexus/components.xml"
+                             "--classes" "build/classes"
+                             "--descriptors" "build/classes/META-INF")
+                           (invoke "ant" "-Dant.executor.class=org.apache.tools.ant.helper.IgnoreDependenciesExecutor" "jar")))
                        (add-before 'build 'patch-build.xml
                          (lambda _
                            (substitute* "build.xml"
-                             (("<javac ([^>]+)>" all args) (string-append
-                                                             "<taskdef name=\"groovyc\" classname=\"org.codehaus.groovy.ant.Groovyc\" classpathref=\"classpath\"/>"
-                                                             "<groovyc " args " fork=\"true\"><classpath refid=\"classpath\"/>"
-                                                             "<javac debug=\"true\" " args ">"))
-                             (("</javac>" all) (string-append all "</groovyc>")))))
+                             (("<javac ([^>]+)>(([^/]+(/[^j])?)*)</javac>" all args body)
+                               (string-append
+                                 "<taskdef name=\"groovyc\" classname=\"org.codehaus.groovy.ant.Groovyc\" classpathref=\"classpath\"/>"
+                                 "<groovyc " args " fork=\"true\">"
+                                 body
+                                 "<javac debug=\"true\" " args ">"
+                                 body
+                                 "</javac></groovyc>"))
+                             (("(<fileset [^>]*dir=\")\\$\\{test\\.home\\}[^\">]*(\"[^>]*>)" _ prefix suffix)
+                               (string-append prefix "${test.classes.dir}" suffix)))))
                        (replace 'install
                          (install-from-pom "pmaven-groovy/pom.xml")))))
     (synopsis "Support alternative markup for Apache Maven POM files. This package provides Groovy DSL. Please check the package description before using.")))
@@ -1625,7 +1702,7 @@ browser window. It is completely customizable as well via CSS.")
             java-commons-io java-commons-lang java-commons-logging-minimal
             java-fastutil-7 java-gson java-jansi-1 java-jatl java-jgit java-jsr305 java-jul-to-slf4j
             java-httpcomponents-httpclient java-httpcomponents-httpcore
-            java-kryo-2 java-native-platform-0.14 java-slf4j-api java-testng maven-3.0-settings-builder))
+            java-kryo-2 java-native-platform-0.14/no-native-code java-slf4j-api java-testng maven-3.0-settings-builder))
     (arguments
       `(#:jdk ,openjdk9 ; same as groovy
          #:jar-name "gradle.jar"
@@ -2153,11 +2230,11 @@ browser window. It is completely customizable as well via CSS.")
                             "com.fasterxml.jackson.core" "jackson-databind" "/share/java/jackson-databind.jar")
                           (mavenize-package ,java-jsch ,(package-version java-jsch)
                             "com.jcraft" "jsch" (string-append "/share/java/jsch-" ,(package-version java-jsch) ".jar"))
-                          (mavenize-package ,java-jhighlight ,(package-version java-jhighlight)
+                          (mavenize-package ,java-jhighlight-codelibs ,(package-version java-jhighlight-codelibs)
                             "com.uwyn" "jhighlight" "/share/java/jhighlight.jar")
                           (mavenize-package ,java-joda-time ,(package-version java-joda-time)
                             "joda-time" "joda-time" "/share/java/java-joda-time.jar")
-                          (mavenize-package ,java-native-platform-0.14 ,(package-version java-native-platform-0.14)
+                          (mavenize-package ,java-native-platform-0.14/no-native-code ,(package-version java-native-platform-0.14/no-native-code)
                             "net.rubygrapefruit" "native-platform" "/share/java/native-platform.jar")
                           (mavenize-package ,java-httpcomponents-httpclient ,(package-version java-httpcomponents-httpclient)
                             "org.apache.httpcomponents" "httpclient" "/share/java/httpcomponents-httpclient.jar")
@@ -2287,5 +2364,4 @@ browser window. It is completely customizable as well via CSS.")
                   (delete 'reorder-jar-content)
                   (delete 'strip-jar-timestamps))))))))
 
-;gradle
-java-geantyref-1
+gradle
