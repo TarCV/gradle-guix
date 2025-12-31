@@ -179,7 +179,7 @@
     (build-system ant-build-system)
     (native-inputs (list ant-junitlauncher groovy-ant-patched groovy-test java-jetbrains-annotations java-asm-8
                          java-byte-buddy-dep java-cglib java-junit-platform-testkit-5 java-objenesis))
-    (propagated-inputs (list groovy-fixed java-hamcrest-all java-junit-platform-commons-5))
+    (propagated-inputs (list groovy-fixed java-hamcrest-library java-junit-platform-engine-5))
     (arguments
       `(#:ant ,ant/java8 ; required for ant-junitlauncher 
          #:jar-name "spock-core.jar"
@@ -235,10 +235,12 @@
                         "org.spockframework"
                         "spock-core"
                         (string-append ,version "-groovy-3.0") ; TODO: compute from groovy version
-                        #:dependencies '(("org.codehaus.groovy" "groovy" ,(package-version groovy-fixed)) ; TODO: generate from propagated-inputs
-                                         ("org.hamcrest" "hamcrest" ,(package-version java-hamcrest-all))
-                                         ("org.junit.platform" "junit-platform-commons"
-                                           ,(package-version java-junit-platform-commons-5)))))
+                        #:dependencies '(("org.codehaus.groovy" "groovy"
+                                           ,(package-version (this-package-input "groovy"))) ; TODO: generate from propagated-inputs
+                                         ("org.hamcrest" "hamcrest-library"
+                                           ,(package-version (this-package-input "java-hamcrest-library")))
+                                         ("org.junit.platform" "junit-platform-engine"
+                                           ,(package-version (this-package-input "java-junit-platform-engine"))))))
                     (replace 'install
                       (install-from-pom "pom.xml")))))
     (home-page "https://spockframework.org/")
@@ -324,7 +326,13 @@
     (arguments
       `(#:jar-name "apiguardian.jar"
         #:source-dir "src/main/java"
-         #:tests? #f)) ; no tests in the project
+        #:tests? #f ; no tests in the project
+        #:phases (modify-phases %standard-phases
+                   (add-before 'install 'generate-pom.xml
+                     (generate-pom.xml "pom.xml"
+                       "org.apiguardian" "apiguardian-api" ,version))
+                   (replace 'install
+                     (install-from-pom "pom.xml")))))
     (home-page "https://apiguardian-team.github.io/apiguardian/docs/current/api/")
     (synopsis "Java annotation for documenting the @API status of types and members in Java APIs. Maintained by the JUnit team.")
     (description "Library that provides the @API annotation that is used to annotate public types, methods, constructors,
@@ -558,7 +566,7 @@
       (substitute-keyword-arguments (package-arguments java-junit-platform-base-5)
         ((#:jar-name _ #f) "junit-platform-engine.jar")
         ((#:source-dir _ #f) "junit-platform-engine/src/main")
-        ((#:tests? _) #f) ; tests depend on mockito 5
+        ((#:tests? _ #f) #f) ; tests depend on mockito 5
         ((#:phases phases '%standard-phases)
           `(modify-phases ,phases
             (add-before 'build 'copy-resources
@@ -592,7 +600,7 @@
       (substitute-keyword-arguments (package-arguments java-junit-platform-base-5)
         ((#:jar-name _ #f) "junit-platform-commons.jar")
         ((#:source-dir _ #f) "junit-platform-commons/src/main/java")
-        ((#:tests? _) #f) ; tests depend on mockito 5
+        ((#:tests? _ #f) #f) ; tests depend on mockito 5
         ((#:test-dir _ #f) "junit-platform-commons/src/test")
         ((#:phases phases '%standard-phases)
            `(modify-phases ,phases
@@ -623,7 +631,7 @@
       (substitute-keyword-arguments (package-arguments java-junit-jupiter-base-5)
         ((#:jar-name _ #f) "junit-jupiter-params.jar")
         ((#:source-dir _ #f) "junit-jupiter-params/src/main/java")
-        ((#:tests? _) #f) ; tests depend on mockito 5
+        ((#:tests? _ #f) #f) ; tests depend on mockito 5
         ((#:phases phases '%standard-phases)
           `(modify-phases ,phases
              (add-before 'install 'generate-pom.xml
@@ -1174,7 +1182,12 @@
                      (lambda _ ; tests require JDK10+, but the output jar should be compatible with JDK1.6
                        (substitute* "build.xml"
                          (("(<javac ([^>]+)srcdir=\"src/main/java\"([^>]+))>" _ prefix)
-                           (string-append prefix " release=\"6\">"))))))))
+                           (string-append prefix " release=\"6\">")))))
+                   (add-before 'install 'generate-pom.xml
+                     (generate-pom.xml "pom.xml"
+                       "org.opentest4j" "opentest4j" ,version))
+                   (replace 'install
+                     (install-from-pom "pom.xml")))))
     (home-page "https://github.com/ota4j-team/opentest4j")
     (synopsis "Common Java exception classes to represent test failures. Maintained by the JUnit team.")
     (description "The primary goal of the project is to enable testing frameworks like JUnit, TestNG, Spock, etc. and
@@ -1290,10 +1303,11 @@
        XNI tools without modification or rewriting code.")
     (license license:asl2.0)))
 
+(define %java-parboiled-version "1.1.8")
 (define-public java-parboiled-core-1.1
   (package
     (name "java-parboiled-core")
-    (version "1.1.8")
+    (version %java-parboiled-version)
     (source
       (origin
         (method url-fetch)
@@ -1340,28 +1354,34 @@
   (package
     (inherit java-parboiled-core-1.1)
     (name "java-parboiled")
+    (version %java-parboiled-version)
     (propagated-inputs (list java-asm java-parboiled-core-1.1))
     (arguments
       (substitute-keyword-arguments (package-arguments java-parboiled-core-1.1)
         ((#:jar-name _ #f) "parboiled.jar")
         ((#:source-dir _ #f) "parboiled-java/src/main/java")
         ((#:test-dir _ #f) "parboiled-java/src/test")
-        ((#:phases phases '%standard-phases) `(modify-phases ,phases
-                             (replace 'remove-scala-test-dependents
-                               (lambda _
-                                 (delete-file "parboiled-java/src/test/java/JavaTest.java")))
-                             (add-before 'check 'enable-debug-for-compile-tests
-                               (lambda _
-                                 (substitute* "build.xml"
-                                   (("(<target [^>]*name=\"compile-tests\">.*<javac [^>]*)(>.*</target><target [^>]*name=\"check\")" _ prefix suffix)
-                                     (string-append prefix " debug=\"true\" " suffix)))))
-                             (replace 'create-pom
-                               (generate-pom.xml "pom.xml" "org.parboiled" "parboiled-java" ,(package-version java-parboiled-core-1.1)))))))
+        ((#:phases phases '%standard-phases)
+          `(modify-phases ,phases
+             (replace 'remove-scala-test-dependents
+               (lambda _
+                 (delete-file "parboiled-java/src/test/java/JavaTest.java")))
+             (add-before 'check 'enable-debug-for-compile-tests
+               (lambda _
+                 (substitute* "build.xml"
+                   (("(<target [^>]*name=\"compile-tests\">.*<javac [^>]*)(>.*</target><target [^>]*name=\"check\")" _ prefix suffix)
+                     (string-append prefix " debug=\"true\" " suffix)))))
+             (replace 'create-pom
+               (generate-pom.xml "pom.xml" "org.parboiled" "parboiled-java" ,version
+                 #:dependencies '(("org.ow2.asm" "asm" ; TODO: generate from propagated-inputs
+                                   ,(package-version (this-package-input "java-asm")))
+                                  ("org.parboiled" "parboiled-core"
+                                   ,(package-version (this-package-input "java-parboiled-core"))))))))))
     (synopsis "Parboiled parsing library")))
 
 (define-public java-pegdown
   (package
-    (name "java-parboiled-core")
+    (name "java-pegdown")
     (version "1.6.0")
     (source
       (origin
@@ -1388,7 +1408,9 @@
                         (substitute* "build.xml"
                           (("(<javac [^>]*)(>)" _ prefix suffix) (string-append prefix " debug=\"true\" " suffix)))))
                     (add-before 'install 'create-pom
-                      (generate-pom.xml "pom.xml" "org.pegdown" "pegdown" ,version))
+                      (generate-pom.xml "pom.xml" "org.pegdown" "pegdown" ,version
+                        #:dependencies '(("org.parboiled" "parboiled-java" ; TODO: generate from propagated-inputs
+                                          ,(package-version (this-package-input "java-parboiled"))))))
                     (replace 'install
                       (install-from-pom "pom.xml")))))
     (home-page "https://github.com/sirthias/pegdown/")
