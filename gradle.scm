@@ -70,6 +70,18 @@
 (define groovy-test  ; TODO: make the package public instead
   (module-ref (resolve-module '(gnu packages groovy)) 'groovy-test))
 
+(define java-jcommander-new
+  (package
+    (inherit java-jcommander)
+    (version "1.85")
+    (source (origin
+              (method git-fetch)
+              (uri (git-reference
+                     (url "https://github.com/cbeust/jcommander")
+                     (commit version)))
+              (file-name (git-file-name "java-jcommander" version))
+              (sha256 (base32 "1mlhk77vbhsdbf1k6h0k22aamckw2ncxjzf0pk6sj5sr4587glna"))))))
+
 (define java-plexus-containers-parent-pom-1.7 ; TODO: add this dependency to java-plexus-container-default-1.7 instead?
   (module-ref (resolve-module '(gnu packages java)) 'java-plexus-containers-parent-pom-1.7))
 (define make-apache-commons-parent-pom ; TODO: add this dependency to the relevant package?
@@ -236,7 +248,7 @@
                         "spock-core"
                         (string-append ,version "-groovy-3.0") ; TODO: compute from groovy version
                         #:dependencies '(("org.codehaus.groovy" "groovy"
-                                           ,(package-version (this-package-input "groovy"))) ; TODO: generate from propagated-inputs
+                                           ,(package-version (this-package-input "groovy")))
                                          ("org.hamcrest" "hamcrest-library"
                                            ,(package-version (this-package-input "java-hamcrest-library")))
                                          ("org.junit.platform" "junit-platform-engine"
@@ -575,7 +587,7 @@
             (add-before 'install 'generate-pom.xml
               (generate-pom.xml "pom.xml"
                 "org.junit.platform" "junit-platform-engine" ,version
-                #:dependencies '(("org.apiguardian" "apiguardian-api" ; TODO: generate from propagated-inputs
+                #:dependencies '(("org.apiguardian" "apiguardian-api"
                                    ,(package-version (this-package-input "java-apiguardian")))
                                  ("org.junit.platform" "junit-platform-commons"
                                    ,(package-version (this-package-input "java-junit-platform-commons")))
@@ -618,7 +630,7 @@
             (add-before 'install 'generate-pom.xml
               (generate-pom.xml "pom.xml"
                 "org.junit.platform" "junit-platform-commons" ,version
-                #:dependencies '(("org.apiguardian" "apiguardian-api" ; TODO: generate from propagated-inputs
+                #:dependencies '(("org.apiguardian" "apiguardian-api"
                                    ,(package-version (this-package-input "java-apiguardian"))))))))))))
 
 (define-public java-junit-jupiter-params-5
@@ -637,7 +649,7 @@
              (add-before 'install 'generate-pom.xml
                (generate-pom.xml "pom.xml"
                  "org.junit.jupiter" "junit-jupiter-params" ,version
-                 #:dependencies '(("org.apiguardian" "apiguardian-api" ; TODO: generate from propagated-inputs
+                 #:dependencies '(("org.apiguardian" "apiguardian-api"
                                     ,(package-version (this-package-input "java-apiguardian")))
                                   ("org.junit.jupiter" "junit-jupiter-api"
                                     ,(package-version (this-package-input "java-junit-jupiter-java-api")))
@@ -663,7 +675,7 @@
              (add-before 'install 'generate-pom.xml
                (generate-pom.xml "pom.xml"
                  "org.junit.jupiter" "junit-jupiter-engine" ,version
-                 #:dependencies '(("org.apiguardian" "apiguardian-api" ; TODO: generate from propagated-inputs
+                 #:dependencies '(("org.apiguardian" "apiguardian-api"
                                     ,(package-version (this-package-input "java-apiguardian")))
                                    ("org.junit.jupiter" "junit-jupiter-api"
                                      ,(package-version (this-package-input "java-junit-jupiter-java-api")))
@@ -706,7 +718,7 @@
              (add-before 'install 'generate-pom.xml
                (generate-pom.xml "pom.xml"
                  "org.junit.jupiter" "junit-jupiter-api" ,version
-                 #:dependencies '(("org.apiguardian" "apiguardian-api" ; TODO: generate from propagated-inputs
+                 #:dependencies '(("org.apiguardian" "apiguardian-api"
                                     ,(package-version (this-package-input "java-apiguardian")))
                                    ("org.junit.platform" "junit-platform-commons"
                                      ,(package-version (this-package-input "java-junit-platform-commons")))
@@ -733,7 +745,7 @@
              (add-before 'install 'generate-pom.xml
                (generate-pom.xml "pom.xml"
                  "org.junit.platform" "junit-platform-launcher" ,version
-                 #:dependencies '(("org.apiguardian" "apiguardian-api" ; TODO: generate from propagated-inputs
+                 #:dependencies '(("org.apiguardian" "apiguardian-api"
                                     ,(package-version (this-package-input "java-apiguardian")))
                                   ("org.junit.platform" "junit-platform-engine"
                                     ,(package-version (this-package-input "java-junit-platform-engine"))))))))))
@@ -755,7 +767,7 @@
              (add-before 'install 'generate-pom.xml
                (generate-pom.xml "pom.xml"
                  "org.junitc.platform" "junit-platform-testkit" ,version
-                 #:dependencies '(("org.apiguardian" "apiguardian-api" ; TODO: generate from propagated-inputs
+                 #:dependencies '(("org.apiguardian" "apiguardian-api"
                                     ,(package-version (this-package-input "java-apiguardian")))
                                    ("org.assertj" "assertj-core"
                                      ,(package-version (this-package-input "java-assertj")))
@@ -785,7 +797,12 @@
       `(#:jar-name "minlog.jar"
          #:source-dir "src"
          #:tests? #f ; no tests
-         ))
+         #:phases (modify-phases %standard-phases
+                    (add-before 'install 'generate-pom.xml
+                      (generate-pom.xml "pom.xml"
+                        "com.esotericsoftware" "minlog" ,version))
+                    (replace 'install
+                      (install-from-pom "pom.xml")))))
     (home-page "https://github.com/EsotericSoftware/minlog")
     (synopsis "Minimal overhead Java logging")
     (description
@@ -819,11 +836,18 @@
       `(#:jar-name "reflectasm.jar"
          #:source-dir "src"
          #:test-dir "test"
-         #:phases ,#~(modify-phases %standard-phases
-                         (add-before 'check 'fix-test-dir
-                           (lambda _
-                             (mkdir-p "test/java")
-                             (rename-file "test/com" "test/java/com"))))))
+         #:phases (modify-phases %standard-phases
+                       (add-before 'check 'fix-test-dir
+                         (lambda _
+                           (mkdir-p "test/java")
+                           (rename-file "test/com" "test/java/com")))
+                       (add-before 'install 'generate-pom.xml
+                         (generate-pom.xml "pom.xml"
+                             "com.esotericsoftware" "reflectasm" ,version
+                             #:dependencies '(("org.ow2.asm" "asm"
+                                                ,(package-version (this-package-input "java-asm"))))))
+                       (replace 'install
+                         (install-from-pom "pom.xml")))))
     (home-page "https://github.com/EsotericSoftware/reflectasm")
     (synopsis "High performance Java reflection")
     (description
@@ -852,11 +876,22 @@
       `(#:jar-name "kryo.jar"
          #:source-dir "src"
          #:test-dir "test"
-         #:phases ,#~(modify-phases %standard-phases
-                         (add-before 'check 'fix-test-dir
-                           (lambda _
-                             (mkdir-p "test/java")
-                             (rename-file "test/com" "test/java/com"))))))
+         #:phases (modify-phases %standard-phases
+                       (add-before 'check 'fix-test-dir
+                         (lambda _
+                           (mkdir-p "test/java")
+                           (rename-file "test/com" "test/java/com")))
+                       (add-before 'install 'generate-pom.xml
+                         (generate-pom.xml "pom.xml"
+                           "com.esotericsoftware.kryo" "kryo" ,version ; Kryo 2 still has '.kryo' in its group name
+                           #:dependencies '(("com.esotericsoftware" "reflectasm"
+                                              ,(package-version (this-package-input "java-reflectasm")))
+                                            ("com.esotericsoftware" "minlog"
+                                              ,(package-version (this-package-input "java-minlog")))
+                                            ("org.objenesis" "objenesis"
+                                              ,(package-version (this-package-input "java-objenesis"))))))
+                       (replace 'install
+                         (install-from-pom "pom.xml")))))
     (home-page "https://github.com/EsotericSoftware/kryo")
     (synopsis "Java binary serialization and cloning: fast, efficient, automatic")
     (description
@@ -1373,7 +1408,7 @@
                      (string-append prefix " debug=\"true\" " suffix)))))
              (replace 'create-pom
                (generate-pom.xml "pom.xml" "org.parboiled" "parboiled-java" ,version
-                 #:dependencies '(("org.ow2.asm" "asm" ; TODO: generate from propagated-inputs
+                 #:dependencies '(("org.ow2.asm" "asm"
                                    ,(package-version (this-package-input "java-asm")))
                                   ("org.parboiled" "parboiled-core"
                                    ,(package-version (this-package-input "java-parboiled-core"))))))))))
@@ -1409,7 +1444,7 @@
                           (("(<javac [^>]*)(>)" _ prefix suffix) (string-append prefix " debug=\"true\" " suffix)))))
                     (add-before 'install 'create-pom
                       (generate-pom.xml "pom.xml" "org.pegdown" "pegdown" ,version
-                        #:dependencies '(("org.parboiled" "parboiled-java" ; TODO: generate from propagated-inputs
+                        #:dependencies '(("org.parboiled" "parboiled-java"
                                           ,(package-version (this-package-input "java-parboiled"))))))
                     (replace 'install
                       (install-from-pom "pom.xml")))))
@@ -1734,7 +1769,8 @@ browser window. It is completely customizable as well via CSS.")
      "patches/gradle-4.5.1-groovy-2.5-2.patch" "patches/gradle-4.5.1-groovy-2.5-3.patch"
      "patches/gradle-4.5.1-groovy-2.5-4.patch" "patches/gradle-4.5.1-groovy-3.patch"
      "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
-     "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"))
+     "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"
+     "patches/gradle-4.5.1-unshaded-groovy.patch"))
 (define gradle-bootstrap-with-ant
   (package
     (name "gradle-bootstrap-with-ant")
@@ -1747,8 +1783,7 @@ browser window. It is completely customizable as well via CSS.")
         (sha256 (base32 "03yaq6kkdk5akjl5is0rmkdqhg1jfhp1mbv9jzpmjrs53z1hsxlw"))
         (patches `(,@common-gradle-patches
                     "patches/gradle-bootstrap-4.5.1-remove-dependencies.patch"
-                    "patches/gradle-bootstrap-4.5.1-single-jar.patch"
-                    "patches/gradle-4.5.1-workaround-dependency-issue.patch"))
+                    "patches/gradle-bootstrap-4.5.1-single-jar.patch"))
         (modules '((guix build utils)))
         (snippet '(begin
                     (for-each delete-file
@@ -1838,7 +1873,7 @@ browser window. It is completely customizable as well via CSS.")
                             "subprojects/workers"
                             ))))
                     (add-after 'prepare-merged-sources 'unshade-imports
-                      (lambda _
+                      (lambda _ ; TODO: SHARED_PACKAGES in DaemonGroovyCompiler should contain both shaded and unshaded package names
                         (substitute* (find-files "merged-src" ".*\\.(java|groovy)$")
                           (("groovyjarjarasm") "org.objectweb") ; no dot at the end of the pattern as otherwise it would miss some package mentions
                           (("groovyjarjarantlr") "antlr")
@@ -2030,6 +2065,11 @@ browser window. It is completely customizable as well via CSS.")
       NOTE: To keep up to date with the current version of Groovy in Guix, this build backports migration to Groovy 3 from Gradle 7.0 and thus partially breaks compatibility with the upstream. To see how it may affect your scripts you can check Groovy-related sections at https://docs.gradle.org/7.0/userguide/upgrading_version_6.html#changes_to_groovy_and_groovy_dsl")
     (license license:asl2.0)))
 
+(define lookup-input
+  (module-ref (resolve-module '(guix packages)) 'lookup-input))
+(define-syntax-rule (this-package-transitive-native-input name)
+  (lookup-input (package-transitive-native-inputs this-package) name))
+
 ; TODO: document patches/changes in Gradle docs?
 ; TODO: disable patching dependencies and libs in out are bit-for-bit same as are provided by Guix
 (define gradle-bootstrap-with-gradle
@@ -2048,17 +2088,28 @@ browser window. It is completely customizable as well via CSS.")
                          "patches/gradle-4.5.1-remove-complex-dependencies.patch"
                          "patches/gradle-4.5.1-remove-kotlin-dsl.patch"
                          "patches/gradle-4.5.1-reproducible-artifacts.patch"
-                         "patches/gradle-4.5.1-symlink-during-install.patch"
-                         "patches/gradle-4.5.1-unshaded-groovy.patch"))))
+                         "patches/gradle-4.5.1-symlink-during-install.patch"))))
     (native-inputs (list
-                     apache-commons-parent-pom-42 groovy-spock-junit4 java-commons-cli
-                     java-commons-codec java-jsoup java-jcl-over-slf4j java-log4j-over-slf4j java-jcifs
-                     java-hamcrest-library java-nekohtml
-                     java-pegdown zip java-plexus-cipher-1.7 java-plexus-container-default-1.7
-                     java-plexus-component-annotations-1.7 java-sonatype-oss-parent-pom-5 java-simple-web-4
+                     ant antlr2 apache-commons-parent-pom-42 groovy-fixed groovy-spock-junit4 groovy-test
+                     java-apache-ivy java-aqute-bndlib java-aqute-libg java-bouncycastle java-commons-cli
+                     java-commons-codec java-commons-collections java-commons-lang java-fasterxml-jackson-annotations
+                     java-fasterxml-jackson-core java-fasterxml-jackson-databind java-gson java-javaparser java-jaxp
+                     java-jcommander-new java-jgit java-jhighlight-codelibs java-jcifs java-jsch java-jmock
+                     java-jmock-junit4 java-jmock-legacy java-joda-time
+                     java-jsoup java-hamcrest-library java-httpcomponents-httpclient java-httpcomponents-httpcore
+                     java-native-platform-0.14/no-native-code java-nekohtml java-objenesis
+                     java-pegdown java-picocli java-simple-web-4 java-testng java-tunnelvisionlabs-antlr4-runtime rhino
+
+                     java-jcl-over-slf4j java-log4j-over-slf4j
+
+                     java-plexus-cipher-1.7 java-plexus-container-default-1.7
+                     java-plexus-component-annotations-1.7 java-sonatype-oss-parent-pom-5
                      java-sonatype-aether-api-1.13 java-sonatype-aether-impl-1.13 java-sonatype-aether-util-1.13
-                     maven-sonatype-polyglot-common maven-sonatype-polyglot-groovy
-                     maven-3.0-compat maven-3.0-core maven-parent-pom-34 maven-3.0-plugin-api maven-wagon-provider-api))
+                     maven-resolver-transport-wagon maven-sonatype-polyglot-common maven-sonatype-polyglot-groovy
+                     maven-3.0-compat maven-3.0-core maven-parent-pom-34 maven-3.0-plugin-api maven-wagon-file
+                     maven-wagon-http maven-wagon-http-shared maven-wagon-provider-api
+                       
+                     zip))
     (arguments
       `(#:modules ((guix build ant-build-system) (guix build java-utils) (guix build utils) (ice-9 ftw) (srfi srfi-1)
                     (ice-9 string-fun) (srfi srfi-26))
@@ -2119,20 +2170,19 @@ browser window. It is completely customizable as well via CSS.")
                     (generate-pom.xml "groovy-pom.xml" "org.codehaus.groovy" "groovy" ,(package-version groovy-fixed)
                       #:dependencies '(
                                         ; These packages are shaded into Groovy in the upstream:
-                                        ("info.picocli" "picocli" ,(package-version java-picocli))
-                                        ("org.codehaus.groovy" "parser-antlr4" ,(package-version groovy-fixed))
+                                        ("antlr" "antlr" ,(package-version antlr2))
+                                        ("com.tunnelvisionlabs" "antlr4-runtime" ,(package-version java-tunnelvisionlabs-antlr4-runtime))
                                         ("org.ow2.asm" "asm" ,(package-version java-asm-9))
-                                        ("org.ow2.asm" "asm-analysis" ,(package-version java-asm-analysis-9))
                                         ("org.ow2.asm" "asm-commons" ,(package-version java-asm-commons-9))
                                         ("org.ow2.asm" "asm-tree" ,(package-version java-asm-tree-9))
                                         ("org.ow2.asm" "asm-util" ,(package-version java-asm-util-9))
-                                        ("antlr" "antlr" ,(package-version antlr2))
+                                        ("org.codehaus.groovy" "parser-antlr4" ,(package-version groovy-fixed))
+                                        ("info.picocli" "picocli" ,(package-version java-picocli))
                                         ; These are optional runtime dependencies in the upstream:
                                         ;("com.thoughtworks.xstream" "xstream" "$xstreamVersion")
                                         ;("org.fusesource.jansi" "jansi" "$jansiVersion")
                                         ;("org.apache.ivy" "ivy" "$ivyVersion")
                                         ;("org.codehaus.gpars" "gpars" "$gparsVersion")
-                                        ;("com.tunnelvisionlabs" "antlr4-runtime" "version")
                                         )))
                   (add-before 'build 'generate-groovy-groovydoc-pom ; TODO: move this to groovy package
                     (generate-pom.xml "groovy-groovydoc-pom.xml" "org.codehaus.groovy" "groovy-groovydoc"
@@ -2147,13 +2197,22 @@ browser window. It is completely customizable as well via CSS.")
                       ,(package-version groovy-fixed)
                       #:dependencies '(("com.tunnelvisionlabs" "antlr4-runtime"
                                          ,(package-version java-tunnelvisionlabs-antlr4-runtime)))))
+                  (add-before 'build 'patch-asm-version
+                    (lambda _
+                      (substitute* "gradle/dependencies.gradle"
+                        ;'*' (and not '+') in '[...]*:' is to include 'asm' module in addition to modules with suffixes:
+                        (("(org.ow2.asm:asm[^'\":]*:)([0-9]+[0-9.]*)([:'@\"])" _ prefix version suffix)
+                          (string-append prefix ,(package-version java-asm-9) suffix)))))
+                  (add-before 'build 'force-local-groovy
+                    (lambda _
+                      (substitute* (find-files "." ".*\\.gradle.*")
+                        (("libraries.(javaParser|groovy[[:alpha:]]*)") "localGroovy()"))))
                   (add-before 'build 'patch-versions
                     (lambda _ ; TODO: implement it in init.gradle instead
                       (substitute* "gradle/dependencies.gradle"
-                        (("(com.google.guava:)guava-jdk5:([0-9][0-9.]+)([:'@\"])" _ prefix version suffix)
+                        (("(com.google.guava:)guava-jdk5:([0-9][0-9.]+)(@jar)?([:'\"])" _ prefix version _ suffix)
                           (string-append prefix "guava:[" version ",)" suffix))
-                        (((string-append "((org.ow2.asm:asm[^'\":]*" ; '*' is intentional to include 'asm' module
-                           "|com.google.code.findbugs:jsr305"
+                        (((string-append "((com.google.code.findbugs:jsr305"
                            "|org.apache.maven.wagon:wagon-[^'\":]+"
                            "|org.apache.xbean:xbean-[^'\":]+"
                            "|org.objenesis:objenesis"
@@ -2175,7 +2234,7 @@ browser window. It is completely customizable as well via CSS.")
                                       "subprojects/javascript/javascript.gradle"
                                       "subprojects/maven/maven.gradle"
                                       "subprojects/reporting/reporting.gradle")
-                        (("(com.google.guava:)guava-jdk5:([0-9][0-9.]+)([:'@\"])" _ prefix version suffix)
+                        (("(com.google.guava:)guava-jdk5:([0-9][0-9.]+)(@jar)?([:'\"])" _ prefix version _ suffix)
                           (string-append prefix "guava:[" version ",)" suffix))
                         (((string-append "((org.ow2.asm:asm[^'\":]*" ; '*' is intentional to include 'asm' module
                             "|com.google.code.findbugs:jsr305"
@@ -2202,22 +2261,24 @@ browser window. It is completely customizable as well via CSS.")
                   (add-before 'build 'prepare-build-environment
                     (lambda* (#:key inputs outputs #:allow-other-keys)
                       (let* ((dir (string-append (getenv "TMP") "/build-home"))
-                              (roots (map cdr inputs))
-                              (m2-packages (filter
-                                             (lambda (input)
-                                               (file-exists? (string-append input "/lib/m2")))
-                                             roots))
-                              (m2-roots (map
-                                          (lambda (input) (string-append input "/lib/m2"))
-                                          m2-packages)))
-                        (mkdir-p (string-append dir "/.m2/repository"))
+                             (local-libs-dir (string-append dir "/local-libs"))
+                             (repository-dir (string-append dir "/.m2/repository"))
+                             (roots (map cdr inputs))
+                             (m2-packages (filter
+                                            (lambda (input)
+                                              (file-exists? (string-append input "/lib/m2")))
+                                            roots))
+                             (m2-roots (map
+                                         (lambda (input) (string-append input "/lib/m2"))
+                                         m2-packages)))
+                        (mkdir-p repository-dir)
                         (for-each
                           (lambda (m2-root)
                             (with-directory-excursion m2-root
                               (for-each
                                 (lambda (path-with-dot)
                                   (let* ((path-relative-to-m2-root (substring path-with-dot 2))
-                                         (link-itself (string-append dir "/.m2/repository/" path-relative-to-m2-root)))
+                                         (link-itself (string-append repository-dir "/" path-relative-to-m2-root)))
                                     (mkdir-p (dirname link-itself))
                                     (symlink
                                       (string-append m2-root "/" path-relative-to-m2-root)
@@ -2234,7 +2295,7 @@ browser window. It is completely customizable as well via CSS.")
                                                             (groupPath (string-replace-substring group "." "/"))
                                                             (path
                                                               (string-append
-                                                                dir "/.m2/repository/"
+                                                                repository-dir "/"
                                                                 groupPath "/" name "/" version "/"
                                                                 name "-" version source-extension-with-dot)))
                                                       (mkdir-p (dirname path))
@@ -2252,11 +2313,16 @@ browser window. It is completely customizable as well via CSS.")
                                               (command `(,zip-command "-0" "-X" ,out-jar ,@files)))
                                         (apply invoke command))))))
 
-                                (groovyLocalMavenPath
-                                  (mavenize-package ,groovy-fixed ,(package-version groovy-fixed)
-                                    "org.codehaus.groovy" "groovy" "/lib/groovy.jar"))
-                                (antlrMavenPath (mavenize-package ,antlr2 ,(package-version antlr2)
-                                  "antlr" "antlr" "/lib/antlr.jar"))
+                                (antlrMavenPath
+                                  (mavenize-package ,(this-package-transitive-native-input "antlr2")
+                                    ,(package-version (this-package-transitive-native-input "antlr2"))
+                                    "antlr" "antlr" "/lib/antlr.jar"))
+                                (antlr4RuntimeMavenPath 
+                                  (mavenize-package
+                                    ,(this-package-transitive-native-input "java-tunnelvisionlabs-antlr4-runtime")
+                                    ,(package-version (this-package-transitive-native-input
+                                                        "java-tunnelvisionlabs-antlr4-runtime"))
+                                  "com.tunnelvisionlabs" "antlr4-runtime" "/share/java/java-antlr4-runtime.jar"))
                                 (asmMavenPath
                                   (mavenize-package ,java-asm-9 ,(package-version java-asm-9)
                                     "org.ow2.asm" "asm" "/share/java/asm9.jar"))
@@ -2272,13 +2338,23 @@ browser window. It is completely customizable as well via CSS.")
                                 (asmUtilMavenPath
                                   (mavenize-package ,java-asm-util-9 ,(package-version java-asm-util-9)
                                     "org.ow2.asm" "asm-util" "/share/java/asm-util8.jar"))
+                                (javaParserMavenPath
+                                  (mavenize-package ,(this-package-transitive-native-input "java-javaparser")
+                                    ,(package-version (this-package-transitive-native-input "java-javaparser"))
+                                    "com.github.javaparser" "javaparser-core" "/share/java/javaparser-core.jar"))
+                                (picocliMavenPath
+                                  (mavenize-package ,(this-package-transitive-native-input "java-picocli")
+                                    ,(package-version (this-package-transitive-native-input "java-picocli"))
+                                                    "info.picocli" "picocli" "/share/java/picocli.jar"))
 
-                                (classpathWithoutAntlrAsm
+                                (classpathWithoutAntlrAsmGroovy
                                   (string-join
                                     (filter
                                       (lambda (path) (and
                                                        (not (string-match ".*[^[:alpha:]]asm[^[:alpha:]].*" path))
-                                                       (not (string-match ".*/antlr\\.jar$" path))))
+                                                       (not (string-match ".*/antlr\\.jar$" path))
+                                                       (not (string-match ; not a jar from a groovy package in the store
+                                                              ".*/[[:alnum:]]{32}-groovy-[0-9.]+/.*\\.jar$" path))))
                                       (string-split (getenv "CLASSPATH") #\:))
                                     ":")))
 
@@ -2288,80 +2364,77 @@ browser window. It is completely customizable as well via CSS.")
                             ((">[[:digit:].]+-android<") (string-append ">" ,(package-version java-guava) "-jre<")))
 
                           ; TODO: fix the packages instead?
-                          (mavenize-package ,java-cglib ,(package-version java-cglib)
+                          (mavenize-package ,(this-package-transitive-native-input "java-cglib") ,(package-version (this-package-transitive-native-input "java-cglib"))
                             "cglib" "cglib"
                             "/share/java/cglib.jar")
-                          (mavenize-package ,java-aqute-bndlib ,(package-version java-aqute-bndlib)
+                          (mavenize-package ,(this-package-transitive-native-input "java-aqute-bndlib") ,(package-version (this-package-transitive-native-input "java-aqute-bndlib"))
                             "biz.aQute.bnd" "biz.aQute.bndlib" "/share/java/java-bndlib.jar")
-                          (mavenize-package ,java-aqute-libg ,(package-version java-aqute-libg)
+                          (mavenize-package ,(this-package-transitive-native-input "java-aqute-libg") ,(package-version (this-package-transitive-native-input "java-aqute-libg"))
                             "biz.aQute.bnd" "biz.aQute.bndlib.libg" "/share/java/java-aqute-libg.jar")
-                          (mavenize-package ,java-kryo-2 ,(package-version java-kryo-2)
-                            "com.esotericsoftware.kryo" "kryo" "/share/java/kryo.jar")
-                          (mavenize-package ,java-gson ,(package-version java-gson)
+                          (mavenize-package ,(this-package-transitive-native-input "java-jcommander") ,(package-version (this-package-transitive-native-input "java-jcommander"))
+                            "com.beust" "jcommander" "/share/java/java-jcommander.jar")
+                          (mavenize-package ,(this-package-transitive-native-input "java-gson") ,(package-version (this-package-transitive-native-input "java-gson"))
                             "com.google.code.gson" "gson" "/share/java/gson.jar")
-                          (mavenize-package ,java-fasterxml-jackson-annotations ,(package-version java-fasterxml-jackson-annotations)
+                          (mavenize-package ,(this-package-transitive-native-input "java-fasterxml-jackson-annotations") ,(package-version (this-package-transitive-native-input "java-fasterxml-jackson-annotations"))
                             "com.fasterxml.jackson.core" "jackson-annotations" "/share/java/jackson-annotations.jar")
-                          (mavenize-package ,java-fasterxml-jackson-core ,(package-version java-fasterxml-jackson-core)
+                          (mavenize-package ,(this-package-transitive-native-input "java-fasterxml-jackson-core") ,(package-version (this-package-transitive-native-input "java-fasterxml-jackson-core"))
                             "com.fasterxml.jackson.core" "jackson-core" "/share/java/jackson-core.jar")
-                          (mavenize-package ,java-fasterxml-jackson-databind ,(package-version java-fasterxml-jackson-databind)
+                          (mavenize-package ,(this-package-transitive-native-input "java-fasterxml-jackson-databind") ,(package-version (this-package-transitive-native-input "java-fasterxml-jackson-databind"))
                             "com.fasterxml.jackson.core" "jackson-databind" "/share/java/jackson-databind.jar")
-                          (mavenize-package ,java-javaparser ,(package-version java-javaparser)
-                            "com.github.javaparser" "javaparser-core" "/share/java/javaparser-core.jar")
-                          (mavenize-package ,java-jsch ,(package-version java-jsch)
+                          (mavenize-package ,(this-package-transitive-native-input "java-jsch") ,(package-version (this-package-transitive-native-input "java-jsch"))
                             "com.jcraft" "jsch" (string-append "/share/java/jsch-" ,(package-version java-jsch) ".jar"))
-                          (mavenize-package ,java-jhighlight-codelibs ,(package-version java-jhighlight-codelibs)
+                          (mavenize-package ,(this-package-transitive-native-input "java-jhighlight") ,(package-version (this-package-transitive-native-input "java-jhighlight"))
                             "com.uwyn" "jhighlight" "/share/java/jhighlight.jar")
-                          (mavenize-package
-                            ,java-tunnelvisionlabs-antlr4-runtime
-                            ,(package-version java-tunnelvisionlabs-antlr4-runtime)
-                            "com.tunnelvisionlabs" "antlr4-runtime" "/share/java/java-antlr4-runtime.jar")
-                          (mavenize-package ,java-commons-collections ,(package-version java-commons-collections)
+                          (mavenize-package ,(this-package-transitive-native-input "java-commons-collections") ,(package-version (this-package-transitive-native-input "java-commons-collections"))
                             "commons-collections" "commons-collections"
                             (string-append "/share/java/commons-collections-" ,(package-version java-commons-collections) ".jar"))
-                          (mavenize-package ,java-commons-lang ,(package-version java-commons-lang)
+                          (mavenize-package ,(this-package-transitive-native-input "java-commons-lang") ,(package-version (this-package-transitive-native-input "java-commons-lang"))
                             "commons-lang" "commons-lang"
                             (string-append "/share/java/commons-lang-" ,(package-version java-commons-lang) ".jar"))
-                          (mavenize-package ,java-joda-time ,(package-version java-joda-time)
+                          (mavenize-package ,(this-package-transitive-native-input "java-joda-time") ,(package-version (this-package-transitive-native-input "java-joda-time"))
                             "joda-time" "joda-time" "/share/java/java-joda-time.jar")
-                          (mavenize-package ,java-picocli ,(package-version java-picocli)
-                            "info.picocli" "picocli" "/share/java/picocli.jar")
-                          (mavenize-package ,java-native-platform-0.14/no-native-code ,(package-version java-native-platform-0.14/no-native-code)
+                          (mavenize-package ,(this-package-transitive-native-input "java-native-platform") ,(package-version (this-package-transitive-native-input "java-native-platform"))
                             "net.rubygrapefruit" "native-platform" "/share/java/native-platform.jar")
-                          (mavenize-package ,ant ,(package-version ant)
+                          (mavenize-package ,(this-package-transitive-native-input "ant") ,(package-version (this-package-transitive-native-input "ant"))
                             "org.apache.ant" "ant" "/lib/ant.jar")
-                          (mavenize-package ,ant ,(package-version ant)
+                          (mavenize-package ,(this-package-transitive-native-input "ant") ,(package-version (this-package-transitive-native-input "ant"))
                             "org.apache.ant" "ant-launcher" "/lib/ant-launcher.jar")
-                          (mavenize-package ,java-httpcomponents-httpclient ,(package-version java-httpcomponents-httpclient)
+                          (mavenize-package ,(this-package-transitive-native-input "java-httpcomponents-httpclient") ,(package-version (this-package-transitive-native-input "java-httpcomponents-httpclient"))
                             "org.apache.httpcomponents" "httpclient" "/share/java/httpcomponents-httpclient.jar")
-                          (mavenize-package ,java-httpcomponents-httpcore ,(package-version java-httpcomponents-httpcore)
+                          (mavenize-package ,(this-package-transitive-native-input "java-httpcomponents-httpcore") ,(package-version (this-package-transitive-native-input "java-httpcomponents-httpcore"))
                             "org.apache.httpcomponents" "httpcore" "/share/java/httpcomponents-httpcore.jar")
 
-                          (fix-grafted-jar (mavenize-package ,java-apache-ivy ,(package-version java-apache-ivy)
+                          (fix-grafted-jar (mavenize-package ,(this-package-transitive-native-input "java-apache-ivy") ,(package-version (this-package-transitive-native-input "java-apache-ivy"))
                                      "org.apache.ivy" "ivy" "/share/java/ivy.jar"))
 
-                          (mavenize-package ,maven-resolver-transport-wagon ,(package-version maven-resolver-transport-wagon)
+                          (mavenize-package ,(this-package-transitive-native-input "maven-resolver-transport-wagon") ,(package-version (this-package-transitive-native-input "maven-resolver-transport-wagon"))
                             "org.apache.maven.resolver" "maven-resolver-transport-wagon" "/share/java/maven-resolver-transport-wagon.jar")
-                          (mavenize-package ,maven-wagon-file ,(package-version maven-wagon-file)
+                          (mavenize-package ,(this-package-transitive-native-input "maven-wagon-file") ,(package-version (this-package-transitive-native-input "maven-wagon-file"))
                             "org.apache.maven.wagon" "wagon-file" "/share/java/maven-wagon-file.jar")
-                          (mavenize-package ,maven-wagon-http ,(package-version maven-wagon-http)
+                          (mavenize-package ,(this-package-transitive-native-input "maven-wagon-http") ,(package-version (this-package-transitive-native-input "maven-wagon-http"))
                             "org.apache.maven.wagon" "wagon-http" "/share/java/maven-wagon-http.jar")
-                          (mavenize-package ,maven-wagon-http-shared ,(package-version maven-wagon-http-shared)
+                          (mavenize-package ,(this-package-transitive-native-input "maven-wagon-http-shared") ,(package-version (this-package-transitive-native-input "maven-wagon-http-shared"))
                             "org.apache.maven.wagon" "wagon-http-shared" "/share/java/maven-wagon-http-shared.jar")
 
                           (for-each
                             (lambda (prefix)
-                              (mavenize-package ,java-bouncycastle ,(package-version java-bouncycastle)
+                              (mavenize-package ,(this-package-transitive-native-input "java-bouncycastle") ,(package-version (this-package-transitive-native-input "java-bouncycastle"))
                                 "org.bouncycastle" prefix
                                 (string-append "/share/java/" prefix "-"
                                   (string-concatenate (string-split ,(package-version java-bouncycastle) #\.)) ".jar")))
                             (list "bcpg-jdk15on" "bcprov-jdk15on"))
 
-                          (rename-file "groovy-pom.xml" (string-append (string-drop-right groovyLocalMavenPath 4) ".pom"))
+                          (let ((groovyLocalMavenPath (mavenize-package ,groovy-fixed ,(package-version groovy-fixed)
+                                                  "org.codehaus.groovy" "groovy" "/lib/groovy.jar")))
+                            (rename-file
+                              "groovy-pom.xml"
+                              (string-append (string-drop-right groovyLocalMavenPath 4) ".pom")))
                           (for-each
                             (lambda (module)
                               (let
                                 ((generatedPomFile (string-append module "-pom.xml"))
-                                 (localMavenPath (mavenize-package ,groovy-fixed ,(package-version groovy-fixed)
+                                 (localMavenPath (mavenize-package ,(this-package-transitive-native-input "groovy")
+                                                   ,(package-version (this-package-transitive-native-input "groovy"))
                                                    "org.codehaus.groovy"
                                                    (string-append module)
                                                    (string-append "/lib/" module ".jar"))))
@@ -2372,37 +2445,39 @@ browser window. It is completely customizable as well via CSS.")
                             (list "groovy-ant" "groovy-datetime" "groovy-dateutil" "groovy-docgenerator"
                                   "groovy-groovydoc" "groovy-json" "groovy-templates" "groovy-xml"
                                   "parser-antlr4"))
-                          (mavenize-package ,groovy-test ,(package-version groovy-test)
+                          (mavenize-package ,(this-package-transitive-native-input "groovy-test") ,(package-version (this-package-transitive-native-input "groovy-test"))
                             "org.codehaus.groovy" "groovy-test" "/share/java/groovy-test.jar")
 
-                          (mavenize-package ,java-jgit ,(package-version java-jgit)
+                          (mavenize-package ,(this-package-transitive-native-input "java-jgit") ,(package-version (this-package-transitive-native-input "java-jgit"))
                             "org.eclipse.jgit" "org.eclipse.jgit" "/share/java/jgit.jar")
 
-                          (mavenize-package ,java-jmock ,(package-version java-jmock)
+                          (mavenize-package ,(this-package-transitive-native-input "java-jmock") ,(package-version (this-package-transitive-native-input "java-jmock"))
                             "org.jmock" "jmock" "/share/java/java-jmock.jar")
-                          (mavenize-package ,java-jmock-junit4 ,(package-version java-jmock-junit4)
+                          (mavenize-package ,(this-package-transitive-native-input "java-jmock-junit4") ,(package-version (this-package-transitive-native-input "java-jmock-junit4"))
                             "org.jmock" "jmock-junit4" "/share/java/java-jmock-junit4.jar")
-                          (mavenize-package ,java-jmock-legacy ,(package-version java-jmock-legacy)
+                          (mavenize-package ,(this-package-transitive-native-input "java-jmock-legacy") ,(package-version (this-package-transitive-native-input "java-jmock-legacy"))
                             "org.jmock" "jmock-legacy" "/share/java/java-jmock-legacy.jar")
 
-                          (mavenize-package ,java-jsoup ,(package-version java-jsoup)
+                          (mavenize-package ,(this-package-transitive-native-input "java-jsoup") ,(package-version (this-package-transitive-native-input "java-jsoup"))
                             "org.jsoup" "jsoup" "/share/java/jsoup.jar")
 
-                          (fix-grafted-jar (mavenize-package ,rhino ,(package-version rhino)
+                          (fix-grafted-jar (mavenize-package ,(this-package-transitive-native-input "rhino") ,(package-version (this-package-transitive-native-input "rhino"))
                             "org.mozilla" "rhino" "/share/java/js.jar"))
-                          (mavenize-package ,java-objenesis ,(package-version java-objenesis)
+                          (mavenize-package ,(this-package-transitive-native-input "java-objenesis") ,(package-version (this-package-transitive-native-input "java-objenesis"))
                             "org.objenesis" "objenesis" "/share/java/objenesis.jar")
-                          (mavenize-package ,java-testng ,(package-version java-testng)
+                          (mavenize-package ,(this-package-transitive-native-input "java-testng") ,(package-version (this-package-transitive-native-input "java-testng"))
                             "org.testng" "testng" "/share/java/java-testng.jar")
-                          (mavenize-package ,java-jaxp ,(package-version java-jaxp)
+                          (mavenize-package ,(this-package-transitive-native-input "java-snakeyaml") ,(package-version (this-package-transitive-native-input "java-snakeyaml"))
+                            "org.yaml" "snakeyaml" "/share/java/java-snakeyaml.jar")
+                          (mavenize-package ,(this-package-transitive-native-input "java-jaxp") ,(package-version (this-package-transitive-native-input "java-jaxp"))
                             "xml-apis" "xml-apis" "/share/java/jaxp.jar")
-                          (mavenize-package ,java-xerces ,(package-version java-xerces)
+                          (mavenize-package ,(this-package-transitive-native-input "java-xerces") ,(package-version (this-package-transitive-native-input "java-xerces"))
                             "xerces" "xercesImpl" "/share/java/xercesImpl.jar")
 
                           (mavenize-package ,r-jquerylib "1.12.4" ; TODO: replace with a new js-jquery package
                             "jquery" "jquery.min" "/site-library/jquerylib/lib/1.12.4/jquery-1.12.4.min.js")
 
-                          ; TODO: fix java-guava package instead
+                          ; TODO: fix java-guava package instead and/or add a separate package for this
                           (with-directory-excursion dir
                             (mkdir-p "empty-dir")
                             (with-directory-excursion "empty-dir"
@@ -2413,6 +2488,7 @@ browser window. It is completely customizable as well via CSS.")
                                 "."
                                 "-i" "*")))
                           
+                          ; TODO add a separate package for this
                           (let* ((version ,(package-version docbook-xsl))
                                   (name "docbook-xsl")
                                   (groupPath "docbook")
@@ -2445,10 +2521,20 @@ browser window. It is completely customizable as well via CSS.")
 
                           (setenv "CLASSPATH"
                             (string-append
-                              asmMavenPath ":" asmAnalysisMavenPath ":" asmCommonsMavenPath ":" asmTreeMavenPath ; Only the correct version of ASM must be on the classpath
-                              ":" antlrMavenPath
-                              ":" groovyLocalMavenPath ; Groovy version detection only accepts Maven-like file names, so add a mavenized copy to the beginning
-                              ":" classpathWithoutAntlrAsm
+                              ;; Only the correct version of ASM must be on the classpath:
+                              asmMavenPath ":" asmAnalysisMavenPath ":" asmCommonsMavenPath ":" asmTreeMavenPath
+                                ":" asmUtilMavenPath
+                              ; Groovy JARs and dependencies should be mavenized, otherwise they will have incorrect
+                              ; names in the /lib output directory. Also Groovy version detection only accepts
+                              ; Maven-like file names. 
+                              ":" antlrMavenPath ":" antlr4RuntimeMavenPath ":" javaParserMavenPath ":" picocliMavenPath
+                              ":" (string-join
+                                    (find-files (string-append repository-dir "/org/apache/ant") ".*\\.jar")
+                                    ":")
+                              ":" (string-join
+                                    (find-files (string-append repository-dir "/org/codehaus/groovy") ".*\\.jar")
+                                    ":")
+                              ":" classpathWithoutAntlrAsmGroovy
                               ":" ,gradle-bootstrap-with-ant "/share/java/gradle.jar"))
                           (setenv "HOME" dir)))))
                   (replace 'build
@@ -2461,13 +2547,22 @@ browser window. It is completely customizable as well via CSS.")
                         "org.gradle.launcher.Main"
                         "--init-script" "init.gradle"
                         "--no-build-cache"
-                        "--info"
-                        "--full-stacktrace"
                         ; TODO: set number of worker threads based on '--cores' Guix argument
-                        "test"
+;                        "test"
                         "install"
                         "-PbuildTimestamp=19700101000000+0000"
                         (string-append "-Pgradle_installPath=" (assoc-ref outputs "out")))))
+                  (add-after 'build 'check-lib-names
+                    (lambda* (#:key outputs #:allow-other-keys)
+                      (let ((wrong-files
+                              (filter
+                                (lambda (path)
+                                  (and
+                                    (not (string-match ".*-[[:digit:]].+\\.jar" path))
+                                    (not (string-match ".*/java-.*" path))))
+                                (find-files (string-append (assoc-ref outputs "out") "/lib") ".+\\.jar"))))
+                        (unless (null? wrong-files)
+                          (error "lib directory contains files with incorrect names" wrong-files)))))
                   (add-after 'build 'strip-timestamps
                     (lambda* (#:key outputs #:allow-other-keys)
                       ;; copied from strip-jar-timestamps where it was copied from (gnu build install)
@@ -2485,20 +2580,6 @@ browser window. It is completely customizable as well via CSS.")
   (package
     (inherit gradle-bootstrap-with-gradle)
     (name "gradle")
-    (source (origin
-              (inherit (package-source gradle-bootstrap-with-ant))
-              (patches `(,@common-gradle-patches
-                          "patches/gradle-4.5.1-default-methods.patch"
-                          "patches/gradle-4.5.1-dekotlinize-build-files.patch"
-                          "patches/gradle-4.5.1-disable-minifying.patch" ; so that Guix link optimization works
-                          "patches/gradle-4.5.1-jcifs-new-coordinates.patch" "patches/gradle-4.5.1-guix-dependencies.patch"
-                          "patches/gradle-4.5.1-local-repository.patch" "patches/gradle-4.5.1-maven-dependencies.patch"
-                          "patches/gradle-4.5.1-no-remote-cache.patch"
-                          "patches/gradle-4.5.1-remove-complex-dependencies.patch"
-                          "patches/gradle-4.5.1-remove-kotlin-dsl.patch"
-                          "patches/gradle-4.5.1-reproducible-artifacts.patch"
-                          "patches/gradle-4.5.1-symlink-during-install.patch"
-                          "patches/gradle-4.5.1-unshaded-groovy.patch"))))
     (arguments
       (substitute-keyword-arguments (package-arguments gradle-bootstrap-with-gradle)
         ((#:phases phases '%standard-phases)
@@ -2513,7 +2594,7 @@ browser window. It is completely customizable as well via CSS.")
                      (invoke
                        (string-append ,gradle-bootstrap-with-gradle "/bin/gradle")
                        "--init-script" "init.gradle"
-                       "--info"
+;                       "--debug"
                        "--full-stacktrace"
                        ; TODO: set number of worker threads based on '--cores' Guix argument
                        ; TODO                            "test"

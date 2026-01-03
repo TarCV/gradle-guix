@@ -1,23 +1,32 @@
---- a/buildSrc/build.gradle
-+++ b/buildSrc/build.gradle
-@@ -65,6 +65,7 @@
-     testCompile("org.objenesis:objenesis:1.2")
-     testCompile("org.hamcrest:hamcrest-core:1.3")
- 
-+    compile("antlr:antlr:2.7.7")
-     compile("org.pegdown:pegdown:1.6.0")
-     compile("org.jsoup:jsoup:1.6.3")
- }
---- a/subprojects/base-services-groovy/base-services-groovy.gradle
-+++ b/subprojects/base-services-groovy/base-services-groovy.gradle
-@@ -21,6 +21,7 @@
- 
- dependencies {
-     api libraries.groovy
-+    api libraries.asm
-     api project(":baseServices")
- }
- 
+Fail building modules where libraries.groovy is not replaced with localGroovy()
+--- a/gradle/dependencies.gradle
++++ b/gradle/dependencies.gradle
+@@ -70,16 +70,6 @@
+     guava: 'com.google.guava:guava-jdk5:17.0',
+     kryo: 'com.esotericsoftware.kryo:kryo:2.20',
+     jsr305: 'com.google.code.findbugs:jsr305:1.3.9',
+-    groovy: "org.codehaus.groovy:groovy:${versions.groovy}",
+-    groovyAnt: "org.codehaus.groovy:groovy-ant:${versions.groovy}",
+-    groovyDoc: "org.codehaus.groovy:groovy-groovydoc:${versions.groovy}",
+-    groovyDatetime: "org.codehaus.groovy:groovy-datetime:${versions.groovy}",
+-    groovyDateUtil: "org.codehaus.groovy:groovy-dateutil:${versions.groovy}",
+-    groovyTest: "org.codehaus.groovy:groovy-test:${versions.groovy}",
+-    groovyJson: "org.codehaus.groovy:groovy-json:${versions.groovy}",
+-    groovyTemplates: "org.codehaus.groovy:groovy-templates:${versions.groovy}",
+-    groovyXml: "org.codehaus.groovy:groovy-xml:${versions.groovy}",
+-    javaParser: 'com.github.javaparser:javaparser-core:3.17.0',
+     jaxen: 'jaxen:jaxen:1.1',
+     jcip: "net.jcip:jcip-annotations:1.0",
+     junit: 'junit:junit:4.12',
+@@ -98,7 +98,6 @@
+ libraries.spock = [
+     'org.spockframework:spock-core:2.0-M4-groovy-3.0',
+     'org.spockframework:spock-junit4:2.0-M4-groovy-3.0',
+-    libraries.groovy,
+     libraries.objenesis,
+     libraries.cglib
+ ]
+
 --- a/gradle/dependencies.gradle
 +++ b/gradle/dependencies.gradle
 @@ -368,8 +368,6 @@
@@ -29,3 +38,51 @@
              } else if (details.requested.group == 'cglib') {
                  details.useTarget(libraries.cglib)
              } else if (details.requested.group == 'org.apache.ivy') {
+--- a/subprojects/core/src/main/java/org/gradle/api/internal/DependencyClassPathProvider.java
++++ b/subprojects/core/src/main/java/org/gradle/api/internal/DependencyClassPathProvider.java
+@@ -67,7 +67,7 @@
+     }
+ 
+     private ClassPath localGroovy() {
+-        Set<String> groovyModules = ImmutableSet.of("groovy", "groovy-ant", "groovy-groovydoc", "javaparser-core", "groovy-datetime", "groovy-json", "groovy-test", "groovy-templates", "groovy-xml");
++        Set<String> groovyModules = ImmutableSet.of("groovy", "antlr", "antlr4-runtime", "asm", "asm-commons", "asm-tree", "asm-util", "parser-antlr4", "picocli", "groovy-ant", "groovy-groovydoc", "javaparser-core", "groovy-datetime", "groovy-json", "groovy-test", "groovy-templates", "groovy-xml");
+         ClassPath groovy = moduleRegistry.getExternalModule("groovy").getClasspath();
+         for (String groovyModule : groovyModules) {
+             groovy = groovy.plus(moduleRegistry.getExternalModule(groovyModule).getClasspath());
+--- a/subprojects/plugins/src/main/java/org/gradle/api/plugins/GroovyBasePlugin.java
++++ b/subprojects/plugins/src/main/java/org/gradle/api/plugins/GroovyBasePlugin.java
+@@ -70,7 +70,7 @@
+     }
+ 
+     private void configureGroovyRuntimeExtension() {
+-        groovyRuntime = project.getExtensions().create(GROOVY_RUNTIME_EXTENSION_NAME, GroovyRuntime.class, project);
++        groovyRuntime = project.getExtensions().create(GROOVY_RUNTIME_EXTENSION_NAME, GroovyRuntime.class, project, moduleRegistry);
+     }
+ 
+     private void configureCompileDefaults() {
+--- a/subprojects/plugins/src/main/java/org/gradle/api/tasks/GroovyRuntime.java
++++ b/subprojects/plugins/src/main/java/org/gradle/api/tasks/GroovyRuntime.java
+@@ -57,9 +57,11 @@
+ @Incubating
+ public class GroovyRuntime {
+     private final Project project;
++    private final org.gradle.api.internal.classpath.ModuleRegistry moduleRegistry;
+ 
+-    public GroovyRuntime(Project project) {
++    public GroovyRuntime(Project project, org.gradle.api.internal.classpath.ModuleRegistry moduleRegistry) {
+         this.project = project;
++        this.moduleRegistry = moduleRegistry;
+     }
+ 
+     /**
+@@ -88,6 +89,10 @@
+                     throw new GradleException(String.format("Cannot infer Groovy class path because no Groovy Jar was found on class path: %s", Iterables.toString(classpath)));
+                 }
+ 
++                if (moduleRegistry.getExternalModule("groovy").getClasspath().getAsFiles().contains(groovyJar.getFile())) {
++                    return project.getConfigurations().detachedConfiguration(project.getDependencies().create(org.gradle.api.internal.artifacts.dsl.dependencies.DependencyFactory.ClassPathNotation.LOCAL_GROOVY));
++                }
++
+                 if (groovyJar.isGroovyAll() || groovyJar.getVersion().getMajor() == 3) {
+                     return project.files(groovyJar.getFile());
+                 }

@@ -346,11 +346,10 @@ diff --git a/subprojects/core-api/build.gradle.kts b/subprojects/core-api/build.
 index 8151f50f50bd8..1b9d1feb1c8aa 100644
 --- a/subprojects/core-api/core-api.gradle
 +++ b/subprojects/core-api/core-api.gradle
-@@ -11,6 +11,8 @@ dependencies {
+@@ -11,6 +11,7 @@ dependencies {
      api project(":processServices")
      api project(":resources")
  
-+    implementation libraries.groovy
 +    implementation libraries.groovyAnt
      implementation libraries.ant
      implementation libraries.commons_io
@@ -885,12 +884,13 @@ diff --git a/subprojects/core/src/main/java/org/gradle/api/internal/project/antb
 index 8a31c712f1bf0..84125b13ef786 100644
 --- a/subprojects/core/src/main/java/org/gradle/api/internal/project/antbuilder/DefaultIsolatedAntBuilder.java
 +++ b/subprojects/core/src/main/java/org/gradle/api/internal/project/antbuilder/DefaultIsolatedAntBuilder.java
-@@ -90,7 +90,13 @@ public DefaultIsolatedAntBuilder(ClassPathRegistry classPathRegistry, ClassLoade
+@@ -90,7 +90,14 @@ public DefaultIsolatedAntBuilder(ClassPathRegistry classPathRegistry, ClassLoade
          ClassPath gradleCoreUrls = moduleRegistry.getModule("gradle-core-api").getImplementationClasspath();
          gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getModule("gradle-core").getImplementationClasspath());
          gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getModule("gradle-logging").getImplementationClasspath());
 -        gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getExternalModule("groovy-all").getClasspath());
 +        gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getExternalModule("groovy").getClasspath());
++        gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getExternalModule("asm").getClasspath());
 +        gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getExternalModule("groovy-ant").getClasspath());
 +        gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getExternalModule("groovy-datetime").getClasspath());
 +        gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getExternalModule("groovy-groovydoc").getClasspath());

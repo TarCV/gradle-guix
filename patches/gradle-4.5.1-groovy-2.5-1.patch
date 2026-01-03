@@ -41,18 +41,6 @@ index c96b1f6e62a2a..8ad89e5adbedc 100755
      xerces: "xerces:xercesImpl:2.11.0",
      objenesis: 'org.objenesis:objenesis:1.2',
      jsoup: 'org.jsoup:jsoup:1.6.3',
-diff --git a/subprojects/core-api/core-api.gradle b/subprojects/core-api/core-api.gradle
-index 50bdccc5b6aff..4dbb003921ac2 100644
---- a/subprojects/core-api/core-api.gradle
-+++ b/subprojects/core-api/core-api.gradle
-@@ -28,6 +28,7 @@ dependencies {
-     api project(":persistentCache")
-     api project(":processServices")
-     api project(":resources")
-+    api libraries.groovy_ant
- 
-     implementation libraries.ant
-     implementation libraries.commons_io
 diff --git a/subprojects/core/src/test/groovy/org/gradle/api/internal/file/archive/TarCopyActionSpec.groovy b/subprojects/core/src/test/groovy/org/gradle/api/internal/file/archive/TarCopyActionSpec.groovy
 index b5831605a166d..1e34bd686d2a6 100644
 --- a/subprojects/core/src/test/groovy/org/gradle/api/internal/file/archive/TarCopyActionSpec.groovy
@@ -84,18 +72,6 @@ index b5831605a166d..1e34bd686d2a6 100644
  
          Throwable failure = new RuntimeException("broken");
          visit(action, brokenFile("dir/file1", failure));
-diff --git a/subprojects/diagnostics/diagnostics.gradle b/subprojects/diagnostics/diagnostics.gradle
-index 7d2e98aba980b..2d2e4d9127bcc 100644
---- a/subprojects/diagnostics/diagnostics.gradle
-+++ b/subprojects/diagnostics/diagnostics.gradle
-@@ -29,6 +29,7 @@ dependencies {
-     implementation project(':dependencyManagement')
-     implementation project(':baseServicesGroovy')
-     implementation libraries.guava
-+    implementation libraries.groovy_json
-     implementation libraries.jatl
-     implementation libraries.commons_collections
-     implementation libraries.commons_lang
 diff --git a/subprojects/internal-testing/src/main/groovy/org/gradle/testing/internal/util/Specification.groovy b/subprojects/internal-testing/src/main/groovy/org/gradle/testing/internal/util/Specification.groovy
 index 08316fd79dd18..6f0d249eb5706 100644
 --- a/subprojects/internal-testing/src/main/groovy/org/gradle/testing/internal/util/Specification.groovy
@@ -145,30 +121,6 @@ index 08316fd79dd18..6f0d249eb5706 100644
 +//    }
 +//
  }
-diff --git a/subprojects/plugins/plugins.gradle b/subprojects/plugins/plugins.gradle
-index 809bc7214c538..c65c0a9362f8d 100644
---- a/subprojects/plugins/plugins.gradle
-+++ b/subprojects/plugins/plugins.gradle
-@@ -34,6 +34,7 @@ dependencies {
-     compile libraries.asm
-     compile libraries.commons_io
-     compile libraries.commons_lang
-+    compile libraries.groovy_templates
-     compile libraries.slf4j_api
- 
-     runtime libraries.commons_cli
-diff --git a/subprojects/testing-jvm/testing-jvm.gradle b/subprojects/testing-jvm/testing-jvm.gradle
-index 6ebdadbcc9114..b46cdaa610a58 100644
---- a/subprojects/testing-jvm/testing-jvm.gradle
-+++ b/subprojects/testing-jvm/testing-jvm.gradle
-@@ -22,6 +22,7 @@ dependencies {
-     compile project(':languageJava')
-     compile project(':testingBase')
- 
-+    compile libraries.groovyXml
-     compile libraries.junit
-     compile libraries.testng
-     compile libraries.bsh
 
 From 355e42e82b24558ac06ff0ae4221172a608cbc1e Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
@@ -368,44 +320,6 @@ index 2a8aad5141b66..2aefb996ec66d 100644
              // let's override this so that delegate isn't created at autowiring time (which would mean on every build)
              @Override
              public void visitDependencies(TaskDependencyResolveContext context) {
-
-From 8c00a5c9e9a23dbc48b93194654f8054de838875 Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
-Date: Fri, 7 Sep 2018 18:29:31 +0200
-Subject: [PATCH 05/56] Fix DefaultIsolatedAntBuilder
-
----
- .../internal/project/antbuilder/DefaultIsolatedAntBuilder.java | 3 ++-
- .../api/internal/project/DefaultIsolatedAntBuilderTest.groovy  | 2 +-
- 2 files changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/subprojects/core/src/main/java/org/gradle/api/internal/project/antbuilder/DefaultIsolatedAntBuilder.java b/subprojects/core/src/main/java/org/gradle/api/internal/project/antbuilder/DefaultIsolatedAntBuilder.java
-index 4bdb99afd5e77..b1e647ec0a675 100644
---- a/subprojects/core/src/main/java/org/gradle/api/internal/project/antbuilder/DefaultIsolatedAntBuilder.java
-+++ b/subprojects/core/src/main/java/org/gradle/api/internal/project/antbuilder/DefaultIsolatedAntBuilder.java
-@@ -90,7 +90,8 @@ public DefaultIsolatedAntBuilder(ClassPathRegistry classPathRegistry, ClassLoade
-         ClassPath gradleCoreUrls = moduleRegistry.getModule("gradle-core-api").getImplementationClasspath();
-         gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getModule("gradle-core").getImplementationClasspath());
-         gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getModule("gradle-logging").getImplementationClasspath());
--        gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getExternalModule("groovy-all").getClasspath());
-+        gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getExternalModule("groovy").getClasspath());
-+        gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getExternalModule("groovy-ant").getClasspath());
- 
-         // Need Transformer (part of AntBuilder API) from base services
-         gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getModule("gradle-base-services").getImplementationClasspath());
-diff --git a/subprojects/core/src/test/groovy/org/gradle/api/internal/project/DefaultIsolatedAntBuilderTest.groovy b/subprojects/core/src/test/groovy/org/gradle/api/internal/project/DefaultIsolatedAntBuilderTest.groovy
-index a61adbacd1b86..f3665679614a3 100644
---- a/subprojects/core/src/test/groovy/org/gradle/api/internal/project/DefaultIsolatedAntBuilderTest.groovy
-+++ b/subprojects/core/src/test/groovy/org/gradle/api/internal/project/DefaultIsolatedAntBuilderTest.groovy
-@@ -50,7 +50,7 @@ class DefaultIsolatedAntBuilderTest {
- 
-     @Before
-     void attachAppender() {
--        classpath = moduleRegistry.getExternalModule("groovy-all").getClasspath().asFiles
-+        classpath = moduleRegistry.getExternalModule("groovy-ant").getClasspath().asFiles
-     }
- 
-     @After
 
 From c097d6062fa06e9cc500ca18b3a933c3c3be8e8b Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
@@ -1591,51 +1505,6 @@ index 6c26f394736f5..cc59294f86c58 100644
                  }
  
 
-From c2947abfe2622a1702ab7797071e874fcd9ca10c Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
-Date: Wed, 12 Sep 2018 17:11:31 +0200
-Subject: [PATCH 40/56] Depend on groovy-all
-
----
- .../DependenciesMetadataRulesPlugin.kt        | 21 ++++++++++++++++---
- .../test/fixtures/TestFixturesPlugin.kt       |  1 -
- gradle/dependencies.gradle                    |  5 +----
- gradle/wrapper/gradle-wrapper.properties      |  2 +-
- subprojects/core/core.gradle                  |  6 +-----
- .../internal/DependencyClassPathProvider.java |  2 +-
- subprojects/diagnostics/diagnostics.gradle    |  1 -
- subprojects/docs/docs.gradle                  |  1 -
- .../internal-integ-testing.gradle.kts         |  1 -
- .../internal-testing.gradle.kts               |  3 +--
- subprojects/plugins/plugins.gradle            |  1 -
- subprojects/testing-jvm/testing-jvm.gradle    |  1 -
- 12 files changed, 23 insertions(+), 22 deletions(-)
-
-diff --git a/subprojects/diagnostics/diagnostics.gradle b/subprojects/diagnostics/diagnostics.gradle
-index 2d2e4d9127bcc..7d2e98aba980b 100644
---- a/subprojects/diagnostics/diagnostics.gradle
-+++ b/subprojects/diagnostics/diagnostics.gradle
-@@ -29,7 +29,6 @@ dependencies {
-     implementation project(':dependencyManagement')
-     implementation project(':baseServicesGroovy')
-     implementation libraries.guava
--    implementation libraries.groovy_json
-     implementation libraries.jatl
-     implementation libraries.commons_collections
-     implementation libraries.commons_lang
-diff --git a/subprojects/plugins/plugins.gradle b/subprojects/plugins/plugins.gradle
-index c65c0a9362f8d..809bc7214c538 100644
---- a/subprojects/plugins/plugins.gradle
-+++ b/subprojects/plugins/plugins.gradle
-@@ -34,7 +34,6 @@ dependencies {
-     compile libraries.asm
-     compile libraries.commons_io
-     compile libraries.commons_lang
--    compile libraries.groovy_templates
-     compile libraries.slf4j_api
- 
-     runtime libraries.commons_cli
-
 From 7ec5ec5456812669f7cc9029a94845bfd1348d02 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?L=C3=B3r=C3=A1nt=20Pint=C3=A9r?= <lorant@gradle.com>
 Date: Thu, 13 Sep 2018 22:33:28 +0200
@@ -1672,19 +1541,6 @@ index fb8312548221d..2c6e2ad5d7d50 100755
  versions.gradle_kotlin_dsl = '0.14.2'
  versions.commons_io = '2.2'
  versions.groovy = groovyVersion
-diff --git a/subprojects/core-api/core-api.gradle b/subprojects/core-api/core-api.gradle
-index 4dbb003921ac2..b856944a16e07 100644
---- a/subprojects/core-api/core-api.gradle
-+++ b/subprojects/core-api/core-api.gradle
-@@ -29,7 +29,7 @@ dependencies {
-     api project(":persistentCache")
-     api project(":processServices")
-     api project(":resources")
--    api libraries.groovy_ant
-+    api libraries.groovy
- 
-     implementation libraries.ant
-     implementation libraries.commons_io
 diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DependencyHandlerApiResolveIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DependencyHandlerApiResolveIntegrationTest.groovy
 index d6dc035860947..5f198602804f3 100644
 --- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DependencyHandlerApiResolveIntegrationTest.groovy
@@ -1768,32 +1624,6 @@ Since we reverted to using groovy-all.jar, there is no need for these changes an
  .../gradle/api/tasks/GroovyRuntimeTest.groovy | 19 +++++++++++++------
  12 files changed, 31 insertions(+), 47 deletions(-)
 
-diff --git a/subprojects/core-api/core-api.gradle b/subprojects/core-api/core-api.gradle
-index b856944a16e07..50bdccc5b6aff 100644
---- a/subprojects/core-api/core-api.gradle
-+++ b/subprojects/core-api/core-api.gradle
-@@ -29,7 +29,6 @@ dependencies {
-     api project(":persistentCache")
-     api project(":processServices")
-     api project(":resources")
--    api libraries.groovy
- 
-     implementation libraries.ant
-     implementation libraries.commons_io
-diff --git a/subprojects/core/src/main/java/org/gradle/api/internal/project/antbuilder/DefaultIsolatedAntBuilder.java b/subprojects/core/src/main/java/org/gradle/api/internal/project/antbuilder/DefaultIsolatedAntBuilder.java
-index b1e647ec0a675..4bdb99afd5e77 100644
---- a/subprojects/core/src/main/java/org/gradle/api/internal/project/antbuilder/DefaultIsolatedAntBuilder.java
-+++ b/subprojects/core/src/main/java/org/gradle/api/internal/project/antbuilder/DefaultIsolatedAntBuilder.java
-@@ -90,8 +90,7 @@ public DefaultIsolatedAntBuilder(ClassPathRegistry classPathRegistry, ClassLoade
-         ClassPath gradleCoreUrls = moduleRegistry.getModule("gradle-core-api").getImplementationClasspath();
-         gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getModule("gradle-core").getImplementationClasspath());
-         gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getModule("gradle-logging").getImplementationClasspath());
--        gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getExternalModule("groovy").getClasspath());
--        gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getExternalModule("groovy-ant").getClasspath());
-+        gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getExternalModule("groovy-all").getClasspath());
- 
-         // Need Transformer (part of AntBuilder API) from base services
-         gradleCoreUrls = gradleCoreUrls.plus(moduleRegistry.getModule("gradle-base-services").getImplementationClasspath());
 diff --git a/subprojects/core/src/test/groovy/org/gradle/api/internal/project/DefaultIsolatedAntBuilderTest.groovy b/subprojects/core/src/test/groovy/org/gradle/api/internal/project/DefaultIsolatedAntBuilderTest.groovy
 index f3665679614a3..e63d8d80b5b2f 100644
 --- a/subprojects/core/src/test/groovy/org/gradle/api/internal/project/DefaultIsolatedAntBuilderTest.groovy
@@ -1810,15 +1640,6 @@ index f3665679614a3..e63d8d80b5b2f 100644
  import static org.junit.Assert.assertThat
  import static org.junit.Assert.fail
  
-@@ -50,7 +53,7 @@ class DefaultIsolatedAntBuilderTest {
- 
-     @Before
-     void attachAppender() {
--        classpath = moduleRegistry.getExternalModule("groovy-ant").getClasspath().asFiles
-+        classpath = moduleRegistry.getExternalModule("groovy-all").getClasspath().asFiles
-     }
- 
-     @After
 diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DependencyHandlerApiResolveIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DependencyHandlerApiResolveIntegrationTest.groovy
 index 5f198602804f3..20bdc7be8d174 100644
 --- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DependencyHandlerApiResolveIntegrationTest.groovy

@@ -600,7 +600,7 @@ TODO: Call asciidoctor directly
      compile project(':wrapper')
      compile project(':baseServices')
 -    publishCompile libraries.slf4j_api
-+// TODO:   publishCompile libraries.slf4j_api
++    compile libraries.slf4j_api
      compile libraries.jcip
  
      testFixturesCompile project(':baseServicesGroovy')
