@@ -1,4 +1,4 @@
-;;;    Copyright 2025 TarCV
+;;;    Copyright 2025-2026 TarCV
 ;;;
 ;;; This file is part of an unofficial package collection for GNU Guix.
 ;;;
@@ -738,7 +738,7 @@
         ((#:source-dir _ #f) "junit-platform-launcher/src/main")
         ((#:tests? _ #f) #f) ; tests depend on mockito 5
         ((#:phases phases '%standard-phases)
-          `(modify-phases %standard-phases
+          `(modify-phases ,phases
              (add-before 'build 'copy-resources
                (lambda _
                  (copy-recursively "junit-platform-launcher/src/main/resources" "build/classes")))
@@ -763,7 +763,7 @@
         ((#:source-dir _ #f) "junit-platform-testkit/src/main")
         ((#:tests? _ #f) #f) ; tests depend on mockito 5
         ((#:phases phases '%standard-phases)
-          `(modify-phases %standard-phases
+          `(modify-phases ,phases
              (add-before 'install 'generate-pom.xml
                (generate-pom.xml "pom.xml"
                  "org.junitc.platform" "junit-platform-testkit" ,version
@@ -1044,13 +1044,13 @@
 (define-public java-jhighlight-codelibs
   (package
     (name "java-jhighlight")
-    (version "1.1.0")
+    (version "1.1.1")
     (source
       (origin
         (method url-fetch)
         (uri (string-append "https://github.com/codelibs/jhighlight/archive/refs/tags/jhighlight-" version ".tar.gz"))
         (file-name (string-append name "-" version ".tar.gz"))
-        (sha256 (base32 "1p0pavvkmrmaljk89aadq9a861dvssiv9iv4gzklgbwxmgf15r19"))
+        (sha256 (base32 "0ip88zv4jzq6y67gczfxk21wg02drbgisp2wrcq4rifvcs50i8r8"))
         (patches '("patches/java-jhighlight-1.1.0-new-servlet-api.patch"))))
     (build-system ant-build-system) ; because java-javaee-servletapi is not mavenized
     (native-inputs (list java-javaee-servletapi ; not propagated because servletapi is supposed to be provided
@@ -1062,7 +1062,15 @@
         #:phases (modify-phases %standard-phases
                    (add-before 'build 'copy-resources
                      (lambda _
-                       (copy-recursively "src/main/resources" "build/classes"))))))
+                       (copy-recursively "src/main/resources" "build/classes")))
+                   (add-before 'install 'generate-pom.xml
+                     (generate-pom.xml "pom.xml"
+                       "org.codelibs" "jhighlight"
+                       (string-append ,version)
+                       #:dependencies '(("commons-io" "commons-io"
+                                          ,(package-version (this-package-input "java-commons-io"))))))
+                   (replace 'install
+                     (install-from-pom "pom.xml")))))
     (home-page "https://github.com/codelibs/jhighlight")
     (synopsis "Embeddable pure Java syntax highlighting library")
     (description "JHighlight is an embeddable pure Java syntax highlighting library that supports Java, HTML, XHTML,
@@ -1338,8 +1346,8 @@
        XNI tools without modification or rewriting code.")
     (license license:asl2.0)))
 
-(define %java-parboiled-version "1.1.8")
-(define-public java-parboiled-core-1.1
+(define %java-parboiled-version "1.4.0") ; last version to officially support Java 8 
+(define-public java-parboiled-core-1.4.0
   (package
     (name "java-parboiled-core")
     (version %java-parboiled-version)
@@ -1348,7 +1356,7 @@
         (method url-fetch)
         (uri (string-append "https://github.com/sirthias/parboiled/archive/refs/tags/" version ".tar.gz"))
         (file-name (string-append name "-" version ".tar.gz"))
-        (sha256 (base32 "0jq2xydc5mp3nnnvns4vhfnbbf0rw318bsmh5w6xa0c8ip8hj47z"))
+        (sha256 (base32 "0gms693359fhajdbjhd0ygk6gy38xkvnmpkw6967xn5m94hnl9vk"))
         (modules '((guix build utils)))
         (snippet '(begin
                     (for-each delete-file
@@ -1358,8 +1366,8 @@
     (native-inputs (list java-testng))
     (arguments
       `(#:jar-name "parboiled-core.jar"
-        #:make-flags (list "-Dant.build.javac.target" "1.5"
-                           "-Dant.build.javac.source" "1.5")
+        #:make-flags (list "-Dant.build.javac.target" "1.7"
+                           "-Dant.build.javac.source" "1.7")
         #:source-dir "parboiled-core/src/main/java"
         #:test-dir "parboiled-core/src/test"
         #:phases (modify-phases %standard-phases
@@ -1385,14 +1393,14 @@
     (description "Elegant parsing in Java and Scala - lightweight, easy-to-use, powerful.")
     (license license:asl2.0)))
 
-(define-public java-parboiled-1.1
+(define-public java-parboiled-1.4.0
   (package
-    (inherit java-parboiled-core-1.1)
+    (inherit java-parboiled-core-1.4.0)
     (name "java-parboiled")
     (version %java-parboiled-version)
-    (propagated-inputs (list java-asm java-parboiled-core-1.1))
+    (propagated-inputs (list java-asm-9 java-asm-analysis-9 java-asm-tree-9 java-asm-util-9 java-parboiled-core-1.4.0))
     (arguments
-      (substitute-keyword-arguments (package-arguments java-parboiled-core-1.1)
+      (substitute-keyword-arguments (package-arguments java-parboiled-core-1.4.0)
         ((#:jar-name _ #f) "parboiled.jar")
         ((#:source-dir _ #f) "parboiled-java/src/main/java")
         ((#:test-dir _ #f) "parboiled-java/src/test")
@@ -1408,10 +1416,16 @@
                      (string-append prefix " debug=\"true\" " suffix)))))
              (replace 'create-pom
                (generate-pom.xml "pom.xml" "org.parboiled" "parboiled-java" ,version
-                 #:dependencies '(("org.ow2.asm" "asm"
-                                   ,(package-version (this-package-input "java-asm")))
-                                  ("org.parboiled" "parboiled-core"
-                                   ,(package-version (this-package-input "java-parboiled-core"))))))))))
+                 #:dependencies '(("org.parboiled" "parboiled-core"
+                                   ,(package-version (this-package-input "java-parboiled-core")))
+                                   ("org.ow2.asm" "asm"
+                                     ,(package-version (this-package-input "java-asm")))
+                                   ("org.ow2.asm" "asm-tree"
+                                     ,(package-version (this-package-input "java-asm-tree")))
+                                   ("org.ow2.asm" "asm-analysis"
+                                     ,(package-version (this-package-input "java-asm-analysis")))
+                                   ("org.ow2.asm" "asm-util"
+                                     ,(package-version (this-package-input "java-asm-util"))))))))))
     (synopsis "Parboiled parsing library")))
 
 (define-public java-pegdown
@@ -1430,7 +1444,7 @@
                       (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
                     #t))))
     (build-system ant-build-system)
-    (propagated-inputs (list java-parboiled-1.1))
+    (propagated-inputs (list java-parboiled-1.4.0))
     (arguments
       `(#:jar-name "pegdown.jar"
          #:make-flags (list "-Dant.build.javac.target" "1.6"
@@ -1765,9 +1779,11 @@ browser window. It is completely customizable as well via CSS.")
 
 (define common-gradle-patches
   (list "patches/gradle-4.5.1-asm.patch" "patches/gradle-4.5.1-commons.patch"
-     "patches/gradle-4.5.1-groovy-2.4.patch" "patches/gradle-4.5.1-groovy-2.5-1.patch" ; TODO: replace these sets having redundant patches with just diffs, and then compare with originals
+     "patches/gradle-4.5.1-junitplatform.diff"
+     "patches/gradle-4.5.1-groovy-2.4.patch" "patches/gradle-4.5.1-groovy-2.5-1.patch" ; TODO: compact these sets having redundant patches into diffs, and then compare with originals
      "patches/gradle-4.5.1-groovy-2.5-2.patch" "patches/gradle-4.5.1-groovy-2.5-3.patch"
-     "patches/gradle-4.5.1-groovy-2.5-4.patch" "patches/gradle-4.5.1-groovy-3.patch"
+     "patches/gradle-4.5.1-groovy-2.5-4.patch" "patches/gradle-4.5.1-groovy-3-2.patch"
+     "patches/gradle-4.5.1-groovy-3-3-spock.patch"
      "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
      "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"
      "patches/gradle-4.5.1-unshaded-groovy.patch"))
@@ -2082,9 +2098,9 @@ browser window. It is completely customizable as well via CSS.")
                          "patches/gradle-4.5.1-default-methods.patch"
                          "patches/gradle-4.5.1-dekotlinize-build-files.patch"
                          "patches/gradle-4.5.1-disable-minifying.patch" ; so that Guix link optimization works
-                         "patches/gradle-4.5.1-jcifs-new-coordinates.patch" "patches/gradle-4.5.1-guix-dependencies.patch"
-                         "patches/gradle-4.5.1-local-repository.patch" "patches/gradle-4.5.1-maven-dependencies.patch"
-                         "patches/gradle-4.5.1-no-remote-cache.patch"
+                         "patches/gradle-4.5.1-jcifs-new-coordinates.patch" "patches/gradle-4.5.1-jhighlight-new.patch"
+                         "patches/gradle-4.5.1-guix-dependencies.patch" "patches/gradle-4.5.1-local-repository.patch"
+                         "patches/gradle-4.5.1-maven-dependencies.patch" "patches/gradle-4.5.1-no-remote-cache.patch"
                          "patches/gradle-4.5.1-remove-complex-dependencies.patch"
                          "patches/gradle-4.5.1-remove-kotlin-dsl.patch"
                          "patches/gradle-4.5.1-reproducible-artifacts.patch"
@@ -2095,10 +2111,11 @@ browser window. It is completely customizable as well via CSS.")
                      java-commons-codec java-commons-collections java-commons-lang java-fasterxml-jackson-annotations
                      java-fasterxml-jackson-core java-fasterxml-jackson-databind java-gson java-javaparser java-jaxp
                      java-jcommander-new java-jgit java-jhighlight-codelibs java-jcifs java-jsch java-jmock
-                     java-jmock-junit4 java-jmock-legacy java-joda-time
+                     java-jmock-junit4 java-junit-platform-launcher-5 java-jmock-legacy java-joda-time
                      java-jsoup java-hamcrest-library java-httpcomponents-httpclient java-httpcomponents-httpcore
                      java-native-platform-0.14/no-native-code java-nekohtml java-objenesis
-                     java-pegdown java-picocli java-simple-web-4 java-testng java-tunnelvisionlabs-antlr4-runtime rhino
+                     java-pegdown java-picocli java-simple-web-4 java-testng java-tunnelvisionlabs-antlr4-runtime
+                     js-jquery-tiptip rhino
 
                      java-jcl-over-slf4j java-log4j-over-slf4j
 
@@ -2114,7 +2131,7 @@ browser window. It is completely customizable as well via CSS.")
       `(#:modules ((guix build ant-build-system) (guix build java-utils) (guix build utils) (ice-9 ftw) (srfi srfi-1)
                     (ice-9 string-fun) (srfi srfi-26))
          ,@(substitute-keyword-arguments (package-arguments gradle-bootstrap-with-ant)
-             ((#:phases phases '%standard-phases) ; TODO: verify gradle and gradle-wrapper hashes against well-known ones
+             ((#:phases _ '%standard-phases) ; TODO: what to do with gradle-wrapper?
                `(modify-phases %standard-phases
                   (add-before 'build 'unshade-imports ; TODO: how to use the same lambda here and in the -bootstrap?
                     (lambda _
@@ -2288,7 +2305,7 @@ browser window. It is completely customizable as well via CSS.")
 
                         (use-modules (ice-9 regex)) ; for string-match
                         (let* (
-                                (mavenize-package (lambda (pkg version group name source-path)
+                                (mavenize-package (lambda* (pkg version group name source-path #:optional attribute)
                                                     (let* ((source-extension-with-dot (string-drop
                                                                                         source-path
                                                                                         (string-rindex source-path #\.)))
@@ -2297,7 +2314,11 @@ browser window. It is completely customizable as well via CSS.")
                                                               (string-append
                                                                 repository-dir "/"
                                                                 groupPath "/" name "/" version "/"
-                                                                name "-" version source-extension-with-dot)))
+                                                                name "-" version
+                                                                (if attribute
+                                                                  (string-append "-" attribute)
+                                                                  "")
+                                                                source-extension-with-dot)))
                                                       (mkdir-p (dirname path))
                                                       (symlink (string-append pkg source-path) path)
                                                       path)))
@@ -2373,6 +2394,8 @@ browser window. It is completely customizable as well via CSS.")
                             "biz.aQute.bnd" "biz.aQute.bndlib.libg" "/share/java/java-aqute-libg.jar")
                           (mavenize-package ,(this-package-transitive-native-input "java-jcommander") ,(package-version (this-package-transitive-native-input "java-jcommander"))
                             "com.beust" "jcommander" "/share/java/java-jcommander.jar")
+                          (mavenize-package ,(this-package-transitive-native-input "js-jquery-tiptip") ,(package-version (this-package-transitive-native-input "js-jquery-tiptip"))
+                            "com.drewwilson.code" "jquery.tipTip" "/share/javascript/js-jquery-tiptip/jquery.tipTip.minified.js" "minified")
                           (mavenize-package ,(this-package-transitive-native-input "java-gson") ,(package-version (this-package-transitive-native-input "java-gson"))
                             "com.google.code.gson" "gson" "/share/java/gson.jar")
                           (mavenize-package ,(this-package-transitive-native-input "java-fasterxml-jackson-annotations") ,(package-version (this-package-transitive-native-input "java-fasterxml-jackson-annotations"))
@@ -2383,8 +2406,6 @@ browser window. It is completely customizable as well via CSS.")
                             "com.fasterxml.jackson.core" "jackson-databind" "/share/java/jackson-databind.jar")
                           (mavenize-package ,(this-package-transitive-native-input "java-jsch") ,(package-version (this-package-transitive-native-input "java-jsch"))
                             "com.jcraft" "jsch" (string-append "/share/java/jsch-" ,(package-version java-jsch) ".jar"))
-                          (mavenize-package ,(this-package-transitive-native-input "java-jhighlight") ,(package-version (this-package-transitive-native-input "java-jhighlight"))
-                            "com.uwyn" "jhighlight" "/share/java/jhighlight.jar")
                           (mavenize-package ,(this-package-transitive-native-input "java-commons-collections") ,(package-version (this-package-transitive-native-input "java-commons-collections"))
                             "commons-collections" "commons-collections"
                             (string-append "/share/java/commons-collections-" ,(package-version java-commons-collections) ".jar"))
@@ -2549,6 +2570,8 @@ browser window. It is completely customizable as well via CSS.")
                         "--no-build-cache"
                         ; TODO: set number of worker threads based on '--cores' Guix argument
 ;                        "test"
+                        ; TODO "integTest"
+                        ; TODO "check"
                         "install"
                         "-PbuildTimestamp=19700101000000+0000"
                         (string-append "-Pgradle_installPath=" (assoc-ref outputs "out")))))
@@ -2576,7 +2599,7 @@ browser window. It is completely customizable as well via CSS.")
                   (delete 'reorder-jar-content)
                   (delete 'strip-jar-timestamps))))))))
 
-(define gradle
+(define gradle ; TODO: merge this package with gradle-bootstrap-with-gradle
   (package
     (inherit gradle-bootstrap-with-gradle)
     (name "gradle")
@@ -2597,7 +2620,7 @@ browser window. It is completely customizable as well via CSS.")
 ;                       "--debug"
                        "--full-stacktrace"
                        ; TODO: set number of worker threads based on '--cores' Guix argument
-                       ; TODO                            "test"
+                       "test"
                        ; TODO "integTest"
                        "install"
                        "-PbuildTimestamp=19700101000000+0000"

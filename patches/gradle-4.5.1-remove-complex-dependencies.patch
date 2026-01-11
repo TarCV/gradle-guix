@@ -138,7 +138,7 @@ TODO: review if something need to be restored in a non-bootstrap build:
 +        'diagnostics', 'reporting', 'publish', 'ivy', 'buildInit', 'platformBase',
 +        'platformJvm', 'languageJvm', 'languageJava', 'languageGroovy',
 +        'platformNative', 'languageNative', 'ideNative', 'testingBase',
-         'testingNative', 'testingJvm', 'pluginDevelopment', 'pluginUse', 'resourcesHttp',
+         'testingNative', 'testingJvm', 'testingJunitPlatform', 'pluginDevelopment', 'pluginUse', 'resourcesHttp',
 -        'resourcesSftp', 'resourcesS3', 'resourcesGcs', 'compositeBuilds', 'buildCacheHttp'
 +        'resourcesSftp', 'compositeBuilds', 'buildCacheHttp'
      ].collect { project(it) }
@@ -461,10 +461,10 @@ TODO: Call asciidoctor directly
  include("pluginUse")
  include("pluginDevelopment")
  include("modelCore")
-@@ -83,7 +72,6 @@
- include("testingBase")
+@@ -84,7 +73,6 @@
  include("testingNative")
  include("testingJvm")
+ include("testingJunitPlatform")
 -include("platformPlay")
  include("testKit")
  include("installationBeacon")

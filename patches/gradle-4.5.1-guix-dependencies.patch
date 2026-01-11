@@ -1,13 +1,14 @@
 TODO: Fix the relevant Guix packages to have these dependencies in POMs instead
 --- a/gradle/dependencies.gradle
 +++ b/gradle/dependencies.gradle
-@@ -26,13 +26,13 @@
+@@ -26,13 +26,14 @@
  versions.maven = '3.0.4'
  versions.httpclient = '4.4.1'
  
 -libraries.ant = 'org.apache.ant:ant:1.9.9'
 +libraries.ant = ['org.apache.ant:ant:1.9.9', 'org.apache.ant:ant-launcher:1.9.9']
  libraries.asm =  'org.ow2.asm:asm:6.0'
++libraries.asm_analysis =  'org.ow2.asm:asm-analysis:6.0'
  libraries.asm_commons =  'org.ow2.asm:asm-commons:6.0'
  libraries.asm_util =  'org.ow2.asm:asm-util:6.0'
  libraries.asm_tree =  'org.ow2.asm:asm-tree:6.0'
@@ -35,9 +36,12 @@ TODO: Fix the relevant Guix packages to have these dependencies in POMs instead
      bsh: 'org.apache-extras.beanshell:bsh:2.0b6'
  ]
  
-@@ -375,7 +375,7 @@
+@@ -374,8 +374,10 @@
+                details.useVersion(versions.maven)
              } else if (details.requested.group == 'org.apache.ivy') {
                  details.useTarget(libraries.ivy)
++            } else if (details.requested.name == 'asm-analysis') {
++                details.useTarget(libraries.asm_analysis)
              } else if (details.requested.group == 'org.testng') {
 -                details.useTarget(libraries.testng)
 +                details.useTarget(libraries.testng[0])

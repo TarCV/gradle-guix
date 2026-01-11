@@ -1139,8 +1139,8 @@ index 2625273c5f836..67c58bc48f2ee 100644
      abstract String getDistributionLabel()
  
      int getLibJarsCount() {
--        184
-+        195
+-        190
++        201
      }
  
      def "no duplicate entries"() {
@@ -2356,7 +2356,7 @@ index 3a67524198b64..f560a63b369f4 100644
 @@ -37,7 +36,7 @@ class BuildSrcSpockIntegrationTest extends JUnitMultiVersionIntegrationSpec {
      compile localGroovy()
  
-     testCompile 'junit:junit:4.12@jar',
+     testCompile '$dependencyNotation',
 -        'org.spockframework:spock-core:1.0-groovy-2.4@jar',
 +        'org.spockframework:spock-core:2.0-M4-groovy-3.0@jar',
          'cglib:cglib-nodep:2.2',
