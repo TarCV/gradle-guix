@@ -1,3 +1,4 @@
+TODO: shade antlr and asm into groovy JAR as expected by Gradle?
 Fail building modules where libraries.groovy is not replaced with localGroovy()
 --- a/gradle/dependencies.gradle
 +++ b/gradle/dependencies.gradle
@@ -86,3 +87,19 @@ Fail building modules where libraries.groovy is not replaced with localGroovy()
                  if (groovyJar.isGroovyAll() || groovyJar.getVersion().getMajor() == 3) {
                      return project.files(groovyJar.getFile());
                  }
+--- a/subprojects/dependency-management/src/main/java/org/gradle/api/internal/notations/DependencyClassPathNotationConverter.java
++++ b/subprojects/dependency-management/src/main/java/org/gradle/api/internal/notations/DependencyClassPathNotationConverter.java
+@@ -107,7 +107,12 @@
+ 
+     private FileCollectionInternal gradleApiFileCollection(Collection<File> apiClasspath) {
+         // Don't inline the Groovy jar as the Groovy “tools locator” searches for it by name
+-        List<File> groovyImpl = classPathRegistry.getClassPath(LOCAL_GROOVY.name()).getAsFiles();
++        List<File> groovyImpl = new ArrayList<File>(classPathRegistry.getClassPath(LOCAL_GROOVY.name()).getAsFiles());
++        for (File file : new ArrayList<File>(groovyImpl)) {
++            if (!file.getName().startsWith("groovy") && !file.getName().startsWith("parser-antlr4")) {
++                groovyImpl.remove(file);
++            }
++        }
+         List<File> installationBeacon = classPathRegistry.getClassPath("GRADLE_INSTALLATION_BEACON").getAsFiles();
+         apiClasspath.removeAll(groovyImpl);
+         apiClasspath.removeAll(installationBeacon);

@@ -43,7 +43,7 @@
 
 ; TODO: ensure all packages here reproducible
 ; TODO: review all comments for if they should start with ; or ;; or ;;;
-
+; TODO: fix all groovy modules with this issue:
 (define groovy-nio
   (module-ref (resolve-module '(gnu packages groovy)) 'groovy-nio))
 (define groovy-nio-fixed
@@ -63,8 +63,27 @@
                         (format port "moduleVersion=~a~%" ,(package-version groovy-nio))
                         (format port "extensionClasses=org.apache.groovy.nio.extensions.NioExtensions~%")
                         (format port "staticExtensionClasses=~%"))))))))))))
+(define groovy-xml
+  (module-ref (resolve-module '(gnu packages groovy)) 'groovy-xml))
+(define groovy-xml-fixed
+  (package
+    (inherit groovy-xml)
+    (arguments
+      (substitute-keyword-arguments (package-arguments groovy-xml)
+        ((#:phases phases '%standard-phases)
+          `(modify-phases ,phases
+              (add-before 'build 'generate-metadata
+                (lambda _
+                  (let ((dir "build/classes/META-INF/groovy"))
+                    (mkdir-p dir)
+                    (call-with-output-file (string-append dir "/org.codehaus.groovy.runtime.ExtensionModule")
+                      (lambda (port)
+                        (format port "moduleName=~a~%" ,(package-name groovy-xml))
+                        (format port "moduleVersion=~a~%" ,(package-version groovy-xml))
+                        (format port "extensionClasses=org.apache.groovy.xml.extensions.XmlExtensions~%")
+                        (format port "staticExtensionClasses=~%"))))))))))))
 (define groovy-fixed
-  ((package-input-rewriting `((,groovy-nio . ,groovy-nio-fixed)))
+  ((package-input-rewriting `((,groovy-nio . ,groovy-nio-fixed) (,groovy-xml . ,groovy-xml-fixed)))
     groovy))
 
 (define groovy-test  ; TODO: make the package public instead
@@ -2222,8 +2241,11 @@ browser window. It is completely customizable as well via CSS.")
                           (string-append prefix ,(package-version java-asm-9) suffix)))))
                   (add-before 'build 'force-local-groovy
                     (lambda _
-                      (substitute* (find-files "." ".*\\.gradle.*")
-                        (("libraries.(javaParser|groovy[[:alpha:]]*)") "localGroovy()"))))
+                      (substitute* (filter
+                                     (lambda (path) (not (string-suffix? "gradle/dependencies.gradle" path)))
+                                     (find-files "." ".*\\.gradle.*"))
+                        (("libraries.(javaParser|groovy[[:alpha:]]*)") "localGroovy()")
+                        (("libraries.spock" all) (string-append "localGroovy()," all)))))
                   (add-before 'build 'patch-versions
                     (lambda _ ; TODO: implement it in init.gradle instead
                       (substitute* "gradle/dependencies.gradle"
@@ -2603,6 +2625,11 @@ browser window. It is completely customizable as well via CSS.")
   (package
     (inherit gradle-bootstrap-with-gradle)
     (name "gradle")
+    (source (origin
+              (inherit (package-source gradle-bootstrap-with-gradle))
+              (patches (append
+                         (origin-patches (package-source gradle-bootstrap-with-gradle))
+                         '("patches/gradle-4.5.1-groovy-3-4-junit-for-spock.patch")))))
     (arguments
       (substitute-keyword-arguments (package-arguments gradle-bootstrap-with-gradle)
         ((#:phases phases '%standard-phases)
@@ -2623,6 +2650,7 @@ browser window. It is completely customizable as well via CSS.")
                        "test"
                        ; TODO "integTest"
                        "install"
+                       "-x" ":docs:test" ; depends on Selenium
                        "-PbuildTimestamp=19700101000000+0000"
                        (string-append "-Pgradle_installPath=" (assoc-ref outputs "out")))))))))))
 
