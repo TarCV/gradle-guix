@@ -1800,9 +1800,9 @@ browser window. It is completely customizable as well via CSS.")
   (list "patches/gradle-4.5.1-asm.patch" "patches/gradle-4.5.1-commons.patch"
      "patches/gradle-4.5.1-junitplatform.diff"
      "patches/gradle-4.5.1-groovy-2.4.patch" "patches/gradle-4.5.1-groovy-2.5-1.patch" ; TODO: compact these sets having redundant patches into diffs, and then compare with originals
-     "patches/gradle-4.5.1-groovy-2.5-2.patch" "patches/gradle-4.5.1-groovy-2.5-3.patch"
-     "patches/gradle-4.5.1-groovy-2.5-4.patch" "patches/gradle-4.5.1-groovy-3-2.patch"
-     "patches/gradle-4.5.1-groovy-3-3-spock.patch"
+     "patches/gradle-4.5.1-groovy-2.5-2-spock.diff" "patches/gradle-4.5.1-groovy-2.5-3.patch"
+     "patches/gradle-4.5.1-groovy-2.5-4.patch" "patches/gradle-4.5.1-groovy-2.5-5.patch"
+     "patches/gradle-4.5.1-groovy-3-2.patch" "patches/gradle-4.5.1-groovy-3-3-spock.patch"
      "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
      "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"
      "patches/gradle-4.5.1-unshaded-groovy.patch"))

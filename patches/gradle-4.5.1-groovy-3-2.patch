@@ -1112,15 +1112,15 @@ diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
 index ffef7a139a4b9..92e1af6746f2c 100644
 --- a/gradle/dependencies.gradle
 +++ b/gradle/dependencies.gradle
-@@ -17,7 +17,7 @@
- ext {
+@@ -18,7 +18,7 @@
      versions = [:]
      libraries = [:]
+     cglibWithoutAntRule = CglibWithoutAntRule
 -    groovyVersion = '2.5.10'
 +    groovyVersion = '3.0.4'
  }
  
- versions.gradle_kotlin_dsl = '[0.14.2, 1)'
+ versions.gradle_kotlin_dsl = '0.14.2'
 @@ -96,7 +96,8 @@
  libraries.maven3 = "org.apache.maven:maven-core:${versions.maven}"
  
