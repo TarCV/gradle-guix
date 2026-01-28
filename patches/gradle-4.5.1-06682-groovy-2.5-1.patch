@@ -979,13 +979,13 @@ index ae9536a525576..3fd6b8b1371cf 100755
 --- a/gradle/dependencies.gradle
 +++ b/gradle/dependencies.gradle
 @@ -19,9 +19,11 @@ ext {
-     libraries = [:]
+     cglibWithoutAntRule = CglibWithoutAntRule
  }
  
 +def groovyVersion = '2.5.2'
 +
  versions.gradle_kotlin_dsl = '0.14.2'
- versions.commons_io = '2.5'
+ versions.commons_io = '2.2'
 -versions.groovy = '2.4.15'
 +versions.groovy = groovyVersion
  versions.bouncycastle = '1.58'
@@ -1530,9 +1530,9 @@ index fb8312548221d..2c6e2ad5d7d50 100755
 --- a/gradle/dependencies.gradle
 +++ b/gradle/dependencies.gradle
 @@ -16,10 +16,9 @@
- 
  ext {
      libraries = [:]
+     cglibWithoutAntRule = CglibWithoutAntRule
 +    groovyVersion = '2.5.2'
  }
  

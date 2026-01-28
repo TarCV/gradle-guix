@@ -2,9 +2,9 @@ TODO: Remove all hunks here expect the first one?
 --- a/gradle/dependencies.gradle
 +++ b/gradle/dependencies.gradle
 @@ -24,7 +24,7 @@
- versions.commons_io = '2.5'
  versions.groovy = groovyVersion
  versions.bouncycastle = '1.58'
+ versions.jettyVersion = "9.4.31.v20200723"
 -versions.maven = '3.0.4'
 +versions.maven = '[3.0, 3.1)'
  versions.httpclient = '4.4.1'

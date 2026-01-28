@@ -174,3 +174,13 @@ Workaround `sourceCompatibility = JavaVersion.VERSION_1_8` above causing a warni
  
  dependencies {
      compile libraries.groovy
+--- a/subprojects/internal-integ-testing/internal-integ-testing.gradle
++++ b/subprojects/internal-integ-testing/internal-integ-testing.gradle
+@@ -13,6 +13,7 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
++sourceCompatibility = JavaVersion.VERSION_1_8
+ dependencies {
+     compile libraries.groovy
+     compile project(":internalTesting")

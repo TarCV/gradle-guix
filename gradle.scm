@@ -103,6 +103,8 @@
 
 (define java-plexus-containers-parent-pom-1.7 ; TODO: add this dependency to java-plexus-container-default-1.7 instead?
   (module-ref (resolve-module '(gnu packages java)) 'java-plexus-containers-parent-pom-1.7))
+(define make-apache-parent-pom
+  (module-ref (resolve-module '(gnu packages maven-parent-pom)) 'make-apache-parent-pom))
 (define make-apache-commons-parent-pom ; TODO: add this dependency to the relevant package?
   (module-ref (resolve-module '(gnu packages maven-parent-pom)) 'make-apache-commons-parent-pom))
 
@@ -407,6 +409,55 @@
                  (delete-file-recursively "src/main/java/org/apache/commons/compress/harmony")
                  (delete-file "src/main/java/org/apache/commons/compress/compressors/CompressorStreamFactory.java")
                  (delete-file "src/main/java/org/apache/commons/compress/java/util/jar/Pack200.java")))))))))
+
+(define java-eddsa
+  (package
+    (name "java-eddsa")
+    (version "0.3.0")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/str4d/ed25519-java/archive/refs/tags/v" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "045340m6xsqxnnbff4gixd66h91dvcqwfag0dk80pnximwqj76m8"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (native-inputs (list java-junit java-hamcrest-all))
+    (build-system ant-build-system)
+    (arguments
+      `(#:jar-name "eddsa.jar"
+        #:test-dir "test"
+        #:phases (modify-phases %standard-phases
+                   (add-before 'check 'prepare-test-sources
+                     (lambda _
+                       (mkdir-p "test/java")
+                       (rename-file "test/net" "test/java/net")))
+                   (add-before 'check 'prepare-test-data
+                     (lambda _
+                       (let* ((basedir "test")
+                              (prefix-length (string-length basedir)))
+                         (for-each
+                         (lambda (file)
+                           (let ((relative-path (string-drop file (+ prefix-length 1))))
+                             (mkdir-p (string-append "test/resources/" (dirname relative-path)))
+                             (rename-file file (string-append "test/resources/" relative-path))))
+                         (find-files basedir "[^.]+")))))
+                   (replace 'install
+                     (install-from-pom "pom.xml")))))
+    (home-page "https://github.com/str4d/ed25519-java")
+    (synopsis "Pure Java implementation of EdDSA")
+    (description "This is an implementation of EdDSA in Java. Structurally, it is based on the ref10 implementation in
+SUPERCOP (see https://ed25519.cr.yp.to/software.html).
+
+There are two internal implementations:
+
+A port of the radix-2^51 operations in ref10 - fast and constant-time, but only useful for Ed25519.
+A generic version using BigIntegers for calculation - a bit slower and not constant-time, but compatible with any EdDSA
+parameter specification.")
+    (license license:cc0)))
 
 (define java-jte-runtime/no-tests
   (package
@@ -1218,6 +1269,96 @@
     (synopsis "Binding/provider for java.util.logging, also referred to as JDK 1.4 logging")
     (license license:expat)))
 
+(define java-mina-core-2
+  (package
+    (name "java-mina-core")
+    (version "2.2.5")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/apache/mina/archive/refs/tags/" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "1xj7l4hwcg5zw8nwfq25d2vid22az7bpbf09xapw3h98w88fmfnm"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (build-system ant-build-system)
+    (propagated-inputs (list java-slf4j-api))
+    (native-inputs (list java-easymock java-junit java-log4j-1.2-api java-mockito-1))
+    (arguments
+      `(#:jar-name "mina-core.jar"
+         #:source-dir "mina-core/src/main"
+         #:test-dir "mina-core/src/test"
+         #:tests? #f ; depend on ch.qos.reload4j
+         #:phases (modify-phases %standard-phases
+                    (add-before 'install 'generate-pom.xml
+                      ;; Because not all dependencies are mavenized. Also for some reason test dependencies are included
+                      ;; in the original POM with a non-test scope.
+                      (generate-pom.xml "guix-pom.xml"
+                        "org.apache.mina" "mina-core" ,version
+                        #:dependencies
+                        '(("org.slf4j" "slf4j-api" ,(package-version (this-package-input "java-slf4j-api"))))))
+                    (replace 'install
+                      (install-from-pom "guix-pom.xml")))))
+    (home-page "https://mina.apache.org/")
+    (synopsis "Network application framework which helps users develop high performance and high scalability network applications easily.")
+    (description "MINA provides an abstract event-driven asynchronous API over various transports such as TCP/IP
+     and UDP/IP via Java NIO.
+Apache MINA is often called:
+NIO framework library,
+client server framework library, or
+a networking socket library")
+    (license license:asl2.0)))
+
+(define java-mina-sshd-1
+  (package
+    (name "java-mina-sshd")
+    (version "1.7.0")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/apache/mina-sshd/archive/refs/tags/sshd-" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "0jj61l4w9zj8v4b1gg8b64k4s7gkxhdsdriln2hjldsg17y9c4c1"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (native-inputs (list java-bouncycastle java-eddsa java-mina-core-2 java-tomcat))
+    (propagated-inputs (list java-slf4j-api))
+    (build-system ant-build-system)
+    (arguments
+      `(#:jar-name "mina-sshd.jar"
+        #:source-dir "sshd-core/src/main"
+        #:tests? #f ; test dependencies are not in Guix
+        #:phases (modify-phases %standard-phases
+                   (add-before 'build 'prepare-resources
+                     (lambda _
+                       (substitute* (find-files "sshd-core/src/main/filtered-resources" ".*")
+                         (("\\$\\{pom\\.groupId\\}") "org.apache.sshd")
+                         (("\\$\\{pom\\.artifactId\\}") "sshd-core")
+                         (("\\$\\{pom\\.version\\}") ,version))
+                       (copy-recursively "sshd-core/src/main/filtered-resources" "build/classes")))
+                   (add-before 'install 'generate-pom
+                     ; Don't use the original POM because its parent POM depends on Spring framework,
+                     ; which is not packaged in Guix
+                     (generate-pom.xml "guix-pom.xml"
+                       "org.apache.sshd" "sshd-core" ,version
+                       #:dependencies '(("org.slf4j" "slf4j-api"
+                                          ,(package-version (this-package-input "java-slf4j-api"))))))
+                   (replace 'install
+                      (install-from-pom "guix-pom.xml")))))
+    (home-page "https://mina.apache.org/sshd-project/")
+    (synopsis "Comprehensive Java library for client- and server-side SSH.")
+    (description "Apache SSHD is a 100% pure java library to support the SSH protocols on both the client and server
+     side. This library can leverage Apache MINA, a scalable and high performance asynchronous IO library. SSHD does not
+     really aim at being a replacement for the SSH client or SSH server from Unix operating systems, but rather provides
+     support for Java based applications requiring SSH support.")
+    (license license:asl2.0)))
+
 (define-public java-opentest4j
   (package
     (name "java-opentest4j")
@@ -1797,15 +1938,17 @@ browser window. It is completely customizable as well via CSS.")
     (synopsis "Support alternative markup for Apache Maven POM files. This package provides Groovy DSL. Please check the package description before using.")))
 
 (define common-gradle-patches
-  (list "patches/gradle-4.5.1-asm.patch" "patches/gradle-4.5.1-commons.patch"
-     "patches/gradle-4.5.1-junitplatform.diff"
-     "patches/gradle-4.5.1-groovy-2.4.patch" "patches/gradle-4.5.1-groovy-2.5-1.patch" ; TODO: compact these sets having redundant patches into diffs, and then compare with originals
-     "patches/gradle-4.5.1-groovy-2.5-2-spock.diff" "patches/gradle-4.5.1-groovy-2.5-3.patch"
-     "patches/gradle-4.5.1-groovy-2.5-4.patch" "patches/gradle-4.5.1-groovy-2.5-5.patch"
-     "patches/gradle-4.5.1-groovy-3-2.patch" "patches/gradle-4.5.1-groovy-3-3-spock.patch"
-     "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
-     "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"
-     "patches/gradle-4.5.1-unshaded-groovy.patch"))
+  (list "patches/gradle-4.5.1-04116-junitplatform.diff"
+        "patches/gradle-4.5.1-06013-groovy-2.4.patch" "patches/gradle-4.5.1-06669-spock.diff" ; TODO: compact these sets having redundant patches into diffs, and then compare with originals
+        "patches/gradle-4.5.1-06682-groovy-2.5-1.patch" "patches/gradle-4.5.1-06799-groovy-2.5-2.patch"
+        "patches/gradle-4.5.1-06728-commons.patch" "patches/gradle-4.5.1-07245-groovy-2.5-4.patch"
+        "patches/gradle-4.5.1-09356-asm.patch" "patches/gradle-4.5.1-12432-groovy-2.5-5.patch"
+        "patches/gradle-4.5.1-14378-jetty-1.diff" "patches/gradle-4.5.1-15582-spock.diff"
+        "patches/gradle-4.5.1-15710-spock.diff" "patches/gradle-4.5.1-16193-groovy-3-2.patch"
+        "patches/gradle-4.5.1-16637-spock.patch" "patches/gradle-4.5.1-jetty-2.diff"
+        "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
+        "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"
+        "patches/gradle-4.5.1-unshaded-groovy.patch"))
 (define gradle-bootstrap-with-ant
   (package
     (name "gradle-bootstrap-with-ant")
@@ -2127,13 +2270,17 @@ browser window. It is completely customizable as well via CSS.")
     (native-inputs (list
                      ant antlr2 apache-commons-parent-pom-42 groovy-fixed groovy-spock-junit4 groovy-test
                      java-apache-ivy java-aqute-bndlib java-aqute-libg java-bouncycastle java-commons-cli
-                     java-commons-codec java-commons-collections java-commons-lang java-fasterxml-jackson-annotations
-                     java-fasterxml-jackson-core java-fasterxml-jackson-databind java-gson java-javaparser java-jaxp
-                     java-jcommander-new java-jgit java-jhighlight-codelibs java-jcifs java-jsch java-jmock
-                     java-jmock-junit4 java-junit-platform-launcher-5 java-jmock-legacy java-joda-time
+                     java-commons-codec java-commons-collections java-commons-lang java-eclipse-jetty-http
+                     java-eclipse-jetty-io java-eclipse-jetty-security java-eclipse-jetty-server
+                     java-eclipse-jetty-servlet java-eclipse-jetty-util java-eclipse-jetty-webapp
+                     java-fasterxml-jackson-annotations java-fasterxml-jackson-core java-fasterxml-jackson-databind
+                     java-gson java-javaee-servletapi java-javaparser java-jaxp java-jcommander-new java-jgit
+                     java-jhighlight-codelibs java-jcifs java-jsch java-junit-platform-launcher-5
+                     java-jmock java-jmock-junit4 java-jmock-legacy java-joda-time
                      java-jsoup java-hamcrest-library java-httpcomponents-httpclient java-httpcomponents-httpcore
-                     java-native-platform-0.14/no-native-code java-nekohtml java-objenesis
-                     java-pegdown java-picocli java-simple-web-4 java-testng java-tunnelvisionlabs-antlr4-runtime
+                     java-mina-core-2 java-mina-sshd-1 java-native-platform-0.14/no-native-code java-nekohtml
+                     java-objenesis java-pegdown java-picocli java-simple-web-4 java-testng
+                     java-tunnelvisionlabs-antlr4-runtime
                      js-jquery-tiptip rhino
 
                      java-jcl-over-slf4j java-log4j-over-slf4j
@@ -2152,6 +2299,7 @@ browser window. It is completely customizable as well via CSS.")
          ,@(substitute-keyword-arguments (package-arguments gradle-bootstrap-with-ant)
              ((#:phases _ '%standard-phases) ; TODO: what to do with gradle-wrapper?
                `(modify-phases %standard-phases
+                  ;; TODO: Some of these phases work together with patches - probably they should be source snippets?
                   (add-before 'build 'unshade-imports ; TODO: how to use the same lambda here and in the -bootstrap?
                     (lambda _
                       (substitute* (find-files "." ".*\\.(java|groovy)$")
@@ -2170,6 +2318,17 @@ browser window. It is completely customizable as well via CSS.")
                       (substitute* (find-files "." ".*\\.(java|groovy)$")
                         (("org\\.eclipse\\.aether\\.(RepositorySystemSession)" _ name) 
                           (string-append "org.sonatype.aether." name)))))
+                  (add-before 'build 'patch-for-newer-spock
+                    (lambda _
+                      (substitute* (find-files "." ".*\\.(java|groovy)$")
+                        (("@RunWith\\(ConsoleAttachmentTestRunner(\\.class)?\\)") "@WithAttachedConsole")
+                        (("@RunWith\\(FluidDependenciesResolveRunner(\\.class)?\\)") "@FluidDependenciesResolveTest")
+                        (("@RunWith\\(GradleMetadataResolveRunner(\\.class)?\\)") "@GradleMetadataResolveTest")
+                        (("org\\.gradle\\.integtests\\.fixtures\\.GradleMetadataResolveRunner")
+                          "org.gradle.integtests.fixtures.extensions.GradleMetadataResolveInterceptor")
+                        (("@RunWith\\(MultiVersionSpecRunner(\\.class)?\\)") "@MultiVersionTest")
+                        (("@RunWith\\(Runner(\\.class)?\\)") "@GradleRunnerTest")
+                        (("@RunWith\\(ToolingApiCompatibilitySuiteRunner(\\.class)?\\)") "@ToolingApiTest"))))
                   (add-before 'build 'patch-jcip
                     (lambda _
                       (substitute* (find-files "." ".*\\.(java|groovy)$")
@@ -2185,19 +2344,30 @@ browser window. It is completely customizable as well via CSS.")
                           "buildSrc/src/main/groovy/org/gradle/testing/PerformanceTest.java" ; depends on previous versions of Gradle
                           "subprojects/ide/src/main/java/org/gradle/plugins/ide/idea/internal/IdeaScalaConfigurer.java" ; depends on Scala
 
-                          ; Depend on dd-plist library and only required for a properietary IDE:
+                          ;; Depend on dd-plist library and only required for a proprietary IDE:
                           "subprojects/ide-native/src/main/java/org/gradle/api/internal/PropertyListTransformer.java"
                           "subprojects/ide-native/src/main/java/org/gradle/plugins/ide/api/PropertyListGeneratorTask.java"
                           "subprojects/ide-native/src/main/java/org/gradle/plugins/ide/internal/generator/PropertyListPersistableConfigurationObject.java"
+
+                          ;; Depend on Netty:
+                          "subprojects/internal-integ-testing/src/main/groovy/org/gradle/test/fixtures/server/http/TestProxyServer.groovy"
+                          "subprojects/core/src/integTest/groovy/org/gradle/api/HttpProxyScriptPluginIntegrationSpec.groovy"
+                          "subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/http/AbstractProxyResolveIntegrationTest.groovy"
+                          "subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/http/HttpProxyResolveIntegrationTest.groovy"
+                          "subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/http/HttpsProxyResolveIntegrationTest.groovy"
+                          "subprojects/resources-s3/src/integTest/groovy/org/gradle/integtests/resource/s3/maven/MavenS3ProxiedRepoIntegrationTest.groovy"
+                          "subprojects/wrapper/src/integTest/groovy/org/gradle/integtests/WrapperHttpIntegrationTest.groovy"
                           ))
-                      (delete-file-recursively "buildSrc/src/main/groovy/org/gradle/binarycompatibility") ; dependends on previous versions of Gradle
-                      (delete-file-recursively "buildSrc/src/test/groovy/org/gradle/binarycompatibility") ; dependends on previous versions of Gradle
-                      (delete-file-recursively "buildSrc/src/main/groovy/org/gradle/testing/performance") ; dependends on previous versions of Gradle
-                      (delete-file-recursively "buildSrc/src/test/groovy/org/gradle/testing/performance") ; dependends on previous versions of Gradle
+                      ;;depend on previous versions of Gradle
+                      (delete-file-recursively "buildSrc/src/main/groovy/org/gradle/binarycompatibility")
+                      (delete-file-recursively "buildSrc/src/test/groovy/org/gradle/binarycompatibility")
+                      (delete-file-recursively "buildSrc/src/main/groovy/org/gradle/testing/performance")
+                      (delete-file-recursively "buildSrc/src/test/groovy/org/gradle/testing/performance")
 
                       ; Depend on dd-plist library and only required for a properietary IDE:
                       (delete-file-recursively "subprojects/ide-native/src/main/java/org/gradle/ide/xcode")
                       (delete-file-recursively "subprojects/ide-native/src/test/groovy/org/gradle/ide/xcode")
+                      (delete-file-recursively "subprojects/ide-native/src/testFixtures/groovy/org/gradle/ide/xcode")
 
                       (substitute* (find-files "." "\\.gradle$")
                         ((" crossVersionTest[A-Za-z]+ " all) (string-append "// " all)) ; dependencies for tests depending on previous versions of Gradle
@@ -2254,6 +2424,7 @@ browser window. It is completely customizable as well via CSS.")
                         (((string-append "((com.google.code.findbugs:jsr305"
                            "|org.apache.maven.wagon:wagon-[^'\":]+"
                            "|org.apache.xbean:xbean-[^'\":]+"
+                           "|org.eclipse.jetty:jetty-server"
                            "|org.objenesis:objenesis"
                            "):)([0-9]+[0-9.]*)([:'@\"])") _ prefix _ version suffix)
                           (string-append prefix "[" version ",)" suffix))
@@ -2390,12 +2561,13 @@ browser window. It is completely customizable as well via CSS.")
                                     ,(package-version (this-package-transitive-native-input "java-picocli"))
                                                     "info.picocli" "picocli" "/share/java/picocli.jar"))
 
-                                (classpathWithoutAntlrAsmGroovy
+                                (classpathWithoutAntlrAsmGroovyMina
                                   (string-join
                                     (filter
                                       (lambda (path) (and
                                                        (not (string-match ".*[^[:alpha:]]asm[^[:alpha:]].*" path))
                                                        (not (string-match ".*/antlr\\.jar$" path))
+                                                       (not (string-match ".*(mina|sshd).*\\.jar$" path)) ; breaks Java NIO if not excluded
                                                        (not (string-match ; not a jar from a groovy package in the store
                                                               ".*/[[:alnum:]]{32}-groovy-[0-9.]+/.*\\.jar$" path))))
                                       (string-split (getenv "CLASSPATH") #\:))
@@ -2434,6 +2606,8 @@ browser window. It is completely customizable as well via CSS.")
                           (mavenize-package ,(this-package-transitive-native-input "java-commons-lang") ,(package-version (this-package-transitive-native-input "java-commons-lang"))
                             "commons-lang" "commons-lang"
                             (string-append "/share/java/commons-lang-" ,(package-version java-commons-lang) ".jar"))
+                          (mavenize-package ,(this-package-transitive-native-input "java-javaee-servletapi") ,(package-version (this-package-transitive-native-input "java-javaee-servletapi"))
+                            "javax.servlet" "javax.servlet-api" "/share/java/javax-servletapi.jar")
                           (mavenize-package ,(this-package-transitive-native-input "java-joda-time") ,(package-version (this-package-transitive-native-input "java-joda-time"))
                             "joda-time" "joda-time" "/share/java/java-joda-time.jar")
                           (mavenize-package ,(this-package-transitive-native-input "java-native-platform") ,(package-version (this-package-transitive-native-input "java-native-platform"))
@@ -2491,9 +2665,30 @@ browser window. It is completely customizable as well via CSS.")
                           (mavenize-package ,(this-package-transitive-native-input "groovy-test") ,(package-version (this-package-transitive-native-input "groovy-test"))
                             "org.codehaus.groovy" "groovy-test" "/share/java/groovy-test.jar")
 
+                          (mavenize-package ,(this-package-transitive-native-input "java-eclipse-jetty-http")
+                            ,(package-version (this-package-transitive-native-input "java-eclipse-jetty-http"))
+                            "org.eclipse.jetty" "jetty-http" "/share/java/eclipse-jetty-http.jar")
+                          (mavenize-package ,(this-package-transitive-native-input "java-eclipse-jetty-io")
+                            ,(package-version (this-package-transitive-native-input "java-eclipse-jetty-io"))
+                            "org.eclipse.jetty" "jetty-io" "/share/java/eclipse-jetty-io.jar")
+                          (mavenize-package ,(this-package-transitive-native-input "java-eclipse-jetty-security")
+                            ,(package-version (this-package-transitive-native-input "java-eclipse-jetty-security"))
+                            "org.eclipse.jetty" "jetty-security" "/share/java/eclipse-jetty-security.jar")
+                          (mavenize-package ,(this-package-transitive-native-input "java-eclipse-jetty-server")
+                            ,(package-version (this-package-transitive-native-input "java-eclipse-jetty-server"))
+                            "org.eclipse.jetty" "jetty-server" "/share/java/eclipse-jetty-server.jar")
+                          (mavenize-package ,(this-package-transitive-native-input "java-eclipse-jetty-servlet")
+                            ,(package-version (this-package-transitive-native-input "java-eclipse-jetty-servlet"))
+                            "org.eclipse.jetty" "jetty-servlet" "/share/java/eclipse-jetty-servlet.jar")
+                          (mavenize-package ,(this-package-transitive-native-input "java-eclipse-jetty-util")
+                            ,(package-version (this-package-transitive-native-input "java-eclipse-jetty-util"))
+                            "org.eclipse.jetty" "jetty-util" "/share/java/eclipse-jetty-util.jar")
+                          (mavenize-package ,(this-package-transitive-native-input "java-eclipse-jetty-webapp")
+                            ,(package-version (this-package-transitive-native-input "java-eclipse-jetty-webapp"))
+                            "org.eclipse.jetty" "jetty-webapp" "/share/java/eclipse-jetty-webapp.jar")
+
                           (mavenize-package ,(this-package-transitive-native-input "java-jgit") ,(package-version (this-package-transitive-native-input "java-jgit"))
                             "org.eclipse.jgit" "org.eclipse.jgit" "/share/java/jgit.jar")
-
                           (mavenize-package ,(this-package-transitive-native-input "java-jmock") ,(package-version (this-package-transitive-native-input "java-jmock"))
                             "org.jmock" "jmock" "/share/java/java-jmock.jar")
                           (mavenize-package ,(this-package-transitive-native-input "java-jmock-junit4") ,(package-version (this-package-transitive-native-input "java-jmock-junit4"))
@@ -2577,7 +2772,7 @@ browser window. It is completely customizable as well via CSS.")
                               ":" (string-join
                                     (find-files (string-append repository-dir "/org/codehaus/groovy") ".*\\.jar")
                                     ":")
-                              ":" classpathWithoutAntlrAsmGroovy
+                              ":" classpathWithoutAntlrAsmGroovyMina
                               ":" ,gradle-bootstrap-with-ant "/share/java/gradle.jar"))
                           (setenv "HOME" dir)))))
                   (replace 'build
@@ -2590,6 +2785,8 @@ browser window. It is completely customizable as well via CSS.")
                         "org.gradle.launcher.Main"
                         "--init-script" "init.gradle"
                         "--no-build-cache"
+;                        "--debug"
+;                        "--full-stacktrace"
                         ; TODO: set number of worker threads based on '--cores' Guix argument
 ;                        "test"
                         ; TODO "integTest"

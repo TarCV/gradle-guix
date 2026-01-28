@@ -1,4 +1,4 @@
-These changes are backported from PR #6669 that was originally made by Marc Philipp <marc@gradle.com>
+These changes were backported from PR #6669 that had originally been made by Marc Philipp <marc@gradle.com>
 
 diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
 index 36683feed3b29..c96b1f6e62a2a 100755
@@ -20,9 +20,9 @@ index 36683feed3b29..c96b1f6e62a2a 100755
      versions = [:]
      libraries = [:]
 +    cglibWithoutAntRule = CglibWithoutAntRule
-     groovyVersion = '2.5.2'
  }
  
+ versions.gradle_kotlin_dsl = '0.14.2'
 @@ -81,7 +81,7 @@
      nativePlatform: 'net.rubygrapefruit:native-platform:0.14',
      jansi: 'org.fusesource.jansi:jansi:1.17.1',
@@ -905,7 +905,7 @@ diff --git a/subprojects/internal-testing/src/main/groovy/org/gradle/testing/int
 index 43287df609116..08316fd79dd18 100644
 --- a/subprojects/internal-testing/src/main/groovy/org/gradle/testing/internal/util/Specification.groovy
 +++ b/subprojects/internal-testing/src/main/groovy/org/gradle/testing/internal/util/Specification.groovy
-@@ -18,37 +18,17 @@ package org.gradle.testing.internal.util
+@@ -18,36 +18,16 @@ package org.gradle.testing.internal.util
  
  import groovy.transform.CompileStatic
  import groovy.transform.stc.ClosureParams
@@ -920,7 +920,6 @@ index 43287df609116..08316fd79dd18 100644
 + * By using this subclass, IDEA knows the closure delegate type when using Mock() or Stub().
 + * This means that you get editing assistance in said blocks WRT the type being mocked/stubbed.
   */
- // TODO:lptr Either remove this class, or fix the two methods with Groovy 2.5
  @CompileStatic
  class Specification extends spock.lang.Specification {
  
@@ -943,9 +942,9 @@ index 43287df609116..08316fd79dd18 100644
 -        super.with(t, type, closure)
 -    }
 -
- //    @SuppressWarnings(['MethodName', 'UnnecessaryOverridingMethod', 'GrUnnecessaryPublicModifier'])
- //    @Override
- //    public <T> T Mock(
+     @SuppressWarnings(['MethodName', 'UnnecessaryOverridingMethod', 'GrUnnecessaryPublicModifier'])
+     @Override
+     public <T> T Mock(
 diff --git a/subprojects/internal-testing/src/main/groovy/org/gradle/util/FailsWithMessageExtension.java b/subprojects/internal-testing/src/main/groovy/org/gradle/util/FailsWithMessageExtension.java
 index 679ce1218723c..1b3e9e46786ae 100644
 --- a/subprojects/internal-testing/src/main/groovy/org/gradle/util/FailsWithMessageExtension.java

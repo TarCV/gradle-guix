@@ -1,4 +1,4 @@
-Partially backported from takari/polyglot-maven (PR #51) keeping minimal changes to tests files
+Partially backported from takari/polyglot-maven (PR #51) but keeping minimal changes to tests files
 From 83d5f68240c339bc22f31af50c339b82e039a035 Mon Sep 17 00:00:00 2001
 From: Jason Dillon <jason@planet57.com>
 Date: Mon, 14 Sep 2015 13:52:16 -0700

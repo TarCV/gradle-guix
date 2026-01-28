@@ -1,0 +1,567 @@
+These changes were backported from PR #15582 that had originally been made by Vaidotas Valuckas <vvaluckas@gradle.com>
+assertTrue workarounds are removed as the related bug should be fixed in the Spock version used to compile Gradle here.
+Deletions of JUnit 4-specific code are removed as spock-junit4 should still support it. 
+
+diff --git a/subprojects/core/src/test/groovy/org/gradle/initialization/layout/BuildLayoutFactoryTest.groovy b/subprojects/core/src/test/groovy/org/gradle/initialization/layout/BuildLayoutFactoryTest.groovy
+index 8cd9d918d4959..5df010b653776 100644
+--- a/subprojects/core/src/test/groovy/org/gradle/initialization/layout/BuildLayoutFactoryTest.groovy
++++ b/subprojects/core/src/test/groovy/org/gradle/initialization/layout/BuildLayoutFactoryTest.groovy
+@@ -33,7 +33,7 @@ class BuildLayoutFactoryTest extends Specification {
+     public final TestNameTestDirectoryProvider tmpDir = new TestNameTestDirectoryProvider(getClass())
+ 
+     @Unroll
+-    def "returns current directory when it contains a #settingsFilename file when script languages #extensions"() {
++    def "returns current directory when it contains a #settingsFilename file when script languages"() {
+         given:
+         def locator = buildLayoutFactoryFor()
+ 
+diff --git a/subprojects/core/src/test/groovy/org/gradle/util/StdinSwapperTest.groovy b/subprojects/core/src/test/groovy/org/gradle/util/StdinSwapperTest.groovy
+index 3640b7272db12..4d8a5608455fb 100644
+--- a/subprojects/core/src/test/groovy/org/gradle/util/StdinSwapperTest.groovy
++++ b/subprojects/core/src/test/groovy/org/gradle/util/StdinSwapperTest.groovy
+@@ -15,8 +15,7 @@
+  */
+ package org.gradle.util
+ 
+-import spock.lang.*
+-import java.util.concurrent.Callable
++import spock.lang.Specification
+ 
+ class StdinSwapperTest extends Specification {
+ 
+@@ -25,8 +24,8 @@ class StdinSwapperTest extends Specification {
+         def text = "abc"
+ 
+         expect:
+-        new StdinSwapper().swap(new ByteArrayInputStream("abc".bytes), { System.in.text } as Callable)  == text
++        new StdinSwapper().swap(new ByteArrayInputStream("abc".bytes), { System.in.text })  == text
+     }
+ 
+ 
+-}
+\ No newline at end of file
++}
+diff --git a/subprojects/core/src/test/groovy/org/gradle/util/ports/FixedAvailablePortAllocatorTest.groovy b/subprojects/core/src/test/groovy/org/gradle/util/ports/FixedAvailablePortAllocatorTest.groovy
+index f85420b3ef51c..98eaab23b5a47 100644
+--- a/subprojects/core/src/test/groovy/org/gradle/util/ports/FixedAvailablePortAllocatorTest.groovy
++++ b/subprojects/core/src/test/groovy/org/gradle/util/ports/FixedAvailablePortAllocatorTest.groovy
+@@ -21,7 +21,7 @@ import spock.lang.Unroll
+ class FixedAvailablePortAllocatorTest extends AbstractPortAllocatorTest {
+ 
+     @Unroll
+-    def "assigns a unique fixed port range based on worker id (maxForks: #maxForks, totalAgents: #totalAgents)" () {
++    def "assigns a unique fixed port range based on worker id (totalWorkers: #totalWorkers, totalAgents: #totalAgents)" () {
+         int rangeSize = FixedAvailablePortAllocator.DEFAULT_RANGE_SIZE - 1
+         def portAllocators = (1..totalAgents).collect { agentNum ->
+             (1..totalWorkers).collect { workerId ->
+diff --git a/subprojects/dependency-management/src/test/groovy/org/gradle/api/internal/artifacts/ivyservice/ShortCircuitEmptyConfigurationResolverSpec.groovy b/subprojects/dependency-management/src/test/groovy/org/gradle/api/internal/artifacts/ivyservice/ShortCircuitEmptyConfigurationResolverSpec.groovy
+index cf6ae946e3c13..beb2ea8645e73 100644
+--- a/subprojects/dependency-management/src/test/groovy/org/gradle/api/internal/artifacts/ivyservice/ShortCircuitEmptyConfigurationResolverSpec.groovy
++++ b/subprojects/dependency-management/src/test/groovy/org/gradle/api/internal/artifacts/ivyservice/ShortCircuitEmptyConfigurationResolverSpec.groovy
+@@ -47,8 +47,8 @@ class ShortCircuitEmptyConfigurationResolverSpec extends Specification {
+     def dependencyResolver = new ShortCircuitEmptyConfigurationResolver(delegate, componentIdentifierFactory, moduleIdentifierFactory);
+ 
+     def "returns empty build dependencies when no dependencies"() {
+-        def depVisitor = Stub(BuildDependenciesVisitor)
+-        def artifactVisitor = Stub(ArtifactVisitor)
++        def depVisitor = Mock(BuildDependenciesVisitor)
++        def artifactVisitor = Mock(ArtifactVisitor)
+ 
+         given:
+         dependencies.isEmpty() >> true
+@@ -75,8 +75,8 @@ class ShortCircuitEmptyConfigurationResolverSpec extends Specification {
+     }
+ 
+     def "returns empty graph when no dependencies"() {
+-        def depVisitor = Stub(BuildDependenciesVisitor)
+-        def artifactVisitor = Stub(ArtifactVisitor)
++        def depVisitor = Mock(BuildDependenciesVisitor)
++        def artifactVisitor = Mock(ArtifactVisitor)
+ 
+         given:
+         dependencies.isEmpty() >> true
+diff --git a/subprojects/dependency-management/src/test/groovy/org/gradle/api/internal/artifacts/ivyservice/resolveengine/result/ComponentSelectorSerializerTest.groovy b/subprojects/dependency-management/src/test/groovy/org/gradle/api/internal/artifacts/ivyservice/resolveengine/result/ComponentSelectorSerializerTest.groovy
+index bc79191cb36c0..7030638cb631c 100644
+--- a/subprojects/dependency-management/src/test/groovy/org/gradle/api/internal/artifacts/ivyservice/resolveengine/result/ComponentSelectorSerializerTest.groovy
++++ b/subprojects/dependency-management/src/test/groovy/org/gradle/api/internal/artifacts/ivyservice/resolveengine/result/ComponentSelectorSerializerTest.groovy
+@@ -176,7 +176,7 @@ class ComponentSelectorSerializerTest extends SerializerSpec {
+     }
+ 
+     @Unroll
+-    def "serializes LibraryComponentSelector project #projectPath library #libraryName variant #variant"() {
++    def "serializes LibraryComponentSelector project #projectPath library #libraryName"() {
+         given:
+         LibraryComponentSelector selection = new DefaultLibraryComponentSelector(projectPath, libraryName)
+ 
+diff --git a/subprojects/dependency-management/src/test/groovy/org/gradle/internal/component/local/model/DefaultLibraryComponentSelectorTest.groovy b/subprojects/dependency-management/src/test/groovy/org/gradle/internal/component/local/model/DefaultLibraryComponentSelectorTest.groovy
+index 98612913a4708..226fadf6db202 100644
+--- a/subprojects/dependency-management/src/test/groovy/org/gradle/internal/component/local/model/DefaultLibraryComponentSelectorTest.groovy
++++ b/subprojects/dependency-management/src/test/groovy/org/gradle/internal/component/local/model/DefaultLibraryComponentSelectorTest.groovy
+@@ -77,7 +77,7 @@ class DefaultLibraryComponentSelectorTest extends Specification {
+     }
+ 
+     @Unroll
+-    def "can compare (#projectPath1,#libraryName1,#variant1) with other instance (#projectPath2,#libraryName2, #variant2)"() {
++    def "can compare (#projectPath1,#libraryName1) with other instance (#projectPath2,#libraryName2)"() {
+         expect:
+         LibraryComponentSelector defaultBuildComponentSelector1 = new DefaultLibraryComponentSelector(projectPath1, libraryName1)
+         LibraryComponentSelector defaultBuildComponentSelector2 = new DefaultLibraryComponentSelector(projectPath2, libraryName2)
+diff --git a/subprojects/logging/src/test/groovy/org/gradle/internal/featurelifecycle/DeprecatedFeatureUsageTest.groovy b/subprojects/logging/src/test/groovy/org/gradle/internal/featurelifecycle/DeprecatedFeatureUsageTest.groovy
+index 622037661d326..305fa40b6d61e 100644
+--- a/subprojects/logging/src/test/groovy/org/gradle/internal/featurelifecycle/DeprecatedFeatureUsageTest.groovy
++++ b/subprojects/logging/src/test/groovy/org/gradle/internal/featurelifecycle/DeprecatedFeatureUsageTest.groovy
+@@ -28,7 +28,7 @@ import static SimulatedSingleMessageLogger.INDIRECT_CALL_2
+ class FeatureUsageTest extends Specification {
+ 
+     @Unroll
+-    def "stack is evaluated correctly for #callLocationClass.simpleName and #expectedMessage."() {
++    def "stack is evaluated correctly for #callLocationClass.simpleName and #expectedSummary. #expectedMethod. #usage."() {
+         expect:
+         !usage.stack.empty
+         usage.summary == expectedSummary
+diff --git a/subprojects/logging/src/test/groovy/org/gradle/internal/logging/slf4j/OutputEventListenerBackedLoggerTest.groovy b/subprojects/logging/src/test/groovy/org/gradle/internal/logging/slf4j/OutputEventListenerBackedLoggerTest.groovy
+index 19498537bbf77..81f5fe4979ad6 100644
+--- a/subprojects/logging/src/test/groovy/org/gradle/internal/logging/slf4j/OutputEventListenerBackedLoggerTest.groovy
++++ b/subprojects/logging/src/test/groovy/org/gradle/internal/logging/slf4j/OutputEventListenerBackedLoggerTest.groovy
+@@ -334,16 +334,16 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         singleLogEvent().message("arg1 arg2 arg3").logLevel(DEBUG).eventExpected(eventExpected)
+ 
+         when:
+-        logger().debug("message", throwable)
++        logger().debug("message", t)
+ 
+         then:
+-        singleLogEvent().message("message").logLevel(DEBUG).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("message").logLevel(DEBUG).throwable(t).eventExpected(eventExpected)
+ 
+         when:
+-        logger().log(DEBUG, "message", throwable)
++        logger().log(DEBUG, "message", t)
+ 
+         then:
+-        singleLogEvent().message("message").logLevel(DEBUG).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("message").logLevel(DEBUG).throwable(t).eventExpected(eventExpected)
+ 
+         when:
+         logger().debug((Marker) null, "message")
+@@ -370,16 +370,16 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         singleLogEvent().message("arg1 arg2 arg3").logLevel(DEBUG).eventExpected(eventExpected)
+ 
+         when:
+-        logger().debug((Marker)null, "message", throwable)
++        logger().debug((Marker)null, "message", t)
+ 
+         then:
+-        singleLogEvent().message("message").logLevel(DEBUG).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("message").logLevel(DEBUG).throwable(t).eventExpected(eventExpected)
+ 
+         when:
+-        logger().debug("There was a {} error", "bad", throwable)
++        logger().debug("There was a {} error", "bad", t)
+ 
+         then:
+-        singleLogEvent().message("There was a bad error").logLevel(DEBUG).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("There was a bad error").logLevel(DEBUG).throwable(t).eventExpected(eventExpected)
+ 
+         where:
+         level     | eventExpected
+@@ -390,7 +390,7 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         QUIET     | false
+         ERROR     | false
+ 
+-        throwable = new Throwable()
++        t = new Throwable()
+         arg1 = "arg1"
+         arg2 = "arg2"
+         arg3 = "arg3"
+@@ -437,16 +437,16 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         singleLogEvent().message("arg1 arg2 arg3").logLevel(INFO).eventExpected(eventExpected)
+ 
+         when:
+-        logger().info("message", throwable)
++        logger().info("message", t)
+ 
+         then:
+-        singleLogEvent().message("message").logLevel(INFO).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("message").logLevel(INFO).throwable(t).eventExpected(eventExpected)
+ 
+         when:
+-        logger().log(INFO, "message", throwable)
++        logger().log(INFO, "message", t)
+ 
+         then:
+-        singleLogEvent().message("message").logLevel(INFO).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("message").logLevel(INFO).throwable(t).eventExpected(eventExpected)
+ 
+         when:
+         logger().info((Marker) null, "message")
+@@ -473,16 +473,16 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         singleLogEvent().message("arg1 arg2 arg3").logLevel(INFO).eventExpected(eventExpected)
+ 
+         when:
+-        logger().info((Marker)null, "message", throwable)
++        logger().info((Marker)null, "message", t)
+ 
+         then:
+-        singleLogEvent().message("message").logLevel(INFO).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("message").logLevel(INFO).throwable(t).eventExpected(eventExpected)
+ 
+         when:
+-        logger().info("There was a {} error", "bad", throwable)
++        logger().info("There was a {} error", "bad", t)
+ 
+         then:
+-        singleLogEvent().message("There was a bad error").logLevel(INFO).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("There was a bad error").logLevel(INFO).throwable(t).eventExpected(eventExpected)
+ 
+         where:
+         level     | eventExpected
+@@ -493,7 +493,7 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         QUIET     | false
+         ERROR     | false
+ 
+-        throwable = new Throwable()
++        t = new Throwable()
+         arg1 = "arg1"
+         arg2 = "arg2"
+         arg3 = "arg3"
+@@ -528,10 +528,10 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         singleLogEvent().message("arg1 arg2 arg3").logLevel(LIFECYCLE).eventExpected(eventExpected)
+ 
+         when:
+-        logger().info(Logging.LIFECYCLE, "message", throwable)
++        logger().info(Logging.LIFECYCLE, "message", t)
+ 
+         then:
+-        singleLogEvent().message("message").logLevel(LIFECYCLE).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("message").logLevel(LIFECYCLE).throwable(t).eventExpected(eventExpected)
+ 
+         where:
+         level     | eventExpected
+@@ -542,7 +542,7 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         QUIET     | false
+         ERROR     | false
+ 
+-        throwable = new Throwable()
++        t = new Throwable()
+         arg1 = "arg1"
+         arg2 = "arg2"
+         arg3 = "arg3"
+@@ -589,22 +589,22 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         singleLogEvent().message("arg1 arg2 arg3").logLevel(LIFECYCLE).eventExpected(eventExpected)
+ 
+         when:
+-        logger().lifecycle("message", throwable)
++        logger().lifecycle("message", t)
+ 
+         then:
+-        singleLogEvent().message("message").logLevel(LIFECYCLE).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("message").logLevel(LIFECYCLE).throwable(t).eventExpected(eventExpected)
+ 
+         when:
+-        logger().log(LIFECYCLE, "message", throwable)
++        logger().log(LIFECYCLE, "message", t)
+ 
+         then:
+-        singleLogEvent().message("message").logLevel(LIFECYCLE).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("message").logLevel(LIFECYCLE).throwable(t).eventExpected(eventExpected)
+ 
+         when:
+-        logger().lifecycle("There was a {} error", "bad", throwable)
++        logger().lifecycle("There was a {} error", "bad", t)
+ 
+         then:
+-        singleLogEvent().message("There was a bad error").logLevel(LIFECYCLE).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("There was a bad error").logLevel(LIFECYCLE).throwable(t).eventExpected(eventExpected)
+ 
+         where:
+         level     | eventExpected
+@@ -615,7 +615,7 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         QUIET     | false
+         ERROR     | false
+ 
+-        throwable = new Throwable()
++        t = new Throwable()
+         arg1 = "arg1"
+         arg2 = "arg2"
+         arg3 = "arg3"
+@@ -650,10 +650,10 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         singleLogEvent().message("arg1 arg2 arg3").logLevel(QUIET).eventExpected(eventExpected)
+ 
+         when:
+-        logger().info(Logging.QUIET, "message", throwable)
++        logger().info(Logging.QUIET, "message", t)
+ 
+         then:
+-        singleLogEvent().message("message").logLevel(QUIET).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("message").logLevel(QUIET).throwable(t).eventExpected(eventExpected)
+ 
+         where:
+         level     | eventExpected
+@@ -664,7 +664,7 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         QUIET     | true
+         ERROR     | false
+ 
+-        throwable = new Throwable()
++        t = new Throwable()
+         arg1 = "arg1"
+         arg2 = "arg2"
+         arg3 = "arg3"
+@@ -711,22 +711,22 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         singleLogEvent().message("arg1 arg2 arg3").logLevel(QUIET).eventExpected(eventExpected)
+ 
+         when:
+-        logger().quiet("message", throwable)
++        logger().quiet("message", t)
+ 
+         then:
+-        singleLogEvent().message("message").logLevel(QUIET).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("message").logLevel(QUIET).throwable(t).eventExpected(eventExpected)
+ 
+         when:
+-        logger().log(QUIET, "message", throwable)
++        logger().log(QUIET, "message", t)
+ 
+         then:
+-        singleLogEvent().message("message").logLevel(QUIET).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("message").logLevel(QUIET).throwable(t).eventExpected(eventExpected)
+ 
+         when:
+-        logger().quiet("There was a {} error", "bad", throwable)
++        logger().quiet("There was a {} error", "bad", t)
+ 
+         then:
+-        singleLogEvent().message("There was a bad error").logLevel(QUIET).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("There was a bad error").logLevel(QUIET).throwable(t).eventExpected(eventExpected)
+ 
+         where:
+         level     | eventExpected
+@@ -737,7 +737,7 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         QUIET     | true
+         ERROR     | false
+ 
+-        throwable = new Throwable()
++        t = new Throwable()
+         arg1 = "arg1"
+         arg2 = "arg2"
+         arg3 = "arg3"
+@@ -784,16 +784,16 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         singleLogEvent().message("arg1 arg2 arg3").logLevel(WARN).eventExpected(eventExpected)
+ 
+         when:
+-        logger().warn("message", throwable)
++        logger().warn("message", t)
+ 
+         then:
+-        singleLogEvent().message("message").logLevel(WARN).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("message").logLevel(WARN).throwable(t).eventExpected(eventExpected)
+ 
+         when:
+-        logger().log(WARN, "message", throwable)
++        logger().log(WARN, "message", t)
+ 
+         then:
+-        singleLogEvent().message("message").logLevel(WARN).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("message").logLevel(WARN).throwable(t).eventExpected(eventExpected)
+ 
+         when:
+         logger().warn((Marker) null, "message")
+@@ -820,16 +820,16 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         singleLogEvent().message("arg1 arg2 arg3").logLevel(WARN).eventExpected(eventExpected)
+ 
+         when:
+-        logger().warn((Marker)null, "message", throwable)
++        logger().warn((Marker)null, "message", t)
+ 
+         then:
+-        singleLogEvent().message("message").logLevel(WARN).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("message").logLevel(WARN).throwable(t).eventExpected(eventExpected)
+ 
+         when:
+-        logger().warn("There was a {} error", "bad", throwable)
++        logger().warn("There was a {} error", "bad", t)
+ 
+         then:
+-        singleLogEvent().message("There was a bad error").logLevel(WARN).throwable(throwable).eventExpected(eventExpected)
++        singleLogEvent().message("There was a bad error").logLevel(WARN).throwable(t).eventExpected(eventExpected)
+ 
+         where:
+         level     | eventExpected
+@@ -840,7 +840,7 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         QUIET     | false
+         ERROR     | false
+ 
+-        throwable = new Throwable()
++        t = new Throwable()
+         arg1 = "arg1"
+         arg2 = "arg2"
+         arg3 = "arg3"
+@@ -887,16 +887,16 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         singleLogEvent().message("arg1 arg2 arg3").logLevel(ERROR)
+ 
+         when:
+-        logger().error("message", throwable)
++        logger().error("message", t)
+ 
+         then:
+-        singleLogEvent().message("message").logLevel(ERROR).throwable(throwable)
++        singleLogEvent().message("message").logLevel(ERROR).throwable(t)
+ 
+         when:
+-        logger().log(ERROR, "message", throwable)
++        logger().log(ERROR, "message", t)
+ 
+         then:
+-        singleLogEvent().message("message").logLevel(ERROR).throwable(throwable)
++        singleLogEvent().message("message").logLevel(ERROR).throwable(t)
+ 
+         when:
+         logger().error((Marker) null, "message")
+@@ -923,21 +923,21 @@ class OutputEventListenerBackedLoggerTest extends Specification {
+         singleLogEvent().message("arg1 arg2 arg3").logLevel(ERROR)
+ 
+         when:
+-        logger().error((Marker)null, "message", throwable)
++        logger().error((Marker)null, "message", t)
+ 
+         then:
+-        singleLogEvent().message("message").logLevel(ERROR).throwable(throwable)
++        singleLogEvent().message("message").logLevel(ERROR).throwable(t)
+ 
+         when:
+-        logger().error("There was a {} error", "bad", throwable)
++        logger().error("There was a {} error", "bad", t)
+ 
+         then:
+-        singleLogEvent().message("There was a bad error").logLevel(ERROR).throwable(throwable)
++        singleLogEvent().message("There was a bad error").logLevel(ERROR).throwable(t)
+ 
+         where:
+         level << LogLevel.values()
+ 
+-        throwable = new Throwable()
++        t = new Throwable()
+         arg1 = "arg1"
+         arg2 = "arg2"
+         arg3 = "arg3"
+diff --git a/subprojects/messaging/src/test/groovy/org/gradle/internal/remote/internal/inet/TcpConnectorTest.groovy b/subprojects/messaging/src/test/groovy/org/gradle/internal/remote/internal/inet/TcpConnectorTest.groovy
+index 239b9d0a9a7fc..0b184897c154b 100644
+--- a/subprojects/messaging/src/test/groovy/org/gradle/internal/remote/internal/inet/TcpConnectorTest.groovy
++++ b/subprojects/messaging/src/test/groovy/org/gradle/internal/remote/internal/inet/TcpConnectorTest.groovy
+@@ -207,9 +207,9 @@ class TcpConnectorTest extends ConcurrentSpec {
+ 
+         when:
+         def acceptor = incomingConnector.accept({ ConnectCompletion event ->
+-            def connection = event.create(serializer)
+-            connection.dispatch("bye")
+-            connection.stop()
++            def conn = event.create(serializer)
++            conn.dispatch("bye")
++            conn.stop()
+             instant.closed
+         } as Action, false)
+ 
+@@ -231,9 +231,9 @@ class TcpConnectorTest extends ConcurrentSpec {
+             encoder.writeInt(value.length())
+         } as Serializer
+         def action = { ConnectCompletion completion ->
+-            def connection = completion.create(Serializers.stateful(incomingSerializer))
+-            connection.dispatch("string")
+-            connection.stop()
++            def conn = completion.create(Serializers.stateful(incomingSerializer))
++            conn.dispatch("string")
++            conn.stop()
+         } as Action
+         def outgoingSerializer = { Decoder decoder ->
+             decoder.readInt()
+@@ -259,9 +259,9 @@ class TcpConnectorTest extends ConcurrentSpec {
+ 
+         given:
+         def action = { ConnectCompletion completion ->
+-            def connection = completion.create(serializer)
+-            connection.dispatch("string")
+-            connection.stop()
++            def conn = completion.create(serializer)
++            conn.dispatch("string")
++            conn.stop()
+         } as Action
+         outgoingSerializer.read(_) >> { Decoder decoder ->
+             throw failure
+diff --git a/subprojects/model-core/src/test/groovy/org/gradle/model/internal/inspect/ManagedModelInitializerTest.groovy b/subprojects/model-core/src/test/groovy/org/gradle/model/internal/inspect/ManagedModelInitializerTest.groovy
+index b3d422468e0da..e7fa8f42c703a 100644
+--- a/subprojects/model-core/src/test/groovy/org/gradle/model/internal/inspect/ManagedModelInitializerTest.groovy
++++ b/subprojects/model-core/src/test/groovy/org/gradle/model/internal/inspect/ManagedModelInitializerTest.groovy
+@@ -272,7 +272,7 @@ interface Managed${typeName} {
+     }
+ 
+     @Unroll
+-    def "throws an error if we use unsupported type #collectionType.simpleName as element type of a scalar collection"() {
++    def "throws an error if we use unsupported type #innerType.simpleName as element type of a scalar collection"() {
+         when:
+         def managedType = new GroovyClassLoader(getClass().classLoader).parseClass """
+             import org.gradle.model.Managed
+diff --git a/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/regression/kotlindsl/GradleKotlinDslBuildPerformanceTest.groovy b/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/regression/kotlindsl/GradleKotlinDslBuildPerformanceTest.groovy
+index e3dd68d79298b..aecef6242e431 100644
+--- a/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/regression/kotlindsl/GradleKotlinDslBuildPerformanceTest.groovy
++++ b/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/regression/kotlindsl/GradleKotlinDslBuildPerformanceTest.groovy
+@@ -17,7 +17,7 @@
+ package org.gradle.performance.regression.kotlindsl
+ 
+ import org.gradle.performance.AbstractCrossVersionPerformanceTest
+-import org.junit.Ignore
++import spock.lang.Ignore
+ import spock.lang.Unroll
+ 
+ @Ignore
+diff --git a/subprojects/platform-jvm/src/test/groovy/org/gradle/jvm/internal/resolve/JvmLibraryResolveContextTest.groovy b/subprojects/platform-jvm/src/test/groovy/org/gradle/jvm/internal/resolve/JvmLibraryResolveContextTest.groovy
+index c7e9f0a463479..ea3f4de4d14d4 100644
+--- a/subprojects/platform-jvm/src/test/groovy/org/gradle/jvm/internal/resolve/JvmLibraryResolveContextTest.groovy
++++ b/subprojects/platform-jvm/src/test/groovy/org/gradle/jvm/internal/resolve/JvmLibraryResolveContextTest.groovy
+@@ -28,7 +28,7 @@ class JvmLibraryResolveContextTest extends Specification {
+     final ImmutableModuleIdentifierFactory moduleIdentifierFactory = Mock()
+ 
+     @Unroll
+-    def "context name for project #path and library #library is #contextName"() {
++    def "context name for project #path and library #library is #usage"() {
+         given:
+         def id = new DefaultLibraryBinaryIdentifier(path, COMPONENT_NAME, VARIANT)
+ 
+diff --git a/subprojects/process-services/src/test/groovy/org/gradle/process/internal/health/memory/DefaultMemoryManagerTest.groovy b/subprojects/process-services/src/test/groovy/org/gradle/process/internal/health/memory/DefaultMemoryManagerTest.groovy
+index 9d97bd8617b35..8e1da4148af3a 100644
+--- a/subprojects/process-services/src/test/groovy/org/gradle/process/internal/health/memory/DefaultMemoryManagerTest.groovy
++++ b/subprojects/process-services/src/test/groovy/org/gradle/process/internal/health/memory/DefaultMemoryManagerTest.groovy
+@@ -161,15 +161,12 @@ class DefaultMemoryManagerTest extends ConcurrentSpec {
+     }
+ 
+     def "registers/deregisters os memory status listener"() {
+-        def listenerManager = Mock(ListenerManager)
+-        OsMemoryStatusListener osMemoryStatusListener
+-
+-        when:
++        given:
++        def listenerManager = Mock(ListenerManager) {
++            1 * addListener(_) >> { args -> osMemoryStatusListener = args[0] }
++        }
+         def memoryManager = new DefaultMemoryManager(osMemoryInfo, jvmMemoryInfo, listenerManager, new DefaultExecutorFactory(), 0.25, false)
+ 
+-        then:
+-        1 * listenerManager.addListener(_) >> { args -> osMemoryStatusListener = (OsMemoryStatusListener) args[0] }
+-
+         when:
+         memoryManager.stop()
+ 
+diff --git a/subprojects/resources-http/src/test/groovy/org/gradle/internal/resource/transport/http/HttpResponseResourceTest.groovy b/subprojects/resources-http/src/test/groovy/org/gradle/internal/resource/transport/http/HttpResponseResourceTest.groovy
+index 0f94a3dd527d7..d689e2d85f856 100644
+--- a/subprojects/resources-http/src/test/groovy/org/gradle/internal/resource/transport/http/HttpResponseResourceTest.groovy
++++ b/subprojects/resources-http/src/test/groovy/org/gradle/internal/resource/transport/http/HttpResponseResourceTest.groovy
+@@ -45,8 +45,8 @@ class HttpResponseResourceTest extends AbstractHttpClientTest {
+         setup:
+         1 * response.entity >> Mock(HttpEntity)
+         when:
+-        def resource = resource();
+-        resource.openStream();
++        def resource = this.resource()
++        resource.openStream()
+         and:
+         resource.openStream()
+         then:

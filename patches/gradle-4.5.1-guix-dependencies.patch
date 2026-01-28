@@ -18,9 +18,15 @@ TODO: Fix the relevant Guix packages to have these dependencies in POMs instead
  libraries.commons_cli = 'commons-cli:commons-cli:1.4'
  libraries.commons_io = "commons-io:commons-io:${versions.commons_io}"
  libraries.commons_lang = 'commons-lang:commons-lang:2.6'
-@@ -59,7 +59,7 @@
- libraries.jetty = "org.mortbay.jetty:jetty:6.1.26"
- libraries.commons_codec = "commons-codec:commons-codec:1.6"
+@@ -65,11 +65,11 @@
+ libraries.jettySecurity = "org.eclipse.jetty:jetty-security:${versions.jettyVersion}"
+ libraries.jettyServer = "org.eclipse.jetty:jetty-server:${versions.jettyVersion}"
+ libraries.jettyUtil = "org.eclipse.jetty:jetty-util:${versions.jettyVersion}"
+-libraries.jetty = "org.eclipse.jetty:jetty-http:${versions.jettyVersion}"
+-libraries.jettyWebApp = "org.eclipse.jetty:jetty-webapp:${versions.jettyVersion}"
++libraries.jetty = ["org.eclipse.jetty:jetty-http:${versions.jettyVersion}", libraries.jettyIo, libraries.jettyUtil]
++libraries.jettyWebApp = ["org.eclipse.jetty:jetty-webapp:${versions.jettyVersion}", libraries.jettySecurity, libraries.jettyServlet, libraries.servletApi, libraries.jettyServer] + libraries.jetty
+ libraries.commons_codec = "commons-codec:commons-codec:1.11"
  libraries.jcifs = "jcifs:jcifs:1.3.17"
 -libraries.commons_httpclient = "org.apache.httpcomponents:httpclient:${versions.httpclient}"
 +libraries.commons_httpclient = ["org.apache.httpcomponents:httpclient:${versions.httpclient}", "org.apache.httpcomponents:httpcore:${versions.httpclient}"]

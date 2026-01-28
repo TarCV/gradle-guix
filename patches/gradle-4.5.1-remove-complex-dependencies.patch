@@ -885,3 +885,18 @@ index 9298808ac5b4b4931d8d2d4908c816d6e4b69d06..00000000000000000000000000000000
 +++ /dev/null
 @@ -1,1 +0,0 @@
 -org.gradle.ide.xcode.internal.services.XcodeServices
+--- a/subprojects/internal-integ-testing/internal-integ-testing.gradle	(revision 37007e1c012001ff09973e0bd095139239ecd3b3)
++++ b/subprojects/internal-integ-testing/internal-integ-testing.gradle	(date 1768703861096)
+@@ -20,12 +20,6 @@
+     compile libraries.jetty
+     compile libraries.jettySecurity
+ 
+-    compile module("org.littleshoot:littleproxy:1.1.0-beta1") {
+-        dependency libraries.slf4j_api
+-        dependency "io.netty:netty-all:4.0.23.Final"
+-        dependency "org.apache.commons:commons-lang3:3.4"
+-    }
+-    compile libraries.gcs
+     compile libraries.ivy
+     compile libraries.sshd
+     compile libraries.gson

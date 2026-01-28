@@ -1,3 +1,4 @@
+These changes were copied from Debian
 Description: Fixes the type inference errors when building with the source/target level set to Java 8
 Author: Emmanuel Bourg <ebourg@apache.org>
 Forwarded: not-needed

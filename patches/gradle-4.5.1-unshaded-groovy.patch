@@ -21,13 +21,13 @@ Fail building modules where libraries.groovy is not replaced with localGroovy()
      junit: 'junit:junit:4.12',
 @@ -98,7 +98,6 @@
  libraries.spock = [
-     'org.spockframework:spock-core:2.0-groovy-3.0',
-     'org.spockframework:spock-junit4:2.0-groovy-3.0',
+     'org.spockframework:spock-core:2.3-groovy-3.0',
+     'org.spockframework:spock-junit4:2.3-groovy-3.0',
 -    libraries.groovy,
      libraries.objenesis,
      libraries.cglib
  ]
-
+ libraries.spockJUnit4 = "org.spockframework:spock-junit4:2.0-M4-groovy-3.0"
 --- a/gradle/dependencies.gradle
 +++ b/gradle/dependencies.gradle
 @@ -368,8 +368,6 @@

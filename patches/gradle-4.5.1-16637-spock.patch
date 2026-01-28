@@ -1,4 +1,5 @@
-Backported changes from the PR #16637
+Adapted changes from the PR #16637
+(Skipped PRs #172179, #20037 as they only contain version bumps or updates for tests excluded in this package):
 From 2bb169ee02eb85d05dd81f382f4573e3a9ec6500 Mon Sep 17 00:00:00 2001
 From: Vaidotas Valuckas <vvaluckas@gradle.com>
 Date: Wed, 24 Mar 2021 08:59:34 +0200
@@ -88,8 +89,8 @@ index ff3b2e8dc33d1..750eb90499192 100644
  libraries.spock = [
 -    'org.spockframework:spock-core:2.0-M4-groovy-3.0',
 -    'org.spockframework:spock-junit4:2.0-M4-groovy-3.0',
-+    'org.spockframework:spock-core:2.0-groovy-3.0',
-+    'org.spockframework:spock-junit4:2.0-groovy-3.0',
++    'org.spockframework:spock-core:2.3-groovy-3.0',
++    'org.spockframework:spock-junit4:2.3-groovy-3.0',
      libraries.groovy,
      libraries.objenesis,
      libraries.cglib
@@ -112,7 +113,7 @@ index 327a26ba2f4a2..612efa8f34569 100644
  
              dependencies {
 -                testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
-+                testCompile ('org.spockframework:spock-core:2.0-groovy-3.0') {
++                testCompile ('org.spockframework:spock-core:2.3-groovy-3.0') {
                      exclude group: 'org.codehaus.groovy'
                  }
              }
@@ -459,7 +460,7 @@ index e4dcb8a7e09ff..850b6bc22807f 100644
  
  dependencies {
 -    functionalTestCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
-+    functionalTestCompile('org.spockframework:spock-core:2.0-groovy-3.0') {
++    functionalTestCompile('org.spockframework:spock-core:2.3-groovy-3.0') {
          exclude group: 'org.codehaus.groovy'
      }
      functionalTestImplementation('org.junit.jupiter:junit-jupiter-api')
@@ -472,7 +473,7 @@ index 43f24e84dec98..97ce3bb858ffa 100644
  
  dependencies {
 -    testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
-+    testCompile('org.spockframework:spock-core:2.0-groovy-3.0') {
++    testCompile('org.spockframework:spock-core:2.3-groovy-3.0') {
          exclude group: 'org.codehaus.groovy'
      }
      testCompile('org.junit.jupiter:junit-jupiter-api')
@@ -485,7 +486,7 @@ index 49b019b29a54f..65c7865a5c3c8 100644
  
  dependencies {
 -    testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
-+    testCompile('org.spockframework:spock-core:2.0-groovy-3.0') {
++    testCompile('org.spockframework:spock-core:2.3-groovy-3.0') {
          exclude group: 'org.codehaus.groovy'
      }
      testCompile('org.junit.jupiter:junit-jupiter-api')
@@ -498,7 +499,7 @@ index 0ecb2826dceea..cbb6e60fb3558 100644
  // tag::declare-spock-dependency[]
  dependencies {
 -    testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
-+    testCompile('org.spockframework:spock-core:2.0-groovy-3.0') {
++    testCompile('org.spockframework:spock-core:2.3-groovy-3.0') {
          exclude group: 'org.codehaus.groovy'
      }
      testCompile('org.junit.jupiter:junit-jupiter-api')
@@ -511,7 +512,7 @@ index b55949d7b0059..0f3559f206a77 100644
  
  dependencies {
 -    testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
-+    testCompile('org.spockframework:spock-core:2.0-groovy-3.0') {
++    testCompile('org.spockframework:spock-core:2.3-groovy-3.0') {
          exclude group: 'org.codehaus.groovy'
      }
  }
@@ -562,41 +563,82 @@ index edb957a5dd42c..17dc4f520ac7b 100644
  
      ExecutionResult result
      ExecutionFailure failure
--    private MavenFileRepository mavenRepo
--    private IvyFileRepository ivyRepo
-+    public final MavenFileRepository mavenRepo = new MavenFileRepository(file("maven-repo"))
-+    public final IvyFileRepository ivyRepo = new IvyFileRepository(file("ivy-repo"))
+-    private final MavenFileRepository mavenRepo = new MavenFileRepository(temporaryFolder.testDirectory.file("maven-repo"))
+-    private final IvyFileRepository ivyRepo = new IvyFileRepository(temporaryFolder.testDirectory.file("ivy-repo"))
++    public final MavenFileRepository mavenRepo = new MavenFileRepository(temporaryFolder.testDirectory.file("maven-repo"))
++    public final IvyFileRepository ivyRepo = new IvyFileRepository(temporaryFolder.testDirectory.file("ivy-repo"))
  
      def cleanup() {
          executer.cleanup()
-@@ -426,13 +426,6 @@ class AbstractIntegrationSpec extends Specification {
+@@ -426,10 +426,6 @@ class AbstractIntegrationSpec extends Specification {
          return new MavenLocalRepository(file(repo))
      }
  
 -    public MavenFileRepository getMavenRepo() {
--        if (mavenRepo == null) {
--            mavenRepo = new MavenFileRepository(file("maven-repo"))
--        }
 -        return mavenRepo
 -    }
 -
      public MavenFileRepository publishedMavenModules(String... modulesToPublish) {
          modulesToPublish.each { String notation ->
              def modules = notation.split("->").reverse()
-@@ -451,13 +447,6 @@ class AbstractIntegrationSpec extends Specification {
+@@ -451,10 +447,6 @@ class AbstractIntegrationSpec extends Specification {
          return new IvyFileRepository(file(repo))
      }
  
 -    public IvyFileRepository getIvyRepo() {
--        if (ivyRepo == null) {
--            ivyRepo = new IvyFileRepository(file("ivy-repo"))
--        }
 -        return ivyRepo
 -    }
 -
      public GradleExecuter using(Action<GradleExecuter> action) {
          action.execute(executer)
          executer
+diff --git a/subprojects/internal-testing/src/main/groovy/org/gradle/integtests/fixtures/SpockJUnitAssumptionExtension.java b/subprojects/internal-testing/src/main/groovy/org/gradle/integtests/fixtures/SpockJUnitAssumptionExtension.java
+deleted file mode 100644
+index 39acebb59b661..0000000000000
+--- a/subprojects/internal-testing/src/main/groovy/org/gradle/integtests/fixtures/SpockJUnitAssumptionExtension.java
++++ /dev/null
+@@ -1,41 +0,0 @@
+-/*
+- * Copyright 2021 the original author or authors.
+- *
+- * Licensed under the Apache License, Version 2.0 (the "License");
+- * you may not use this file except in compliance with the License.
+- * You may obtain a copy of the License at
+- *
+- *      http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS,
+- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+- */
+-
+-package org.gradle.integtests.fixtures;
+-
+-import org.junit.AssumptionViolatedException;
+-import org.opentest4j.TestAbortedException;
+-import org.spockframework.runtime.AbstractRunListener;
+-import org.spockframework.runtime.extension.AbstractGlobalExtension;
+-import org.spockframework.runtime.model.ErrorInfo;
+-import org.spockframework.runtime.model.SpecInfo;
+-
+-public class SpockJUnitAssumptionExtension extends AbstractGlobalExtension {
+-
+-    @Override
+-    public void visitSpec(SpecInfo spec) {
+-        spec.addListener(new AbstractRunListener() {
+-            @Override
+-            public void error(ErrorInfo error) {
+-                Throwable cause = error.getException();
+-                if (cause instanceof AssumptionViolatedException) {
+-                    throw new TestAbortedException(cause.getMessage(), cause);
+-                }
+-            }
+-        });
+-    }
+-
+-}
 diff --git a/subprojects/internal-testing/src/main/groovy/org/gradle/test/fixtures/concurrent/ConcurrentSpec.groovy b/subprojects/internal-testing/src/main/groovy/org/gradle/test/fixtures/concurrent/ConcurrentSpec.groovy
 index 255c597d2327b..27901dd4fb1a3 100644
 --- a/subprojects/internal-testing/src/main/groovy/org/gradle/test/fixtures/concurrent/ConcurrentSpec.groovy
@@ -634,6 +676,13 @@ index 255c597d2327b..27901dd4fb1a3 100644
  
      def setup() {
          instant.mainThread(Thread.currentThread())
+diff --git a/subprojects/internal-testing/src/main/resources/META-INF/services/org.spockframework.runtime.extension.IGlobalExtension b/subprojects/internal-testing/src/main/resources/META-INF/services/org.spockframework.runtime.extension.IGlobalExtension
+deleted file mode 100644
+index 733aa643114ce..0000000000000
+--- a/subprojects/internal-testing/src/main/resources/META-INF/services/org.spockframework.runtime.extension.IGlobalExtension
++++ /dev/null
+@@ -1,1 +0,0 @@
+-org.gradle.integtests.fixtures.SpockJUnitAssumptionExtension
 diff --git a/subprojects/messaging/src/integTest/groovy/org/gradle/internal/remote/UnicastMessagingIntegrationTest.groovy b/subprojects/messaging/src/integTest/groovy/org/gradle/internal/remote/UnicastMessagingIntegrationTest.groovy
 index eb328e31db64c..9f28820924cd8 100644
 --- a/subprojects/messaging/src/integTest/groovy/org/gradle/internal/remote/UnicastMessagingIntegrationTest.groovy
@@ -669,7 +718,7 @@ index fa00d4a2b6086..962b2ea6ba367 100644
          """
              dependencies {
 -                testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
-+                testCompile('org.spockframework:spock-core:2.0-groovy-3.0') {
++                testCompile('org.spockframework:spock-core:2.3-groovy-3.0') {
                      exclude group: 'org.codehaus.groovy'
                  }
              }
@@ -781,7 +830,7 @@ index b6093d7705a8c..83faf5a055d5a 100644
                  testCompile localGroovy()
                  testCompile gradleTestKit()
 -                testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
-+                testCompile('org.spockframework:spock-core:2.0-groovy-3.0') {
++                testCompile('org.spockframework:spock-core:2.3-groovy-3.0') {
                      exclude group: 'org.codehaus.groovy'
                  }
                  testCompile 'junit:junit:4.13.1'
@@ -794,7 +843,7 @@ index da80c58891820..d8206d05901f7 100644
              ${jcenterRepository()}
              dependencies {
 -                testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
-+                testCompile('org.spockframework:spock-core:2.0-groovy-3.0') {
++                testCompile('org.spockframework:spock-core:2.3-groovy-3.0') {
                      exclude group: 'org.codehaus.groovy'
                  }
                  testCompile 'junit:junit:4.13.1'
@@ -807,7 +856,7 @@ index 9d8cec98094c6..1ab3cd2d86e02 100644
              dependencies {
                  compile localGroovy()
 -                testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
-+                testCompile('org.spockframework:spock-core:2.0-groovy-3.0') {
++                testCompile('org.spockframework:spock-core:2.3-groovy-3.0') {
                      exclude group: 'org.codehaus.groovy'
                  }
                  testCompile('org.junit.jupiter:junit-jupiter-api')
@@ -820,7 +869,7 @@ index ec6acba129720..8fb57fbbf4e03 100644
              dependencies {
                  compile localGroovy()
 -                testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
-+                testCompile('org.spockframework:spock-core:2.0-groovy-3.0'))
++                testCompile('org.spockframework:spock-core:2.3-groovy-3.0'))
                      exclude group: 'org.codehaus.groovy'
                  }
                  testCompile 'junit:junit:4.13.1'
@@ -834,7 +883,7 @@ index 4984255cbc87c..67f1888d0e9a0 100644
  
      testCompile '$dependencyNotation',
 -        'org.spockframework:spock-core:2.0-M4-groovy-3.0@jar',
-+        'org.spockframework:spock-core:2.0-groovy-3.0'
++        'org.spockframework:spock-core:2.3-groovy-3.0'
          'cglib:cglib-nodep:2.2',
          'org.objenesis:objenesis:1.2'
  }
