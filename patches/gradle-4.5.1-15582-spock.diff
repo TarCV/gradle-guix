@@ -115,10 +115,10 @@ index 622037661d326..305fa40b6d61e 100644
  
      @Unroll
 -    def "stack is evaluated correctly for #callLocationClass.simpleName and #expectedMessage."() {
-+    def "stack is evaluated correctly for #callLocationClass.simpleName and #expectedSummary. #expectedMethod. #usage."() {
++    def "stack is evaluated correctly for #callLocationClass.simpleName and #expectedMessage. #expectedMethod. #usage."() {
          expect:
          !usage.stack.empty
-         usage.summary == expectedSummary
+         usage.message == expectedMessage
 diff --git a/subprojects/logging/src/test/groovy/org/gradle/internal/logging/slf4j/OutputEventListenerBackedLoggerTest.groovy b/subprojects/logging/src/test/groovy/org/gradle/internal/logging/slf4j/OutputEventListenerBackedLoggerTest.groovy
 index 19498537bbf77..81f5fe4979ad6 100644
 --- a/subprojects/logging/src/test/groovy/org/gradle/internal/logging/slf4j/OutputEventListenerBackedLoggerTest.groovy

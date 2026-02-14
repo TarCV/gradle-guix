@@ -2280,7 +2280,7 @@ browser window. It is completely customizable as well via CSS.")
                      java-jsoup java-hamcrest-library java-httpcomponents-httpclient java-httpcomponents-httpcore
                      java-mina-core-2 java-mina-sshd-1 java-native-platform-0.14/no-native-code java-nekohtml
                      java-objenesis java-pegdown java-picocli java-simple-web-4 java-testng
-                     java-tunnelvisionlabs-antlr4-runtime
+                     java-tunnelvisionlabs-antlr4-runtime java-xmlunit java-xmlunit-legacy
                      js-jquery-tiptip rhino
 
                      java-jcl-over-slf4j java-log4j-over-slf4j
@@ -2324,7 +2324,7 @@ browser window. It is completely customizable as well via CSS.")
                         (("@RunWith\\(ConsoleAttachmentTestRunner(\\.class)?\\)") "@WithAttachedConsole")
                         (("@RunWith\\(FluidDependenciesResolveRunner(\\.class)?\\)") "@FluidDependenciesResolveTest")
                         (("@RunWith\\(GradleMetadataResolveRunner(\\.class)?\\)") "@GradleMetadataResolveTest")
-                        (("org\\.gradle\\.integtests\\.fixtures\\.GradleMetadataResolveRunner")
+                        (("(org\\.gradle\\.integtests\\.fixtures\\.)?GradleMetadataResolveRunner")
                           "org.gradle.integtests.fixtures.extensions.GradleMetadataResolveInterceptor")
                         (("@RunWith\\(MultiVersionSpecRunner(\\.class)?\\)") "@MultiVersionTest")
                         (("@RunWith\\(Runner(\\.class)?\\)") "@GradleRunnerTest")
@@ -2826,7 +2826,8 @@ browser window. It is completely customizable as well via CSS.")
               (inherit (package-source gradle-bootstrap-with-gradle))
               (patches (append
                          (origin-patches (package-source gradle-bootstrap-with-gradle))
-                         '("patches/gradle-4.5.1-groovy-3-4-junit-for-spock.patch")))))
+                         '("patches/gradle-4.5.1-groovy-3-4-junit-for-spock.patch"
+                           "patches/gradle-4.5.1-fix-tests.patch")))))
     (arguments
       (substitute-keyword-arguments (package-arguments gradle-bootstrap-with-gradle)
         ((#:phases phases '%standard-phases)
@@ -2838,11 +2839,12 @@ browser window. It is completely customizable as well via CSS.")
                                              "-Dorg.gradle.daemon=false"
                                              " " "-Duser.home=" (getenv "HOME")
                                              " " "-Dmaven.repo.local=" (getenv "HOME") "/.m2/repository"))
+                     (setenv "TERM" "xterm") ; Required for NativePlatformConsoleDetectorTest
                      (invoke
                        (string-append ,gradle-bootstrap-with-gradle "/bin/gradle")
                        "--init-script" "init.gradle"
 ;                       "--debug"
-                       "--full-stacktrace"
+;                       "--full-stacktrace"
                        ; TODO: set number of worker threads based on '--cores' Guix argument
                        "test"
                        ; TODO "integTest"
