@@ -32,6 +32,7 @@
   #:use-module (gnu packages libffi)
   #:use-module (gnu packages maven)
   #:use-module (gnu packages maven-parent-pom)
+  #:use-module (gnu packages ncurses)
   #:use-module (gnu packages pkg-config)
   #:use-module (gnu packages web)
   #:use-module (guix build utils)
@@ -136,9 +137,9 @@
                     (install-file (string-append lib "/ant-junitlauncher.jar") share)
                     (delete-file-recursively bin)
                     (delete-file-recursively lib))))))))
-    (inputs
-      (modify-inputs (package-inputs ant/java8)
-        (prepend java-junit-platform-commons-5 java-junit-platform-engine-5 java-junit-platform-launcher-5)))))
+    (propagated-inputs
+      (modify-inputs (package-propagated-inputs ant/java8)
+        (prepend java-junit-platform-launcher-5)))))
 
 (define-public apache-commons-parent-pom-42
   (make-apache-commons-parent-pom
@@ -410,7 +411,7 @@
                  (delete-file "src/main/java/org/apache/commons/compress/compressors/CompressorStreamFactory.java")
                  (delete-file "src/main/java/org/apache/commons/compress/java/util/jar/Pack200.java")))))))))
 
-(define java-eddsa
+(define-public java-eddsa
   (package
     (name "java-eddsa")
     (version "0.3.0")
@@ -459,6 +460,44 @@ A generic version using BigIntegers for calculation - a bit slower and not const
 parameter specification.")
     (license license:cc0)))
 
+(define java-equalsverifier-3
+  (package
+    (name "java-equalsverifier")
+    (version "3.19.4")
+    (source
+      (origin
+        (method url-fetch)
+        (uri (string-append "https://github.com/jqno/equalsverifier/archive/refs/tags/equalsverifier-" version ".tar.gz"))
+        (file-name (string-append name "-" version ".tar.gz"))
+        (sha256 (base32 "0ha74qdnkadybhb5l3ffa2pvr4n0z1ym47ybjbi41i2ffap8n491"))
+        (modules '((guix build utils)))
+        (snippet '(begin
+                    (for-each delete-file
+                      (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                    #t))))
+    (native-inputs (list java-guava java-joda-time))
+    (propagated-inputs (list java-byte-buddy-dep java-objenesis))
+    (build-system ant-build-system)
+    (arguments
+      `(#:jar-name "equalsverifier.jar"
+        #:source-dir "equalsverifier-core/src/main"
+        #:tests? #f
+        #:phases (modify-phases %standard-phases
+                   (add-before 'install 'generate-pom.xml ; because some dependencies are not mavenized in Guix
+                     (generate-pom.xml "pom.xml"
+                       "nl.jqno.equalsverifier" "equalsverifier" ,version
+                       #:dependencies '(("net.bytebuddy" "byte-buddy"
+                                          ,(package-version (this-package-input "java-byte-buddy-dep")))
+                                        ("org.objenesis" "objenesis"
+                                          ,(package-version (this-package-input "java-objenesis"))))))
+                   (replace 'install
+                     (install-from-pom "pom.xml")))))
+    (home-page "https://jqno.nl/equalsverifier")
+    (synopsis "Makes testing equals() and hashCode() in Java a one-liner")
+    (description "EqualsVerifier can be used in Java unit tests to verify whether the contract for the equals and
+     hashCode methods is met.")
+    (license license:asl2.0)))
+
 (define java-jte-runtime/no-tests
   (package
     (name "java-jte-runtime")
@@ -496,8 +535,7 @@ parameter specification.")
     (package
       (inherit base-package)
       (native-inputs (modify-inputs (package-native-inputs base-package)
-                       (append ant-junitlauncher java-assertj-new base-package java-junit-jupiter-engine-5
-                         java-junit-platform-launcher-5)))
+                       (append ant-junitlauncher java-assertj-new base-package)))
       (arguments
         `(#:ant ,ant/java8
            ,@(substitute-keyword-arguments (package-arguments base-package)
@@ -570,8 +608,7 @@ parameter specification.")
       (native-inputs (modify-inputs (package-native-inputs base-package)
                        (replace "java-jte-extension-api1" java-jte-extension-api)
                        (replace "java-jte-runtime1" java-jte-runtime)
-                       (append ant-junitlauncher java-assertj-new base-package java-junit-jupiter-engine-5
-                               java-junit-platform-launcher-5)))
+                       (append ant-junitlauncher java-assertj-new base-package)))
       (arguments
         `(#:ant ,ant/java8
           ,@(substitute-keyword-arguments (package-arguments base-package)
@@ -1415,10 +1452,12 @@ a networking socket library")
                   (base32
                     "1zr506sfkhb9nxkzqsmdii6yy7fiw1rwd06zaclxxxyqlzlv6q17")))))))
 
-(define java-native-platform-0.14/no-native-code
+(define %java-native-platform-0.14-version "0.14")
+(define java-native-plafform-0.14-base
   (package
-    (name "java-native-platform")
-    (version "0.14")
+    (name "java-native-plafform")
+    (version %java-native-platform-0.14-version)
+    (build-system ant-build-system)
     (source
       (origin
         (method url-fetch)
@@ -1426,42 +1465,220 @@ a networking socket library")
         (file-name (string-append name "-" version ".tar.gz"))
         (sha256 (base32 "1if8h1lz8rh6gv6rrych63j2a03cfcqshb5c2973xsfs7jfrvbrr"))
         (modules '((guix build utils)))
+        (patches '("patches/java-native-plafform-0.14-tests.patch"))
         (snippet '(begin
                     (for-each delete-file
                       (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
                     #t))))
-    (build-system ant-build-system)
+    (home-page "https://github.com/gradle/native-platform/")
+    (synopsis "Native-platform: Java bindings for various native APIs")
+    (description
+      "A collection of cross-platform Java APIs for various native APIs. Supports OS X, Linux, Solaris and Windows.
+These APIs support Java 5 and later. Some of these APIs overlap with APIs available in later Java versions.")
+    (license license:asl2.0)))
+
+(define java-native-platform-0.14/java-only
+  (hidden-package (package
+    (inherit java-native-plafform-0.14-base)
     (arguments
       `(#:jar-name "native-platform.jar"
          #:source-dir "src/main/java"
          #:tests? #f ; TODO
          #:phases ,#~(modify-phases %standard-phases
-                         (add-after 'build 'generate-headers ; TODO: add native build phase
-                           (lambda _
-                             (invoke "javah"
-                               "-o" "build/classes/nativeHeaders/native.h"
-                               "-classpath" "build/classes"
-                               "net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions"
-                               "net.rubygrapefruit.platform.internal.jni.PosixFileFunctions"
-                               "net.rubygrapefruit.platform.internal.jni.PosixFileSystemFunctions"
-                               "net.rubygrapefruit.platform.internal.jni.PosixProcessFunctions"
-                               "net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions"
-                               "net.rubygrapefruit.platform.internal.jni.TerminfoFunctions"
-                               "net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions"
-                               "net.rubygrapefruit.platform.internal.jni.WindowsHandleFunctions"
-                               "net.rubygrapefruit.platform.internal.jni.WindowsRegistryFunctions"
-                               "net.rubygrapefruit.platform.internal.jni.WindowsFileFunctions"
-                               "net.rubygrapefruit.platform.internal.jni.FileEventFunctions"
-                               "net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions"
-                               "net.rubygrapefruit.platform.internal.jni.MemoryFunctions"
-                               "net.rubygrapefruit.platform.internal.jni.OsxMemoryFunctions"
-                               )
-                             (invoke "ant" "-Dant.executor.class=org.apache.tools.ant.helper.IgnoreDependenciesExecutor" "jar"))))))
-    (home-page "https://github.com/gradle/native-platform/")
-    (synopsis "Native-platform: Java bindings for various native APIs")
-    (description
-      "A collection of cross-platform Java APIs for various native APIs. Supports OS X, Linux, Solaris and Windows. These APIs support Java 5 and later. Some of these APIs overlap with APIs available in later Java versions.")
-    (license license:asl2.0)))
+                       (add-after 'build 'generate-headers
+                         (lambda _
+                           (invoke "javah"
+                             "-o" "build/classes/nativeHeaders/native.h"
+                             "-classpath" "build/classes"
+                             "net.rubygrapefruit.platform.internal.jni.NativeLibraryFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.PosixFileFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.PosixFileSystemFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.PosixProcessFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.PosixTerminalFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.TerminfoFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.WindowsConsoleFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.WindowsHandleFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.WindowsRegistryFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.WindowsFileFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.FileEventFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.PosixTypeFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.MemoryFunctions"
+                             "net.rubygrapefruit.platform.internal.jni.OsxMemoryFunctions"
+                             )))
+                       (add-after 'install 'install-headers
+                         (lambda _
+                           (install-file
+                             "build/classes/nativeHeaders/native.h"
+                             (string-append #$output "/include"))))))))))
+
+(define-public java-native-platform-linux-amd64-0.14 ; TODO: -linux-i386, -linux-i386-ncurses6
+  (package
+    (inherit java-native-plafform-0.14-base)
+    (name "java-native-platform-linux-amd64")
+    (native-inputs `(("jdk" ,icedtea-8 "jdk")
+                     ("java-native-platform" ,java-native-platform-0.14/java-only)))
+    (arguments
+      `(#:jar-name "native-platform-linux-amd64.jar"
+        #:source-dir "src/main/java"
+        #:tests? #f ; TODO
+        #:phases ,#~(modify-phases %standard-phases
+                       (replace 'build
+                         (lambda* (#:key inputs #:allow-other-keys)
+                           (let ((jdk (assoc-ref inputs "jdk"))
+                                  (package-dir "build/classes/net/rubygrapefruit/platform/linux-amd64"))
+                             ;; These command line arguments can be reproduced by calling:
+                             ;; ./gradlew assembleDependentsNativePlatformLinux_amd64SharedLibrary --no-build-cache \
+                             ;;   --no-daemon --debug > console.log
+                             ;; and checking lines around '/options.txt' substrings and looking at these options files
+                             ;; themselves.
+                             (mkdir-p "native-build")
+                             (for-each
+                               (lambda (source-file)
+                                 (invoke "g++"
+                                   "-x" "c++"
+                                   "-c"
+                                   "-fPIC"
+                                   "-I" (string-append jdk "/include")
+                                   "-I" (string-append jdk "/include/linux")
+                                   "-D_FILE_OFFSET_BITS=64"
+                                   "-I" (string-append (assoc-ref inputs "java-native-platform") "/include")
+                                   "-I" "src/shared/headers"
+                                   "-m64"
+                                   source-file
+                                   "-o" (string-append "native-build/" (basename source-file) ".o")))
+                               (append
+                                 (find-files "src/shared/cpp" ".+")
+                                 (find-files "src/main/cpp" ".+")))
+
+                             (mkdir-p package-dir)
+                             (apply invoke "g++" `("-shared" 
+                                                    "-Wl,-soname,libnative-platform.so"
+                                                    "-o" ,(string-append package-dir "/libnative-platform.so")
+                                                    ,@(find-files "native-build" ".+\\.o$")
+                                                    "-m64"))
+
+                             (invoke "ant" "-Dant.executor.class=org.apache.tools.ant.helper.IgnoreDependenciesExecutor"
+                               "manifest" "jar"))))
+                      (add-before 'install 'generate-pom.xml
+                        (generate-pom.xml "pom.xml"
+                          "net.rubygrapefruit" "native-platform-linux-amd64" #$%java-native-platform-0.14-version))
+                      (replace 'install
+                        (install-from-pom "pom.xml")))))
+      (description (string-append (package-description java-native-plafform-0.14-base)
+                     "This package provides supporting native code."))))
+
+(define-public java-native-platform-linux-amd64-ncurses6-0.14
+  (package
+    (inherit java-native-plafform-0.14-base)
+    (name "java-native-platform-linux-amd64-ncurses6")
+    (native-inputs `(("jdk" ,icedtea-8 "jdk")
+                     ("java-native-platform" ,java-native-platform-0.14/java-only)
+                     ("ncurses" ,ncurses)))
+    (arguments
+      `(#:jar-name "native-platform-linux-amd64-ncurses6.jar"
+        #:source-dir "src/main/java"
+        #:tests? #f ; TODO
+        #:phases ,#~(modify-phases %standard-phases
+                       (replace 'build
+                         (lambda* (#:key inputs #:allow-other-keys)
+                           (let ((jdk (assoc-ref inputs "jdk"))
+                                  (package-dir "build/classes/net/rubygrapefruit/platform/linux-amd64-ncurses6"))
+                             ;; These command line arguments can be reproduced by calling:
+                             ;; ./gradlew nativePlatformCursesLinux_amd64_ncurses6SharedLibrary --no-build-cache \
+                             ;;   --no-daemon --debug > console.log
+                             ;; and checking lines around '/options.txt' substrings and looking at these options files
+                             ;; themselves.
+                             (mkdir-p "native-build")
+                             (for-each
+                               (lambda (source-file)
+                                 (invoke "g++"
+                                   "-x" "c++"
+                                   "-c"
+                                   "-fPIC"
+                                   "-I" (string-append jdk "/include")
+                                   "-I" (string-append jdk "/include/linux")
+                                   "-D_FILE_OFFSET_BITS=64"
+                                   "-I" (string-append (assoc-ref inputs "java-native-platform") "/include")
+                                   "-I" "src/shared/headers"
+                                   "-m64"
+                                   source-file
+                                   "-o" (string-append "native-build/" (basename source-file) ".o")))
+                               (append
+                                 (find-files "src/shared/cpp" ".+")
+                                 (find-files "src/curses/cpp" ".+")))
+
+                             (mkdir-p package-dir)
+                             (apply invoke "g++" `("-shared" 
+                                                    "-Wl,-soname,libnative-platform-curses.so"
+                                                    "-o" ,(string-append package-dir "/libnative-platform-curses.so")
+                                                    ,@(find-files "native-build" ".+\\.o$")
+                                                    "-lncurses"
+                                                    "-m64"))
+
+                             (invoke "ant" "-Dant.executor.class=org.apache.tools.ant.helper.IgnoreDependenciesExecutor"
+                               "manifest" "jar"))))
+                      (add-before 'install 'generate-pom.xml
+                        (generate-pom.xml "pom.xml"
+                          "net.rubygrapefruit" "native-platform-linux-amd64-ncurses6"
+                          #$%java-native-platform-0.14-version))
+                      (replace 'install
+                        (install-from-pom "pom.xml")))))
+      (description (string-append (package-description java-native-plafform-0.14-base)
+                     "This package provides supporting native code."))))
+
+(define java-native-platform-0.14
+  (package
+    (inherit java-native-plafform-0.14-base)
+    (native-inputs (list ant-junitlauncher groovy-ant-patched groovy-fixed groovy-spock-junit4
+                         java-native-platform-0.14/java-only))
+    (propagated-inputs (list java-native-platform-linux-amd64-0.14 java-native-platform-linux-amd64-ncurses6-0.14))
+    (arguments
+      `(#:ant ,ant/java8 ; required for ant-junitlauncher
+        #:jar-name "force-build.xml-creation"
+        #:jdk ,openjdk10
+        #:phases (modify-phases %standard-phases
+                   (replace 'build
+                     (lambda _
+                       (copy-recursively
+                         (string-append ,(this-package-native-input "java-native-plafform"))
+                         "build")))
+                   (add-before 'check 'configure-check-for-groovy
+                     (lambda _
+                       (substitute* "build.xml"
+                         (("<javac ([^>]+)>(([^/]+(/[^j])?)*)</javac>" all args body)
+                           (string-append
+                             "<taskdef name=\"groovyc\" classname=\"org.codehaus.groovy.ant.Groovyc\" classpathref=\"classpath\"/>"
+                             "<groovyc " args " fork=\"true\">"
+                             body
+                             "<javac debug=\"true\" " args ">"
+                             body
+                             "</javac></groovyc>")))))
+                   (add-before 'check 'configure-check-for-junit5 ; TODO: extract this phase for use in other packages
+                     (lambda _
+                       (substitute* "build.xml"
+                         (("<junit[ >].*</junit>|<junit[[:space:]]*/>")
+                           "<junitlauncher printsummary=\"true\" haltonfailure=\"yes\">
+  <classpath>
+    <pathelement path=\"${env.CLASSPATH}\"/>
+    <pathelement location=\"${test.home}/resources\"/>
+    <pathelement location=\"${classes.dir}\"/>
+    <pathelement location=\"${test.classes.dir}\"/>
+  </classpath>
+  <listener type=\"legacy-brief\" sendSysOut=\"true\" sendSysErr=\"true\"/>
+  <testclasses outputdir=\"${test.home}/test-reports\">
+    <fork dir=\"${test.home}/../..\"/>
+    <fileset dir=\"${test.classes.dir}\"/>
+  </testclasses></junitlauncher>"))))
+                   (add-before 'install 'generate-pom.xml
+                     (generate-pom.xml "pom.xml"
+                       "net.rubygrapefruit" "native-platform" ,%java-native-platform-0.14-version
+                       #:dependencies
+                         '(("net.rubygrapefruit" "native-platform-linux-amd64"
+                             ,(package-version (this-package-input "java-native-platform-linux-amd64")))
+                           ("net.rubygrapefruit" "native-platform-linux-amd64-ncurses6"
+                             ,(package-version (this-package-input "java-native-platform-linux-amd64-ncurses6"))))))
+                   (replace 'install
+                     (install-from-pom "pom.xml")))))))
 
 (define-public java-nekohtml
   (package
@@ -1975,7 +2192,7 @@ browser window. It is completely customizable as well via CSS.")
             java-commons-io java-commons-lang java-commons-logging-minimal
             java-fastutil-7 java-gson java-jansi-1 java-jatl java-jgit java-jsr305 java-jul-to-slf4j
             java-httpcomponents-httpclient java-httpcomponents-httpcore
-            java-kryo-2 java-native-platform-0.14/no-native-code java-slf4j-api java-testng maven-3.0-settings-builder))
+            java-kryo-2 java-native-platform-0.14 java-slf4j-api java-testng maven-3.0-settings-builder))
     (arguments
       `(#:jdk ,openjdk9 ; same as groovy
          #:jar-name "gradle.jar"
@@ -2273,12 +2490,12 @@ browser window. It is completely customizable as well via CSS.")
                      java-commons-codec java-commons-collections java-commons-lang java-eclipse-jetty-http
                      java-eclipse-jetty-io java-eclipse-jetty-security java-eclipse-jetty-server
                      java-eclipse-jetty-servlet java-eclipse-jetty-util java-eclipse-jetty-webapp
-                     java-fasterxml-jackson-annotations java-fasterxml-jackson-core java-fasterxml-jackson-databind
-                     java-gson java-javaee-servletapi java-javaparser java-jaxp java-jcommander-new java-jgit
-                     java-jhighlight-codelibs java-jcifs java-jsch java-junit-platform-launcher-5
-                     java-jmock java-jmock-junit4 java-jmock-legacy java-joda-time
+                     java-fasterxml-jackson-annotations java-equalsverifier-3 java-fasterxml-jackson-core
+                     java-fasterxml-jackson-databind java-gson java-javaee-servletapi java-javaparser java-jaxp
+                     java-jcommander-new java-jgit java-jhighlight-codelibs java-jcifs java-jsch
+                     java-junit-platform-launcher-5 java-jmock java-jmock-junit4 java-jmock-legacy java-joda-time
                      java-jsoup java-hamcrest-library java-httpcomponents-httpclient java-httpcomponents-httpcore
-                     java-mina-core-2 java-mina-sshd-1 java-native-platform-0.14/no-native-code java-nekohtml
+                     java-mina-core-2 java-mina-sshd-1 java-native-platform-0.14 java-nekohtml
                      java-objenesis java-pegdown java-picocli java-simple-web-4 java-testng
                      java-tunnelvisionlabs-antlr4-runtime java-xmlunit java-xmlunit-legacy
                      js-jquery-tiptip rhino
@@ -2610,8 +2827,6 @@ browser window. It is completely customizable as well via CSS.")
                             "javax.servlet" "javax.servlet-api" "/share/java/javax-servletapi.jar")
                           (mavenize-package ,(this-package-transitive-native-input "java-joda-time") ,(package-version (this-package-transitive-native-input "java-joda-time"))
                             "joda-time" "joda-time" "/share/java/java-joda-time.jar")
-                          (mavenize-package ,(this-package-transitive-native-input "java-native-platform") ,(package-version (this-package-transitive-native-input "java-native-platform"))
-                            "net.rubygrapefruit" "native-platform" "/share/java/native-platform.jar")
                           (mavenize-package ,(this-package-transitive-native-input "ant") ,(package-version (this-package-transitive-native-input "ant"))
                             "org.apache.ant" "ant" "/lib/ant.jar")
                           (mavenize-package ,(this-package-transitive-native-input "ant") ,(package-version (this-package-transitive-native-input "ant"))
@@ -2711,6 +2926,10 @@ browser window. It is completely customizable as well via CSS.")
                             "xml-apis" "xml-apis" "/share/java/jaxp.jar")
                           (mavenize-package ,(this-package-transitive-native-input "java-xerces") ,(package-version (this-package-transitive-native-input "java-xerces"))
                             "xerces" "xercesImpl" "/share/java/xercesImpl.jar")
+                          (mavenize-package ,(this-package-transitive-native-input "java-xmlunit") ,(package-version (this-package-transitive-native-input "java-xmlunit"))
+                            "xmlunit" "xmlunit" "/share/java/java-xmlunit.jar")
+                          (mavenize-package ,(this-package-transitive-native-input "java-xmlunit-legacy") ,(package-version (this-package-transitive-native-input "java-xmlunit-legacy"))
+                            "xmlunit" "xmlunit-legacy" "/share/java/java-xmlunit-legacy.jar")
 
                           (mavenize-package ,r-jquerylib "1.12.4" ; TODO: replace with a new js-jquery package
                             "jquery" "jquery.min" "/site-library/jquerylib/lib/1.12.4/jquery-1.12.4.min.js")
@@ -2827,7 +3046,8 @@ browser window. It is completely customizable as well via CSS.")
               (patches (append
                          (origin-patches (package-source gradle-bootstrap-with-gradle))
                          '("patches/gradle-4.5.1-groovy-3-4-junit-for-spock.patch"
-                           "patches/gradle-4.5.1-fix-tests.patch")))))
+                           "patches/gradle-4.5.1-fix-tests.patch"
+                           "patches/gradle-4.5.1-xmlunit-2.patch")))))
     (arguments
       (substitute-keyword-arguments (package-arguments gradle-bootstrap-with-gradle)
         ((#:phases phases '%standard-phases)
