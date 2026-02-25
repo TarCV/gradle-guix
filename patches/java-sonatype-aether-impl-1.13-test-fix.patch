@@ -1,11 +1,6 @@
-Index: aether-impl/src/test/java/org/sonatype/aether/impl/PlexusSupportTest.java
-IDEA additional info:
-Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
-<+>UTF-8
-===================================================================
 diff --git a/aether-impl/src/test/java/org/sonatype/aether/impl/PlexusSupportTest.java b/aether-impl/src/test/java/org/sonatype/aether/impl/PlexusSupportTest.java
---- a/aether-impl/src/test/java/org/sonatype/aether/impl/PlexusSupportTest.java	(revision 50983e14b99ff694cbb150612352c621b3d7d695)
-+++ b/aether-impl/src/test/java/org/sonatype/aether/impl/PlexusSupportTest.java	(date 1763181777117)
+--- a/aether-impl/src/test/java/org/sonatype/aether/impl/PlexusSupportTest.java
++++ b/aether-impl/src/test/java/org/sonatype/aether/impl/PlexusSupportTest.java
 @@ -11,6 +11,9 @@
  import java.util.List;
  

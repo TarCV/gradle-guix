@@ -1,0 +1,15 @@
+--- a/build.xml
++++ b/build.xml
+@@ -22,6 +22,12 @@
+ 
+    <target name="build" depends="prepare">
+        <javac target="1.5" srcdir="${source.path}" destdir="${build.path}" debug="true" debuglevel="lines,vars,source" encoding="UTF-8"/>
++      <copy todir="${build.path}">
++         <fileset dir="${source.path}">
++            <include name="**/*.properties"/> 
++            <exclude name="**/*.java"/>
++         </fileset>
++      </copy>
+       <jar jarfile="${jar.path}/simple-${version}.jar" basedir="${build.path}"/>
+       <delete dir="${build.path}"/>
+    </target>

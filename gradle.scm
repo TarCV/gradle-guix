@@ -486,7 +486,7 @@ parameter specification.")
                    (add-before 'install 'generate-pom.xml ; because some dependencies are not mavenized in Guix
                      (generate-pom.xml "pom.xml"
                        "nl.jqno.equalsverifier" "equalsverifier" ,version
-                       #:dependencies '(("net.bytebuddy" "byte-buddy"
+                       #:dependencies '(("net.bytebuddy" "byte-buddy-dep"
                                           ,(package-version (this-package-input "java-byte-buddy-dep")))
                                         ("org.objenesis" "objenesis"
                                           ,(package-version (this-package-input "java-objenesis"))))))
@@ -1195,21 +1195,23 @@ parameter specification.")
               (uri (string-append "mirror://sourceforge/simpleweb/simpleweb/" version "/simple-" version ".tar.gz"))
               (file-name (string-append name "-" version ".tar.gz"))
               (sha256 (base32 "049nfqmlgdpkki03n4iyc53fpbwlfkk1znjk4jj1xpvf1nw3zlrn"))
-              (patches '("patches/java-simple-web-4.1.21-fix-tests.patch"))))
+              (modules '((guix build utils)))
+              (patches '("patches/java-simple-web-4.1.21-fix-build.patch"
+                         "patches/java-simple-web-4.1.21-fix-tests.patch"))
+              (snippet '(begin
+                          (for-each delete-file
+                            (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
+                          #t))))
     (build-system ant-build-system)
     (arguments
       `(#:build-target "build"
         #:test-target "test"
         #:phases
         (modify-phases %standard-phases
-          (add-after 'unpack 'remove-jars
-            (lambda _
-              (delete-file-recursively "jar")))
           (add-before 'install 'generate-pom
             (generate-pom.xml "pom.xml" "org.simpleframework" "simple" ,version))
           (replace 'install (install-from-pom "pom.xml")))))
-    (native-inputs
-      (list unzip))
+    (native-inputs (list java-junit unzip))
     (home-page "https://simpleweb.sourceforge.net/")
     (synopsis "Web framework for Java")
     (description "The goal of Simple is to bring the power of simplicity to the world of server side Java.
@@ -2012,10 +2014,10 @@ browser window. It is completely customizable as well via CSS.")
                ; Commit used here is the newest commit that has datetime lessthan-or-equal to the snapshot used in
                ; Gradle. Also existence of this commit can be verified both against Web Archive and tobrien's repository
                ; on Software Heritage (on branch refs/heads/master).
-               (url "https://example.org")
+               ;(url "https://example.org")
+               (url "https://github.com/mkmik/polyglot-maven.git") ; workaround SWH download being broken on my system (see https://codeberg.org/guix/guix/issues/3590 )
                (commit "64de179becc3ed324daab72f7238df1404723672"))) ; Please update the comment above when you change the commit
-;        (file-name (git-file-name name version)) ; TODO
-        (file-name "swh_1_rev_64de179becc3ed324daab72f7238df1404723672-64de179")
+        (file-name (git-file-name name version))
         (sha256 (base32 "1lji0pjgcf16yqk6fj5r9n20q6872wr82rbzh0d22hdfrdfp1z9n"))
         (patches (list "patches/maven-sonatype-polyglot-0.8-update-maven.patch"
                        "patches/maven-sonatype-polyglot-0.8-fix-tests.patch"
@@ -2027,7 +2029,7 @@ browser window. It is completely customizable as well via CSS.")
             (("\\$\\{GUIX_PACKAGE_VERSION\\}") ,version)))
         ))
     ; TODO: Prevent propagating slf4j dependencies from maven packages and make them propagated-inputs:
-    (native-inputs (list groovy-ant-patched groovy-fixed maven-embedder maven-3.0-model-builder))
+    (native-inputs (list groovy-ant-patched groovy-fixed maven-embedder maven-3.0-model-builder tar unzip))
     (propagated-inputs (list maven-sonatype-polyglot-parent-pom))
     (build-system ant-build-system)
     (arguments
@@ -2486,9 +2488,9 @@ browser window. It is completely customizable as well via CSS.")
                          "patches/gradle-4.5.1-symlink-during-install.patch"))))
     (native-inputs (list
                      ant antlr2 apache-commons-parent-pom-42 groovy-fixed groovy-spock-junit4 groovy-test
-                     java-apache-ivy java-aqute-bndlib java-aqute-libg java-bouncycastle java-commons-cli
-                     java-commons-codec java-commons-collections java-commons-lang java-eclipse-jetty-http
-                     java-eclipse-jetty-io java-eclipse-jetty-security java-eclipse-jetty-server
+                     java-apache-ivy java-aqute-bndlib java-aqute-libg java-byte-buddy-dep java-bouncycastle
+                     java-commons-cli java-commons-codec java-commons-collections java-commons-lang
+                     java-eclipse-jetty-http java-eclipse-jetty-io java-eclipse-jetty-security java-eclipse-jetty-server
                      java-eclipse-jetty-servlet java-eclipse-jetty-util java-eclipse-jetty-webapp
                      java-fasterxml-jackson-annotations java-equalsverifier-3 java-fasterxml-jackson-core
                      java-fasterxml-jackson-databind java-gson java-javaee-servletapi java-javaparser java-jaxp
@@ -2543,6 +2545,12 @@ browser window. It is completely customizable as well via CSS.")
                         (("@RunWith\\(GradleMetadataResolveRunner(\\.class)?\\)") "@GradleMetadataResolveTest")
                         (("(org\\.gradle\\.integtests\\.fixtures\\.)?GradleMetadataResolveRunner")
                           "org.gradle.integtests.fixtures.extensions.GradleMetadataResolveInterceptor")
+                        (("(extends[[:space:]]+)?(org\\.spockframework\\.runtime\\.extension\\.)?AbstractAnnotationDrivenExtension"
+                           _ import-prefix package-prefix)
+                          (string-append
+                            (if import-prefix "implements " "")
+                            (or package-prefix "")
+                            "IAnnotationDrivenExtension"))
                         (("@RunWith\\(MultiVersionSpecRunner(\\.class)?\\)") "@MultiVersionTest")
                         (("@RunWith\\(Runner(\\.class)?\\)") "@GradleRunnerTest")
                         (("@RunWith\\(ToolingApiCompatibilitySuiteRunner(\\.class)?\\)") "@ToolingApiTest"))))
@@ -2639,6 +2647,7 @@ browser window. It is completely customizable as well via CSS.")
                         (("(com.google.guava:)guava-jdk5:([0-9][0-9.]+)(@jar)?([:'\"])" _ prefix version _ suffix)
                           (string-append prefix "guava:[" version ",)" suffix))
                         (((string-append "((com.google.code.findbugs:jsr305"
+                           "|nl.jqno.equalsverifier:equalsverifier"
                            "|org.apache.maven.wagon:wagon-[^'\":]+"
                            "|org.apache.xbean:xbean-[^'\":]+"
                            "|org.eclipse.jetty:jetty-server"
@@ -2827,6 +2836,8 @@ browser window. It is completely customizable as well via CSS.")
                             "javax.servlet" "javax.servlet-api" "/share/java/javax-servletapi.jar")
                           (mavenize-package ,(this-package-transitive-native-input "java-joda-time") ,(package-version (this-package-transitive-native-input "java-joda-time"))
                             "joda-time" "joda-time" "/share/java/java-joda-time.jar")
+                          (mavenize-package ,(this-package-transitive-native-input "java-byte-buddy-dep") ,(package-version (this-package-transitive-native-input "java-byte-buddy-dep"))
+                            "net.bytebuddy" "byte-buddy-dep" "/share/java/byte-buddy-dep.jar")
                           (mavenize-package ,(this-package-transitive-native-input "ant") ,(package-version (this-package-transitive-native-input "ant"))
                             "org.apache.ant" "ant" "/lib/ant.jar")
                           (mavenize-package ,(this-package-transitive-native-input "ant") ,(package-version (this-package-transitive-native-input "ant"))
@@ -3046,6 +3057,7 @@ browser window. It is completely customizable as well via CSS.")
               (patches (append
                          (origin-patches (package-source gradle-bootstrap-with-gradle))
                          '("patches/gradle-4.5.1-groovy-3-4-junit-for-spock.patch"
+                           "patches/gradle-4.5.1-additional-spock.patch"
                            "patches/gradle-4.5.1-fix-tests.patch"
                            "patches/gradle-4.5.1-xmlunit-2.patch")))))
     (arguments

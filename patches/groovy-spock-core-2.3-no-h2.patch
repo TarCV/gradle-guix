@@ -1,6 +1,6 @@
 TODO: Remove once Guix has h2database package
---- a/spock-specs/src/test/groovy/org/spockframework/docs/datadriven/DataSpec.groovy	(revision aecc03ea6215d2acfd65980f6b87a6a0e4a6cf82)
-+++ b/spock-specs/src/test/groovy/org/spockframework/docs/datadriven/DataSpec.groovy	(date 1763895526058)
+--- a/spock-specs/src/test/groovy/org/spockframework/docs/datadriven/DataSpec.groovy
++++ b/spock-specs/src/test/groovy/org/spockframework/docs/datadriven/DataSpec.groovy
 @@ -7,30 +7,6 @@
  
  class DataSpec extends EmbeddedSpecification {

@@ -376,16 +376,16 @@ TODO: Call asciidoctor directly
  task distDocs(type: Docbook2Xhtml) {
      dependsOn userguideAsciidoc
      source new File(asciidocOutputDir, 'gettingStarted.xml')
---- a/subprojects/distributions/distributions.gradle	(revision 37007e1c012001ff09973e0bd095139239ecd3b3)
-+++ b/subprojects/distributions/distributions.gradle	(date 1744520306820)
+--- a/subprojects/distributions/distributions.gradle
++++ b/subprojects/distributions/distributions.gradle
 @@ -134,5 +134,3 @@
      systemProperty 'org.gradle.public.api.includes', publicApiIncludes.join(':')
      systemProperty 'org.gradle.public.api.excludes', publicApiExcludes.join(':')
  }
 -
 -apply from: 'binary-compatibility.gradle'
---- a/subprojects/base-services/base-services.gradle	(revision 37007e1c012001ff09973e0bd095139239ecd3b3)
-+++ b/subprojects/base-services/base-services.gradle	(date 1744519330376)
+--- a/subprojects/base-services/base-services.gradle
++++ b/subprojects/base-services/base-services.gradle
 @@ -19,12 +19,6 @@
      implementation libraries.commons_lang
      implementation libraries.commons_io
@@ -885,8 +885,8 @@ index 9298808ac5b4b4931d8d2d4908c816d6e4b69d06..00000000000000000000000000000000
 +++ /dev/null
 @@ -1,1 +0,0 @@
 -org.gradle.ide.xcode.internal.services.XcodeServices
---- a/subprojects/internal-integ-testing/internal-integ-testing.gradle	(revision 37007e1c012001ff09973e0bd095139239ecd3b3)
-+++ b/subprojects/internal-integ-testing/internal-integ-testing.gradle	(date 1768703861096)
+--- a/subprojects/internal-integ-testing/internal-integ-testing.gradle
++++ b/subprojects/internal-integ-testing/internal-integ-testing.gradle
 @@ -20,12 +20,6 @@
      compile libraries.jetty
      compile libraries.jettySecurity
@@ -900,3 +900,92 @@ index 9298808ac5b4b4931d8d2d4908c816d6e4b69d06..00000000000000000000000000000000
      compile libraries.ivy
      compile libraries.sshd
      compile libraries.gson
+diff --git a/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/internal/tooling/idea/IdeaModelBuilderTest.groovy b/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/internal/tooling/idea/IdeaModelBuilderTest.groovy
+--- a/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/internal/tooling/idea/IdeaModelBuilderTest.groovy
++++ b/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/internal/tooling/idea/IdeaModelBuilderTest.groovy
+@@ -22,7 +22,6 @@
+ import org.gradle.api.internal.composite.CompositeBuildContext
+ import org.gradle.api.plugins.GroovyPlugin
+ import org.gradle.api.plugins.JavaPlugin
+-import org.gradle.api.plugins.scala.ScalaPlugin
+ import org.gradle.internal.jvm.Jvm
+ import org.gradle.internal.service.DefaultServiceRegistry
+ import org.gradle.plugins.ide.idea.IdeaPlugin
+@@ -66,7 +65,7 @@
+         ideaProject.javaLanguageSettings.languageLevel == toJavaVersion(ideaProject.languageLevel)
+ 
+         where:
+-        pluginType << [JavaPlugin, GroovyPlugin, ScalaPlugin]
++        pluginType << [JavaPlugin, GroovyPlugin]
+     }
+ 
+     def "project source language level matches idea plugin language level for jvm projects with explicit configuration"() {
+diff --git a/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/internal/tooling/eclipse/EclipseModelBuilderTest.groovy b/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/internal/tooling/eclipse/EclipseModelBuilderTest.groovy
+--- a/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/internal/tooling/eclipse/EclipseModelBuilderTest.groovy
++++ b/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/internal/tooling/eclipse/EclipseModelBuilderTest.groovy
+@@ -25,8 +25,6 @@
+ import org.gradle.api.plugins.JavaBasePlugin
+ import org.gradle.api.plugins.JavaPlugin
+ import org.gradle.api.plugins.WarPlugin
+-import org.gradle.api.plugins.scala.ScalaBasePlugin
+-import org.gradle.api.plugins.scala.ScalaPlugin
+ import org.gradle.internal.service.DefaultServiceRegistry
+ import org.gradle.plugins.ear.EarPlugin
+ import org.gradle.plugins.ide.eclipse.EclipsePlugin
+@@ -148,8 +146,6 @@
+         type     | compatibilityProperty | languageLevelProperty   | projectType | pluginType
+         "source" | "sourceCompatibility" | "sourceLanguageLevel"   | "java"      | JavaBasePlugin
+         "target" | "targetCompatibility" | "targetBytecodeVersion" | "java"      | JavaBasePlugin
+-        "source" | "sourceCompatibility" | "sourceLanguageLevel"   | "scala"     | ScalaBasePlugin
+-        "target" | "targetCompatibility" | "targetBytecodeVersion" | "scala"     | ScalaBasePlugin
+         "source" | "sourceCompatibility" | "sourceLanguageLevel"   | "groovy"    | GroovyBasePlugin
+         "target" | "targetCompatibility" | "targetBytecodeVersion" | "groovy"    | GroovyBasePlugin
+     }
+@@ -169,7 +165,7 @@
+         eclipseModel.javaSourceSettings.targetBytecodeVersion == org.gradle.api.JavaVersion.current()
+ 
+         where:
+-        pluginType << [JavaPlugin, GroovyPlugin, ScalaPlugin]
++        pluginType << [JavaPlugin, GroovyPlugin]
+     }
+ 
+     @Unroll
+diff --git a/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/idea/IdeaPluginTest.groovy b/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/idea/IdeaPluginTest.groovy
+--- a/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/idea/IdeaPluginTest.groovy
++++ b/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/idea/IdeaPluginTest.groovy
+@@ -20,7 +20,6 @@
+ import org.gradle.api.Task
+ import org.gradle.api.internal.project.ProjectInternal
+ import org.gradle.api.plugins.JavaPlugin
+-import org.gradle.api.plugins.scala.ScalaPlugin
+ import org.gradle.api.tasks.Delete
+ import org.gradle.plugins.ide.idea.model.IdeaLanguageLevel
+ import org.gradle.test.fixtures.AbstractProjectBuilderSpec
+@@ -57,7 +56,7 @@
+         applyPluginToProjects()
+ 
+         then:
+-        project.idea.project.wildcards == ['!?*.java', '!?*.groovy', '!?*.class', '!?*.scala'] as Set
++        project.idea.project.wildcards == ['!?*.java', '!?*.groovy', '!?*.class'] as Set
+         project.idea.project.languageLevel.level ==  new IdeaLanguageLevel(JavaVersion.VERSION_1_6).level
+     }
+ 
+@@ -140,6 +139,7 @@
+         test.any { it.name.contains('test-resources') }
+      }
+ 
++    @spock.lang.Ignore("Scala is not packaged in Guix")
+     def "makes scala modules depend on root's project"() {
+         applyPluginToProjects()
+ 
+diff --git a/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/eclipse/EclipsePluginTest.groovy b/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/eclipse/EclipsePluginTest.groovy
+--- a/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/eclipse/EclipsePluginTest.groovy
++++ b/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/eclipse/EclipsePluginTest.groovy
+@@ -62,6 +62,7 @@
+         checkEclipseClasspath([project.configurations.compileClasspath, project.configurations.runtimeClasspath, project.configurations.testCompileClasspath, project.configurations.testRuntimeClasspath])
+     }
+ 
++    @spock.lang.Ignore("Scala is not packaged in Guix")
+     def applyToScalaProject_shouldHaveProjectAndClasspathTaskForScala() {
+         def scalaIdeContainer = ['org.scala-ide.sdt.launching.SCALA_CONTAINER']
+ 
