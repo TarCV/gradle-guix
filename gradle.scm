@@ -109,6 +109,17 @@
 (define make-apache-commons-parent-pom ; TODO: add this dependency to the relevant package?
   (module-ref (resolve-module '(gnu packages maven-parent-pom)) 'make-apache-commons-parent-pom))
 
+(define maven-3.0-model-builder-fixed
+  (package/inherit
+    maven-3.0-model-builder
+    (source (origin
+              (inherit (package-source maven-3.0-model-builder))
+              (patches (cons "patches/maven-3.0-model-builder-interpolator-fix.patch"
+                         (origin-patches (package-source maven-3.0-model-builder))))))))
+(define (fix-maven-3.0 pkg)
+  ((package-input-rewriting `((,maven-3.0-model-builder . ,maven-3.0-model-builder-fixed)))
+    pkg))
+
 (define-public ant-junitlauncher
   (package
     (inherit ant/java8)
@@ -187,7 +198,7 @@
         ("java-sonatype-aether-spi" ,java-sonatype-aether-spi-1.13)
         ("java-sonatype-aether-util" ,java-sonatype-aether-util-1.13)
         ("java-plexus-component-annotations" ,java-plexus-component-annotations)
-        ("java-plexus-container-default" ,java-plexus-container-default)
+        ("java-plexus-container-default" ,java-plexus-container-default-1.7)
         ("java-slf4j-api" ,java-slf4j-api)))
     (native-inputs
       (list java-junit java-plexus-component-metadata
@@ -2029,7 +2040,7 @@ browser window. It is completely customizable as well via CSS.")
             (("\\$\\{GUIX_PACKAGE_VERSION\\}") ,version)))
         ))
     ; TODO: Prevent propagating slf4j dependencies from maven packages and make them propagated-inputs:
-    (native-inputs (list groovy-ant-patched groovy-fixed maven-embedder maven-3.0-model-builder tar unzip))
+    (native-inputs (list groovy-ant-patched groovy-fixed maven-embedder maven-3.0-model-builder-fixed tar unzip))
     (propagated-inputs (list maven-sonatype-polyglot-parent-pom))
     (build-system ant-build-system)
     (arguments
@@ -2054,7 +2065,7 @@ browser window. It is completely customizable as well via CSS.")
                                          (lambda (path) (find-files path ".+\\.jar"))
                                          (list ; TODO How to generate this list of paths using package-propagated-inputs?
                                            #$java-commons-cli #$java-guava #$java-jdom2
-                                           #$java-plexus-component-metadata #$java-plexus-container-default
+                                           #$java-plexus-component-metadata #$java-plexus-container-default-1.7
                                            #$java-plexus-classworlds #$java-plexus-cli #$java-plexus-utils
                                            #$java-geronimo-xbean-reflect #$java-qdox))
                                        ":"))
@@ -2107,7 +2118,7 @@ browser window. It is completely customizable as well via CSS.")
   (package
     (inherit maven-sonatype-polyglot-common)
     (name "maven-sonatype-polyglot-groovy")
-    (native-inputs (list groovy-ant-patched groovy-fixed maven-embedder maven-3.0-model-builder))
+    (native-inputs (list groovy-ant-patched groovy-fixed maven-embedder maven-3.0-model-builder-fixed))
     (propagated-inputs (list maven-sonatype-polyglot-parent-pom maven-sonatype-polyglot-common))
     (arguments
       `(#:jar-name "lib.jar"
@@ -2129,7 +2140,7 @@ browser window. It is completely customizable as well via CSS.")
                                          (lambda (path) (find-files path ".+\\.jar"))
                                          (list ; TODO How to generate this list of paths using package-propagated-inputs?
                                            #$java-commons-cli #$java-guava #$java-jdom2
-                                           #$java-plexus-component-metadata #$java-plexus-container-default
+                                           #$java-plexus-component-metadata #$java-plexus-container-default-1.7
                                            #$java-plexus-classworlds #$java-plexus-cli #$java-plexus-utils
                                            #$java-geronimo-xbean-reflect #$java-qdox))
                                        ":"))
@@ -2508,8 +2519,9 @@ browser window. It is completely customizable as well via CSS.")
                      java-plexus-component-annotations-1.7 java-sonatype-oss-parent-pom-5
                      java-sonatype-aether-api-1.13 java-sonatype-aether-impl-1.13 java-sonatype-aether-util-1.13
                      maven-resolver-transport-wagon maven-sonatype-polyglot-common maven-sonatype-polyglot-groovy
-                     maven-3.0-compat maven-3.0-core maven-parent-pom-34 maven-3.0-plugin-api maven-wagon-file
-                     maven-wagon-http maven-wagon-http-shared maven-wagon-provider-api
+                     (fix-maven-3.0 maven-3.0-compat) (fix-maven-3.0 maven-3.0-core) maven-parent-pom-34
+                     (fix-maven-3.0 maven-3.0-plugin-api)
+                     maven-wagon-file maven-wagon-http maven-wagon-http-shared maven-wagon-provider-api
                        
                      zip))
     (arguments
@@ -2559,6 +2571,11 @@ browser window. It is completely customizable as well via CSS.")
                       (substitute* (find-files "." ".*\\.(java|groovy)$")
                         (("import net\\.jcip\\.annotations\\.((Not)?ThreadSafe;)" _ name)
                           (string-append "import javax.annotation.concurrent." name)))))
+                  (add-before 'build 'patch-poms-for-https
+                    (lambda _
+                      (substitute* (find-files "." ".*\\.(groovy|pom|xml)$")
+                        (("http://maven.apache.org/xsd/maven-4.0.0.xsd")
+                          "https://maven.apache.org/xsd/maven-4.0.0.xsd"))))
                   ;; Remove online dependencies, dependency loops and other too complex dependencies
                   (add-before 'build 'remove-complex-dependencies
                     (lambda _
@@ -2714,11 +2731,12 @@ browser window. It is completely customizable as well via CSS.")
                               (for-each
                                 (lambda (path-with-dot)
                                   (let* ((path-relative-to-m2-root (substring path-with-dot 2))
+                                         (target-path (string-append m2-root "/" path-relative-to-m2-root))
                                          (link-itself (string-append repository-dir "/" path-relative-to-m2-root)))
                                     (mkdir-p (dirname link-itself))
-                                    (symlink
-                                      (string-append m2-root "/" path-relative-to-m2-root)
-                                      link-itself)))
+                                    (if (file-exists? link-itself)
+                                      (invoke "cmp" "-l" target-path link-itself)
+                                      (symlink target-path link-itself))))
                                 (find-files "." ".+"))))
                           m2-roots)
 
@@ -3067,10 +3085,11 @@ browser window. It is completely customizable as well via CSS.")
            (replace 'build
                    (lambda* (#:key outputs #:allow-other-keys)
                      (setenv "CLASSPATH" "")
-                     (setenv "GRADLE_OPTS" (string-append
-                                             "-Dorg.gradle.daemon=false"
-                                             " " "-Duser.home=" (getenv "HOME")
-                                             " " "-Dmaven.repo.local=" (getenv "HOME") "/.m2/repository"))
+
+                     ; TODO: or JAVA_TOOL_OPTIONS or _JAVA_OPTIONS?
+                     (setenv "JDK_JAVA_OPTIONS" (string-append "-Duser.home=" (getenv "HOME")))
+
+                     (setenv "GRADLE_OPTS" (string-append "-Dorg.gradle.daemon=false"))
                      (setenv "TERM" "xterm") ; Required for NativePlatformConsoleDetectorTest
                      (invoke
                        (string-append ,gradle-bootstrap-with-gradle "/bin/gradle")

@@ -20,3 +20,30 @@
          when:
          def result = TimeFormatting.formatDurationTerse(input)
  
+--- a/subprojects/core/src/test/groovy/org/gradle/api/internal/file/collections/jdk7/Jdk7UnauthorizedDirectoryWalkerTest.groovy
++++ b/subprojects/core/src/test/groovy/org/gradle/api/internal/file/collections/jdk7/Jdk7UnauthorizedDirectoryWalkerTest.groovy
+@@ -15,7 +15,7 @@
+  */
+ package org.gradle.api.internal.file.collections.jdk7
+ 
+-import com.google.api.client.repackaged.com.google.common.base.Throwables
++import com.google.common.base.Throwables
+ import org.gradle.api.file.FileVisitor
+ import org.gradle.api.internal.file.TestFiles
+ import org.gradle.api.internal.file.collections.DirectoryFileTree
+diff --git a/subprojects/model-core/src/test/groovy/org/gradle/model/internal/core/ModelTypeJavaTest.java b/subprojects/model-core/src/test/groovy/org/gradle/model/internal/core/ModelTypeJavaTest.java
+--- a/subprojects/model-core/src/test/groovy/org/gradle/model/internal/core/ModelTypeJavaTest.java
++++ b/subprojects/model-core/src/test/groovy/org/gradle/model/internal/core/ModelTypeJavaTest.java
+@@ -35,9 +35,9 @@
+ 
+     <T extends Number, S extends T, R> void m1(T t, S s, R r) { }
+     <T extends Number & Runnable, S extends T> void m1(S s) { }
+-    void m2(List<String>... lists) { }
+-    void m4(List<? super Number>... lists) { }
+-    void m5(Collection<String>... collections) { }
++    @SuppressWarnings("Since15") @SafeVarargs final void m2(List<String>... lists) { }
++    @SuppressWarnings("Since15") @SafeVarargs final void m4(List<? super Number>... lists) { }
++    @SuppressWarnings("Since15") @SafeVarargs final void m5(Collection<String>... collections) { }
+ 
+     @Test
+     public void testNestedParameterizedType() {

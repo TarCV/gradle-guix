@@ -1209,9 +1209,9 @@ index 3af7ee5f94285..3d421ee7c6d48 100644
  
      private class TestFileCollectionWithDependency extends TestFileCollection {
 -        TestFileCollectionWithDependency(File... files) {
-+        private final TaskDependencyInternal dependency
++        private final org.gradle.api.internal.tasks.TaskDependencyInternal dependency
 +
-+        TestFileCollectionWithDependency(TaskDependencyInternal dependency, File... files) {
++        TestFileCollectionWithDependency(org.gradle.api.internal.tasks.TaskDependencyInternal dependency, File... files) {
              super(files)
 +            this.dependency = dependency
          }
