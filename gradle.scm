@@ -2171,12 +2171,12 @@ browser window. It is completely customizable as well via CSS.")
   (list "patches/gradle-4.5.1-04116-junitplatform.diff"
         "patches/gradle-4.5.1-06013-groovy-2.4.patch" "patches/gradle-4.5.1-06669-spock.diff" ; TODO: compact these sets having redundant patches into diffs, and then compare with originals
         "patches/gradle-4.5.1-06682-groovy-2.5-1.patch" "patches/gradle-4.5.1-06799-groovy-2.5-2.patch"
-        "patches/gradle-4.5.1-06728-commons.patch" "patches/gradle-4.5.1-07245-groovy-2.5-4.patch"
-        "patches/gradle-4.5.1-09356-asm.patch" "patches/gradle-4.5.1-12432-groovy-2.5-5.patch"
-        "patches/gradle-4.5.1-14378-jetty-1.diff" "patches/gradle-4.5.1-15582-spock.diff"
-        "patches/gradle-4.5.1-15710-spock.diff" "patches/gradle-4.5.1-16193-groovy-3-2.patch"
-        "patches/gradle-4.5.1-16637-spock.patch" "patches/gradle-4.5.1-jetty-2.diff"
-        "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
+        "patches/gradle-4.5.1-06728part-commons.patch" "patches/gradle-4.5.1-06728part-fix-reports.patch"
+        "patches/gradle-4.5.1-07245-groovy-2.5-4.patch" "patches/gradle-4.5.1-09356-asm.patch"
+        "patches/gradle-4.5.1-12432-groovy-2.5-5.patch" "patches/gradle-4.5.1-14378-jetty-1.diff"
+        "patches/gradle-4.5.1-15582-spock.diff" "patches/gradle-4.5.1-15710-spock.diff"
+        "patches/gradle-4.5.1-16193-groovy-3-2.patch" "patches/gradle-4.5.1-16637-spock.patch"
+        "patches/gradle-4.5.1-jetty-2.diff" "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
         "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"
         "patches/gradle-4.5.1-unshaded-groovy.patch"))
 (define gradle-bootstrap-with-ant
@@ -2504,7 +2504,7 @@ browser window. It is completely customizable as well via CSS.")
                      java-eclipse-jetty-http java-eclipse-jetty-io java-eclipse-jetty-security java-eclipse-jetty-server
                      java-eclipse-jetty-servlet java-eclipse-jetty-util java-eclipse-jetty-webapp
                      java-fasterxml-jackson-annotations java-equalsverifier-3 java-fasterxml-jackson-core
-                     java-fasterxml-jackson-databind java-gson java-javaee-servletapi java-javaparser java-jaxp
+                     java-fasterxml-jackson-databind java-guice java-gson java-javaee-servletapi java-javaparser java-jaxp
                      java-jcommander-new java-jgit java-jhighlight-codelibs java-jcifs java-jsch
                      java-junit-platform-launcher-5 java-jmock java-jmock-junit4 java-jmock-legacy java-joda-time
                      java-jsoup java-hamcrest-library java-httpcomponents-httpclient java-httpcomponents-httpcore
@@ -2543,6 +2543,7 @@ browser window. It is completely customizable as well via CSS.")
                           "import static java.util.Collections.emptyIterator;")
                         (("CharMatcher.JAVA_ISO_CONTROL") "CharMatcher.javaIsoControl()")
                         (("Iterators.emptyIterator\\(\\)") "java.util.Collections.emptyIterator()")
+                        (("ListenableFutureTask") "TrustedListenableFutureTask")
                         (("Objects.toStringHelper") "com.google.common.base.MoreObjects.toStringHelper"))))
                   (add-before 'build 'patch-for-newer-maven
                     (lambda _
@@ -2686,11 +2687,13 @@ browser window. It is completely customizable as well via CSS.")
                                       "subprojects/docs/src/transforms/release-notes.gradle"
                                       "subprojects/javascript/javascript.gradle"
                                       "subprojects/maven/maven.gradle"
-                                      "subprojects/reporting/reporting.gradle")
+                                      "subprojects/reporting/reporting.gradle"
+                                      "subprojects/testing-jvm/testing-jvm.gradle")
                         (("(com.google.guava:)guava-jdk5:([0-9][0-9.]+)(@jar)?([:'\"])" _ prefix version _ suffix)
                           (string-append prefix "guava:[" version ",)" suffix))
                         (((string-append "((org.ow2.asm:asm[^'\":]*" ; '*' is intentional to include 'asm' module
                             "|com.google.code.findbugs:jsr305"
+                            "|com.google.inject:guice"
                             "|org.objenesis:objenesis"
                             "):)([0-9]+[0-9.]*)([:'@\"])") _ prefix _ version suffix)
                           (string-append prefix "[" version ",)" suffix))
@@ -3094,6 +3097,7 @@ browser window. It is completely customizable as well via CSS.")
                      (invoke
                        (string-append ,gradle-bootstrap-with-gradle "/bin/gradle")
                        "--init-script" "init.gradle"
+                       "--continue" ; run all not blocked tasks, so that most errors are triggered in a single run
 ;                       "--debug"
 ;                       "--full-stacktrace"
                        ; TODO: set number of worker threads based on '--cores' Guix argument

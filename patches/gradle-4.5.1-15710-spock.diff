@@ -1090,7 +1090,7 @@ index b25fac58efb86..55650972f0570
  import org.gradle.util.GradleVersion;
  
  import java.util.ArrayList;
-@@ -32,10 +32,7 @@
+@@ -32,12 +32,9 @@
  
  import static org.gradle.util.CollectionUtils.*;
  
@@ -1100,8 +1100,11 @@ index b25fac58efb86..55650972f0570
 -public abstract class AbstractCompatibilityTestRunner extends AbstractMultiTestRunner {
 +public abstract class AbstractCompatibilityTestInterceptor extends AbstractMultiTestInterceptor {
  
-     private static final String VERSIONS_SYSPROP_NAME = "org.gradle.integtest.versions";
+-    private static final String VERSIONS_SYSPROP_NAME = "org.gradle.integtest.versions";
++    private static final String VERSIONS_SYSPROP_NAME = "org.gradle.integtest.versions";
      protected final IntegrationTestBuildContext buildContext = IntegrationTestBuildContext.INSTANCE;
+     protected final GradleDistribution current = new UnderDevelopmentGradleDistribution(buildContext);
+     protected final List<GradleDistribution> previous;
 @@ -42,11 +39,11 @@
      protected final List<GradleDistribution> previous;
      protected final boolean implicitVersion;
@@ -3155,7 +3158,7 @@ index 0000000000000..717456faa4d4f
 +import java.util.List;
 +import java.util.Map;
 +
-+import static org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor.VERSIONS_SYSPROP_NAME;
++import static org.gradle.integtests.fixtures.compatibility.AbstractCompatibilityTestInterceptor.VERSIONS_SYSPROP_NAME;
 +
 +
 +public class CrossVersionTestEngine extends HierarchicalTestEngine<SpockExecutionContext> {
@@ -3629,8 +3632,8 @@ rename to subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/
                  if (it.toolingApiSupported) {
 -                    add(new ToolingApiExecution(resolver.resolve(current.version.version), it))
 -                    add(new ToolingApiExecution(resolver.resolve(it.version.version), current))
-+                    add(new ToolingApiExecution(current, it)
-+                    add(new ToolingApiExecution(it, current)
++                    add(new ToolingApiExecution(current, it))
++                    add(new ToolingApiExecution(it, current))
                  }
              }
 -        } finally {

@@ -11,7 +11,7 @@ index 8cd9d918d4959..5df010b653776 100644
  
      @Unroll
 -    def "returns current directory when it contains a #settingsFilename file when script languages #extensions"() {
-+    def "returns current directory when it contains a #settingsFilename file when script languages"() {
++    def "returns current directory when it contains a settings filename file when script languages #extensions"() {
          given:
          def locator = buildLayoutFactoryFor()
  

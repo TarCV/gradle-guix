@@ -49,7 +49,7 @@ index 79b8346de3943..612c8421a3ec8 100644
          // We cannot just stub here as we want to return a different task each time.
          1 * delegate.createTask(args) >> task
 -        assert factory.createTask(args).is(task)
-+        def createdTask = factory.create(args)
++        def createdTask = factory.createTask(args)
 +        assert createdTask.is(task)
          return task
      }

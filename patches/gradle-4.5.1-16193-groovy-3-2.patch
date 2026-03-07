@@ -980,7 +980,7 @@ index 3d81380f36b66..f0d961d416b8f 100644
          ScriptCompilationException e = thrown()
          e.lineNumber == 3
 -        e.cause.message.contains("script.gradle: 3: unexpected token: jsj")
-+        e.cause.message.contains("script.gradle: 3: Unexpected ioken: 'jsj' @ line 3, column 14")
++        e.cause.message.contains("script.gradle: 3: Unexpected ioken: 'jsj' @ line 3, column 15")
  
          and:
          checkScriptCacheEmpty()
@@ -1204,11 +1204,13 @@ index 3af7ee5f94285..3d421ee7c6d48 100644
  
          expect:
          assertHasSameDependencies(collection.filter(TestUtil.toClosure("{true}")));
-@@ -395,8 +395,11 @@ class AbstractFileCollectionTest extends FileCollectionSpec {
+@@ -394,9 +395,12 @@ class AbstractFileCollectionTest extends FileCollectionSpec {
+         }
      }
  
-     private class TestFileCollectionWithDependency extends TestFileCollection {
+-    private class TestFileCollectionWithDependency extends TestFileCollection {
 -        TestFileCollectionWithDependency(File... files) {
++    private static class TestFileCollectionWithDependency extends TestFileCollection {
 +        private final org.gradle.api.internal.tasks.TaskDependencyInternal dependency
 +
 +        TestFileCollectionWithDependency(org.gradle.api.internal.tasks.TaskDependencyInternal dependency, File... files) {
