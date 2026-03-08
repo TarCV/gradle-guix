@@ -222,7 +222,7 @@
                       (find-files "." ".*\\.(a|class|exe|jar|so|zip)$"))
                     #t))))
     (build-system ant-build-system)
-    (native-inputs (list ant-junitlauncher groovy-ant-patched groovy-test java-jetbrains-annotations java-asm-8
+    (native-inputs (list ant-junitlauncher groovy-ant-fixed groovy-test java-jetbrains-annotations java-asm-8
                          java-byte-buddy-dep java-cglib java-junit-platform-testkit-5 java-objenesis))
     (propagated-inputs (list groovy-fixed java-hamcrest-library java-junit-platform-engine-5))
     (arguments
@@ -300,7 +300,7 @@
   (package
     (inherit groovy-spock-core)
     (name "groovy-spock-junit4")
-    (native-inputs (list ant-junitlauncher groovy-ant-patched groovy-test java-jetbrains-annotations
+    (native-inputs (list ant-junitlauncher groovy-ant-fixed groovy-test java-jetbrains-annotations
                          java-junit-platform-testkit-5))
     (propagated-inputs (list java-junit groovy-spock-core))
     (arguments
@@ -1642,7 +1642,7 @@ These APIs support Java 5 and later. Some of these APIs overlap with APIs availa
 (define java-native-platform-0.14
   (package
     (inherit java-native-plafform-0.14-base)
-    (native-inputs (list ant-junitlauncher groovy-ant-patched groovy-fixed groovy-spock-junit4
+    (native-inputs (list ant-junitlauncher groovy-ant-fixed groovy-fixed groovy-spock-junit4
                          java-native-platform-0.14/java-only))
     (propagated-inputs (list java-native-platform-linux-amd64-0.14 java-native-platform-linux-amd64-ncurses6-0.14))
     (arguments
@@ -1997,7 +1997,7 @@ or to the right depending on what is necessary to stay within the
 browser window. It is completely customizable as well via CSS.")
     (license (list license:expat license:gpl1+))))
 
-(define groovy-ant-patched
+(define groovy-ant-fixed
   (let ((original-groovy-ant (lookup-package-input groovy-fixed "groovy-ant")))
     (package
       (inherit original-groovy-ant)
@@ -2040,7 +2040,7 @@ browser window. It is completely customizable as well via CSS.")
             (("\\$\\{GUIX_PACKAGE_VERSION\\}") ,version)))
         ))
     ; TODO: Prevent propagating slf4j dependencies from maven packages and make them propagated-inputs:
-    (native-inputs (list groovy-ant-patched groovy-fixed maven-embedder maven-3.0-model-builder-fixed tar unzip))
+    (native-inputs (list groovy-ant-fixed groovy-fixed maven-embedder maven-3.0-model-builder-fixed tar unzip))
     (propagated-inputs (list maven-sonatype-polyglot-parent-pom))
     (build-system ant-build-system)
     (arguments
@@ -2118,7 +2118,7 @@ browser window. It is completely customizable as well via CSS.")
   (package
     (inherit maven-sonatype-polyglot-common)
     (name "maven-sonatype-polyglot-groovy")
-    (native-inputs (list groovy-ant-patched groovy-fixed maven-embedder maven-3.0-model-builder-fixed))
+    (native-inputs (list groovy-ant-fixed groovy-fixed maven-embedder maven-3.0-model-builder-fixed))
     (propagated-inputs (list maven-sonatype-polyglot-parent-pom maven-sonatype-polyglot-common))
     (arguments
       `(#:jar-name "lib.jar"
@@ -2170,15 +2170,15 @@ browser window. It is completely customizable as well via CSS.")
 (define common-gradle-patches
   (list "patches/gradle-4.5.1-04116-junitplatform.diff"
         "patches/gradle-4.5.1-06013-groovy-2.4.patch" "patches/gradle-4.5.1-06669-spock.diff" ; TODO: compact these sets having redundant patches into diffs, and then compare with originals
-        "patches/gradle-4.5.1-06682-groovy-2.5-1.patch" "patches/gradle-4.5.1-06799-groovy-2.5-2.patch"
-        "patches/gradle-4.5.1-06728part-commons.patch" "patches/gradle-4.5.1-06728part-fix-reports.patch"
-        "patches/gradle-4.5.1-07245-groovy-2.5-4.patch" "patches/gradle-4.5.1-09356-asm.patch"
-        "patches/gradle-4.5.1-12432-groovy-2.5-5.patch" "patches/gradle-4.5.1-14378-jetty-1.diff"
-        "patches/gradle-4.5.1-15582-spock.diff" "patches/gradle-4.5.1-15710-spock.diff"
-        "patches/gradle-4.5.1-16193-groovy-3-2.patch" "patches/gradle-4.5.1-16637-spock.patch"
+        "patches/gradle-4.5.1-06682-groovy-2.5-1.patch" "patches/gradle-4.5.1-06692part-java-8.diff"
+        "patches/gradle-4.5.1-06799-groovy-2.5-2.patch" "patches/gradle-4.5.1-06728part-commons.patch"
+        "patches/gradle-4.5.1-06728part-fix-reports.patch" "patches/gradle-4.5.1-07245-groovy-2.5-4.patch"
+        "patches/gradle-4.5.1-09356-asm.patch" "patches/gradle-4.5.1-12432-groovy-2.5-5.patch"
+        "patches/gradle-4.5.1-14378-jetty-1.diff" "patches/gradle-4.5.1-15582-spock.diff"
+        "patches/gradle-4.5.1-15710-spock.diff" "patches/gradle-4.5.1-16193-groovy-3-2.patch"
+        "patches/gradle-4.5.1-16637-spock.patch" "patches/gradle-4.5.1-26150-ivy.diff"
         "patches/gradle-4.5.1-jetty-2.diff" "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
-        "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-type-fix.patch"
-        "patches/gradle-4.5.1-unshaded-groovy.patch"))
+        "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-unshaded-groovy.patch"))
 (define gradle-bootstrap-with-ant
   (package
     (name "gradle-bootstrap-with-ant")
@@ -2199,7 +2199,7 @@ browser window. It is completely customizable as well via CSS.")
                     #t))))
     (build-system ant-build-system)
     (propagated-inputs
-      (list groovy-ant-patched groovy-fixed
+      (list groovy-ant-fixed groovy-fixed
               java-asm-9 java-asm-commons-9
             java-apache-ivy java-bouncycastle java-commons-collections java-commons-compress-no-pack200
             java-commons-io java-commons-lang java-commons-logging-minimal
@@ -2600,6 +2600,10 @@ browser window. It is completely customizable as well via CSS.")
                           "subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/http/HttpsProxyResolveIntegrationTest.groovy"
                           "subprojects/resources-s3/src/integTest/groovy/org/gradle/integtests/resource/s3/maven/MavenS3ProxiedRepoIntegrationTest.groovy"
                           "subprojects/wrapper/src/integTest/groovy/org/gradle/integtests/WrapperHttpIntegrationTest.groovy"
+
+                          ;; Pass with TestNG 6.3.1 but fail with TestNG 6.14.3 (the version included in Guix):
+                          ;; (TODO: try re-enabling once TestNG is updated in Guix)
+                          "subprojects/testing-jvm/src/test/groovy/org/gradle/api/internal/tasks/testing/testng/TestNGTestClassProcessorTest.groovy"
                           ))
                       ;;depend on previous versions of Gradle
                       (delete-file-recursively "buildSrc/src/main/groovy/org/gradle/binarycompatibility")
@@ -3085,6 +3089,7 @@ browser window. It is completely customizable as well via CSS.")
       (substitute-keyword-arguments (package-arguments gradle-bootstrap-with-gradle)
         ((#:phases phases '%standard-phases)
          `(modify-phases ,phases
+           ; TODO: self-compile comparison check
            (replace 'build
                    (lambda* (#:key outputs #:allow-other-keys)
                      (setenv "CLASSPATH" "")
@@ -3103,7 +3108,7 @@ browser window. It is completely customizable as well via CSS.")
                        ; TODO: set number of worker threads based on '--cores' Guix argument
                        "test"
                        ; TODO "integTest"
-                       "install"
+                       "install" ; TODO: generate and install docs
                        "-x" ":docs:test" ; depends on Selenium
                        "-PbuildTimestamp=19700101000000+0000"
                        (string-append "-Pgradle_installPath=" (assoc-ref outputs "out")))))))))))

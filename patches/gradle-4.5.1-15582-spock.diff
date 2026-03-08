@@ -15,6 +15,15 @@ index 8cd9d918d4959..5df010b653776 100644
          given:
          def locator = buildLayoutFactoryFor()
  
+@@ -64,7 +64,7 @@
+     }
+ 
+     @Unroll
+-    def "returns current directory when no ancestor directory contains a #settingsFilename file when script languages #extensions"() {
++    def "returns current directory when no ancestor directory contains a settings filename file when script languages #extensions"() {
+         given:
+         def locator = buildLayoutFactoryFor(extensions)
+ 
 diff --git a/subprojects/core/src/test/groovy/org/gradle/util/StdinSwapperTest.groovy b/subprojects/core/src/test/groovy/org/gradle/util/StdinSwapperTest.groovy
 index 3640b7272db12..4d8a5608455fb 100644
 --- a/subprojects/core/src/test/groovy/org/gradle/util/StdinSwapperTest.groovy

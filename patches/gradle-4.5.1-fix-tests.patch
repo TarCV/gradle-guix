@@ -58,3 +58,22 @@ diff --git a/subprojects/model-core/src/test/groovy/org/gradle/model/internal/co
          result.assertNormalExitValue()
      }
  
+diff --git a/subprojects/dependency-management/src/test/groovy/org/gradle/api/internal/runtimeshaded/RuntimeShadedJarCreatorTest.groovy b/subprojects/dependency-management/src/test/groovy/org/gradle/api/internal/runtimeshaded/RuntimeShadedJarCreatorTest.groovy
+--- a/subprojects/dependency-management/src/test/groovy/org/gradle/api/internal/runtimeshaded/RuntimeShadedJarCreatorTest.groovy
++++ b/subprojects/dependency-management/src/test/groovy/org/gradle/api/internal/runtimeshaded/RuntimeShadedJarCreatorTest.groovy
+@@ -103,6 +103,7 @@
+         contents[0] == outputJar
+     }
+ 
++    @spock.lang.Ignore("Different relocation list is generated for Gradle in Guix") // TODO: revisit this test
+     def "creates a reproducible jar"() {
+         given:
+ 
+@@ -369,6 +370,7 @@
+         }
+     }
+ 
++    @spock.lang.Ignore("Different relocation list is generated for Gradle in Guix") // TODO: revisit this test
+     def "remaps resources"() {
+         given:
+         def noRelocationResources = ['org/gradle/reporting/report.js',

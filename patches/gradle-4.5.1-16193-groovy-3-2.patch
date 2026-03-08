@@ -980,7 +980,7 @@ index 3d81380f36b66..f0d961d416b8f 100644
          ScriptCompilationException e = thrown()
          e.lineNumber == 3
 -        e.cause.message.contains("script.gradle: 3: unexpected token: jsj")
-+        e.cause.message.contains("script.gradle: 3: Unexpected ioken: 'jsj' @ line 3, column 15")
++        e.cause.message.contains("script.gradle: 3: Unexpected input: 'jsj' @ line 3, column 15")
  
          and:
          checkScriptCacheEmpty()
@@ -1177,7 +1177,7 @@ diff --git a/subprojects/core/src/test/groovy/org/gradle/api/internal/file/Abstr
 index 3af7ee5f94285..3d421ee7c6d48 100644
 --- a/subprojects/core/src/test/groovy/org/gradle/api/internal/file/AbstractFileCollectionTest.groovy
 +++ b/subprojects/core/src/test/groovy/org/gradle/api/internal/file/AbstractFileCollectionTest.groovy
-@@ -36,7 +36,7 @@ import static org.hamcrest.core.IsInstanceOf.instanceOf
+@@ -40,7 +40,7 @@ import static org.hamcrest.core.IsInstanceOf.instanceOf
  public class AbstractFileCollectionTest extends Specification {
      @Rule
      public final TestNameTestDirectoryProvider testDir = new TestNameTestDirectoryProvider();
@@ -1186,7 +1186,7 @@ index 3af7ee5f94285..3d421ee7c6d48 100644
  
      public void usesDisplayNameAsToString() {
          TestFileCollection collection = new TestFileCollection();
-@@ -289,7 +289,7 @@ class AbstractFileCollectionTest extends FileCollectionSpec {
+@@ -398,7 +398,7 @@ class AbstractFileCollectionTest extends FileCollectionSpec {
      }
  
      public void fileTreeHasSameDependenciesAsThis() {
@@ -1195,7 +1195,7 @@ index 3af7ee5f94285..3d421ee7c6d48 100644
          collection.files.add(new File("f1"));
  
          expect:
-@@ -298,7 +298,7 @@ class AbstractFileCollectionTest extends FileCollectionSpec {
+@@ -407,7 +407,7 @@ class AbstractFileCollectionTest extends FileCollectionSpec {
      }
  
      public void filteredCollectionHasSameDependenciesAsThis() {
@@ -1204,16 +1204,25 @@ index 3af7ee5f94285..3d421ee7c6d48 100644
  
          expect:
          assertHasSameDependencies(collection.filter(TestUtil.toClosure("{true}")));
-@@ -394,9 +395,12 @@ class AbstractFileCollectionTest extends FileCollectionSpec {
+@@ -433,7 +433,7 @@ class AbstractFileCollectionTest extends FileCollectionSpec {
+         assertThat(tree.getBuildDependencies().getDependencies(task), equalTo((Object) toSet(depTask)));
+     }
+ 
+-    private class TestFileCollection extends AbstractFileCollection {
++    private static class TestFileCollection extends AbstractFileCollection {
+         Set<File> files = new LinkedHashSet<File>();
+ 
+         TestFileCollection(File... files) {
+@@ -449,9 +449,12 @@ class AbstractFileCollectionTest extends FileCollectionSpec {
          }
      }
  
 -    private class TestFileCollectionWithDependency extends TestFileCollection {
 -        TestFileCollectionWithDependency(File... files) {
 +    private static class TestFileCollectionWithDependency extends TestFileCollection {
-+        private final org.gradle.api.internal.tasks.TaskDependencyInternal dependency
++        private final TaskDependency dependency
 +
-+        TestFileCollectionWithDependency(org.gradle.api.internal.tasks.TaskDependencyInternal dependency, File... files) {
++        TestFileCollectionWithDependency(TaskDependency dependency, File... files) {
              super(files)
 +            this.dependency = dependency
          }

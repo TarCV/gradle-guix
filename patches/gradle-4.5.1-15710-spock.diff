@@ -1098,10 +1098,10 @@ index b25fac58efb86..55650972f0570
 - * A base class for those test runners which execute a test multiple times against a set of Gradle versions.
 - */
 -public abstract class AbstractCompatibilityTestRunner extends AbstractMultiTestRunner {
++import static org.gradle.integtests.fixtures.compatibility.MultiVersionTestInterceptor.VERSIONS_SYSPROP_NAME;
 +public abstract class AbstractCompatibilityTestInterceptor extends AbstractMultiTestInterceptor {
  
 -    private static final String VERSIONS_SYSPROP_NAME = "org.gradle.integtest.versions";
-+    private static final String VERSIONS_SYSPROP_NAME = "org.gradle.integtest.versions";
      protected final IntegrationTestBuildContext buildContext = IntegrationTestBuildContext.INSTANCE;
      protected final GradleDistribution current = new UnderDevelopmentGradleDistribution(buildContext);
      protected final List<GradleDistribution> previous;
@@ -1110,8 +1110,9 @@ index b25fac58efb86..55650972f0570
      protected final boolean implicitVersion;
  
 -    protected AbstractCompatibilityTestRunner(Class<?> target) {
+-        this(target, System.getProperty(VERSIONS_SYSPROP_NAME, "latest"));
 +    protected AbstractCompatibilityTestInterceptor(Class<?> target) {
-         this(target, System.getProperty(VERSIONS_SYSPROP_NAME, "latest"));
++        this(target, System.getProperty(MultiVersionTestInterceptor.VERSIONS_SYSPROP_NAME, "latest"));
      }
  
 -    private AbstractCompatibilityTestRunner(Class<?> target, String versionStr) {
@@ -1432,7 +1433,8 @@ index 4c1cbe7e139a2..b7127a1ef2842 100644
 -class MultiVersionSpecRunner extends AbstractMultiTestRunner {
 +class MultiVersionTestInterceptor extends AbstractMultiTestInterceptor {
  
-     private static final String VERSIONS_SYSPROP_NAME = "org.gradle.integtest.versions"
+-    private static final String VERSIONS_SYSPROP_NAME = "org.gradle.integtest.versions"
++    public static final String VERSIONS_SYSPROP_NAME = "org.gradle.integtest.versions"
      public static final String MULTI_VERSION_SYS_PROP = "org.gradle.integtest.multiversion"
  
 -    MultiVersionSpecRunner(Class<?> target) {
@@ -3158,7 +3160,7 @@ index 0000000000000..717456faa4d4f
 +import java.util.List;
 +import java.util.Map;
 +
-+import static org.gradle.integtests.fixtures.compatibility.AbstractCompatibilityTestInterceptor.VERSIONS_SYSPROP_NAME;
++import static org.gradle.integtests.fixtures.compatibility.MultiVersionTestInterceptor.VERSIONS_SYSPROP_NAME;
 +
 +
 +public class CrossVersionTestEngine extends HierarchicalTestEngine<SpockExecutionContext> {
@@ -3207,11 +3209,11 @@ index 0000000000000..717456faa4d4f
 +class TestVariant {
 +    private final UniqueId id;
 +    private final EngineDiscoveryRequest discoveryRequest;
-+    private final Map<String, String> systemProperties = new HashMap<String, String>();
++    private String systemPropertyKey = "unused"; private String systemPropertyValue = "unused";
 +
 +    static TestVariant tapiCurrent(UniqueId rootId, EngineDiscoveryRequest discoveryRequest) {
 +        TestVariant testVariant = new TestVariant(rootId, "tapiCurrent", new ToolingApiCurrentDiscoveryRequest(discoveryRequest));
-+        testVariant.systemProperties.put(VERSIONS_SYSPROP_NAME, CoverageContext.DEFAULT.selector);
++        testVariant.systemPropertyKey = VERSIONS_SYSPROP_NAME; testVariant.systemPropertyValue = CoverageContext.DEFAULT.selector;
 +        return testVariant;
 +    }
 +
@@ -3221,7 +3223,7 @@ index 0000000000000..717456faa4d4f
 +
 +    static TestVariant tapiTargetLoaded(UniqueId rootId, EngineDiscoveryRequest discoveryRequest) {
 +        TestVariant testVariant = new TestVariant(rootId, "tapi", new ToolingApiClassloaderDiscoveryRequest(discoveryRequest));
-+        testVariant.systemProperties.put("org.gradle.integtest.currentVersion", GradleVersion.current().getVersion());
++        testVariant.systemPropertyKey = "org.gradle.integtest.currentVersion"; testVariant.systemPropertyValue = GradleVersion.current().getVersion();
 +        return testVariant;
 +    }
 +
@@ -3231,7 +3233,7 @@ index 0000000000000..717456faa4d4f
 +    }
 +
 +    TestDescriptor discover(final TestEngine discoveryEngine) {
-+        return SystemProperties.getInstance().withSystemProperties(systemProperties, new Factory<TestDescriptor>() {
++        return SystemProperties.getInstance().withSystemProperty(systemPropertyKey, systemPropertyValue, new Factory<TestDescriptor>() {
 +            @Override
 +            public TestDescriptor create() {
 +                return discoveryEngine.discover(discoveryRequest, id);
@@ -3516,7 +3518,7 @@ index 7427eaf25626a..ba6de7917212e 100644
  import org.gradle.internal.classloader.DefaultClassLoaderFactory
  import org.gradle.internal.classloader.FilteringClassLoader
  import org.gradle.internal.classloader.MultiParentClassLoader
-@@ -28,23 +31,41 @@ import org.gradle.util.Requires
+@@ -28,23 +31,30 @@ import org.gradle.util.Requires
  import org.gradle.util.SetSystemProperties
  import org.gradle.util.TestPrecondition
  
@@ -3537,18 +3539,7 @@ index 7427eaf25626a..ba6de7917212e 100644
 +        testClassPath << ClasspathUtil.getClasspathForClass(ToolingApiSpecification)
 +        testClassPath << ClasspathUtil.getClasspathForClass(target)
 +
-+        testClassPath.addAll(collectAdditionalClasspath(toolingApi, target))
-+
 +        getTestClassLoader(toolingApi, testClassPath)
-+    }
-+
-+    private static List<File> collectAdditionalClasspath(ToolingApiDistribution toolingApi, Class<?> target) {
-+        target.annotations.findAll { it instanceof ToolingApiAdditionalClasspath }.collectMany { annotation ->
-+            (annotation as ToolingApiAdditionalClasspath).value()
-+                .getDeclaredConstructor()
-+                .newInstance()
-+                .additionalClasspathFor(toolingApi, CURRENT_GRADLE)
-+        }
 +    }
 +
 +    private static ClassLoader getTestClassLoader(ToolingApiDistribution toolingApi, List<File> testClasspath) {

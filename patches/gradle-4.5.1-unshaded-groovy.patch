@@ -103,3 +103,33 @@ Fail building modules where libraries.groovy is not replaced with localGroovy()
          List<File> installationBeacon = classPathRegistry.getClassPath("GRADLE_INSTALLATION_BEACON").getAsFiles();
          apiClasspath.removeAll(groovyImpl);
          apiClasspath.removeAll(installationBeacon);
+diff --git a/subprojects/tooling-api/src/test/groovy/org/gradle/tooling/internal/consumer/loader/DefaultToolingImplementationLoaderTest.groovy b/subprojects/tooling-api/src/test/groovy/org/gradle/tooling/internal/consumer/loader/DefaultToolingImplementationLoaderTest.groovy
+--- a/subprojects/tooling-api/src/test/groovy/org/gradle/tooling/internal/consumer/loader/DefaultToolingImplementationLoaderTest.groovy
++++ b/subprojects/tooling-api/src/test/groovy/org/gradle/tooling/internal/consumer/loader/DefaultToolingImplementationLoaderTest.groovy
+@@ -88,6 +88,7 @@
+             ClasspathUtil.getClasspathForClass(ActorFactory.class),
+             ClasspathUtil.getClasspathForClass(Logger.class),
+             ClasspathUtil.getClasspathForClass(GroovyObject.class),
++            ClasspathUtil.getClasspathForClass(org.objectweb.asm.Opcodes.class),
+             ClasspathUtil.getClasspathForClass(GradleVersion.class))
+ 
+         when:
+@@ -125,6 +126,7 @@
+             ClasspathUtil.getClasspathForClass(ActorFactory.class),
+             ClasspathUtil.getClasspathForClass(Logger.class),
+             ClasspathUtil.getClasspathForClass(GroovyObject.class),
++            ClasspathUtil.getClasspathForClass(org.objectweb.asm.Opcodes.class),
+             ClasspathUtil.getClasspathForClass(GradleVersion.class))
+ 
+         when:
+diff --git a/subprojects/core/src/test/groovy/org/gradle/api/internal/changedetection/state/ValueSnapshotterTest.groovy b/subprojects/core/src/test/groovy/org/gradle/api/internal/changedetection/state/ValueSnapshotterTest.groovy
+--- a/subprojects/core/src/test/groovy/org/gradle/api/internal/changedetection/state/ValueSnapshotterTest.groovy
++++ b/subprojects/core/src/test/groovy/org/gradle/api/internal/changedetection/state/ValueSnapshotterTest.groovy
+@@ -319,6 +319,7 @@
+     def "can coerce enum value"() {
+         def loader = new GroovyClassLoader(getClass().getClassLoader().parent)
+         loader.addURL(ClasspathUtil.getClasspathForClass(GroovyObject).toURI().toURL())
++        loader.addURL(ClasspathUtil.getClasspathForClass(org.objectweb.asm.Opcodes).toURI().toURL())
+         def cl = loader.parseClass("package ${Type1.package.name}; enum Type1 { TWO, THREE } ")
+         assert cl != Type1
+         assert cl.name == Type1.name
