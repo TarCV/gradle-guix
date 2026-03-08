@@ -1,0 +1,123 @@
+--- a/test/src/org/simpleframework/transport/Console.java
++++ b/test/src/org/simpleframework/transport/Console.java
+@@ -19,6 +19,38 @@
+       this.out = Channels.newChannel(System.out);
+       this.in = Channels.newChannel(System.in);
+    }
++   @Override
++   public SocketChannel bind(SocketAddress local) {
++      throw new UnsupportedOperationException();
++   }
++   @Override
++   public SocketAddress getLocalAddress() {
++      throw new UnsupportedOperationException();
++   }
++   @Override
++   public <T> T getOption(java.net.SocketOption<T> name) {
++      throw new UnsupportedOperationException();
++   }
++   @Override
++   public SocketAddress getRemoteAddress() {
++      throw new UnsupportedOperationException();
++   }
++   @Override
++   public <T> SocketChannel setOption(java.net.SocketOption<T> name, T value) {
++      throw new UnsupportedOperationException();
++   }
++   @Override
++   public SocketChannel shutdownInput() {
++      throw new UnsupportedOperationException();
++   }
++   @Override
++   public SocketChannel shutdownOutput() {
++      throw new UnsupportedOperationException();
++   }
++   @Override
++   public java.util.Set<java.net.SocketOption<?>> supportedOptions() {
++      throw new UnsupportedOperationException();
++   }
+ 
+    public void flush() throws IOException {
+       System.out.flush();
+--- a/test/src/org/simpleframework/transport/NetworkSimulator.java
++++ b/test/src/org/simpleframework/transport/NetworkSimulator.java
+@@ -37,6 +37,38 @@
+       channel.socket().setSendBufferSize(buffer);
+    }
+    
++   @Override
++   public SocketChannel bind(SocketAddress local) {
++      throw new UnsupportedOperationException();
++   }
++   @Override
++   public SocketAddress getLocalAddress() {
++      throw new UnsupportedOperationException();
++   }
++   @Override
++   public <T> T getOption(java.net.SocketOption<T> name) {
++      throw new UnsupportedOperationException();
++   }
++   @Override
++   public SocketAddress getRemoteAddress() {
++      throw new UnsupportedOperationException();
++   }
++   @Override
++   public <T> SocketChannel setOption(java.net.SocketOption<T> name, T value) {
++      throw new UnsupportedOperationException();
++   }
++   @Override
++   public SocketChannel shutdownInput() {
++      throw new UnsupportedOperationException();
++   }
++   @Override
++   public SocketChannel shutdownOutput() {
++      throw new UnsupportedOperationException();
++   }
++   @Override
++   public java.util.Set<java.net.SocketOption<?>> supportedOptions() {
++      throw new UnsupportedOperationException();
++   }
+    public int available() throws IOException {
+       return socket.getInputStream().available();
+    }
+--- a/test/src/org/simpleframework/transport/connect/FilterSocketChannel.java
++++ b/test/src/org/simpleframework/transport/connect/FilterSocketChannel.java
+@@ -17,6 +17,38 @@
+         this.channel = channel;
+     }
+ 
++    @Override
++    public SocketChannel bind(SocketAddress local) {
++       throw new UnsupportedOperationException();
++    }
++    @Override
++    public SocketAddress getLocalAddress() {
++       throw new UnsupportedOperationException();
++    }
++    @Override
++    public <T> T getOption(java.net.SocketOption<T> name) {
++       throw new UnsupportedOperationException();
++    }
++    @Override
++    public SocketAddress getRemoteAddress() {
++       throw new UnsupportedOperationException();
++    }
++    @Override
++    public <T> SocketChannel setOption(java.net.SocketOption<T> name, T value) {
++       throw new UnsupportedOperationException();
++    }
++    @Override
++    public SocketChannel shutdownInput() {
++       throw new UnsupportedOperationException();
++    }
++    @Override
++    public SocketChannel shutdownOutput() {
++       throw new UnsupportedOperationException();
++    }
++    @Override
++    public java.util.Set<java.net.SocketOption<?>> supportedOptions() {
++       throw new UnsupportedOperationException();
++    }
+     @Override
+     public Socket socket() {
+         return channel.socket();

@@ -1,0 +1,11 @@
+--- a/subprojects/docs/src/transforms/release-notes.gradle
++++ b/subprojects/docs/src/transforms/release-notes.gradle
+@@ -3,7 +3,7 @@
+         mavenCentral()
+     }
+     dependencies {
+-        classpath('com.uwyn:jhighlight:1.0') {
++        classpath('org.codelibs:jhighlight:1.0') {
+             exclude module: "servlet-api"
+         }
+     }

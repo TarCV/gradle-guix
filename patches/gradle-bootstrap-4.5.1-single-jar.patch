@@ -1,14 +1,3 @@
---- a/subprojects/launcher/src/main/java/org/gradle/launcher/cli/BuildActionsFactory.java
-+++ b/subprojects/launcher/src/main/java/org/gradle/launcher/cli/BuildActionsFactory.java
-@@ -87,7 +87,7 @@
-         if (parameters.getDaemonParameters().isEnabled()) {
-             return runBuildWithDaemon(parameters.getStartParameter(), parameters.getDaemonParameters(), loggingServices);
-         }
--        if (canUseCurrentProcess(parameters.getDaemonParameters())) {
-+        if (true) {
-             return runBuildInProcess(parameters.getStartParameter(), parameters.getDaemonParameters(), loggingServices);
-         }
- 
 --- a/subprojects/core/src/main/java/org/gradle/api/internal/classpath/DefaultModuleRegistry.java
 +++ b/subprojects/core/src/main/java/org/gradle/api/internal/classpath/DefaultModuleRegistry.java
 @@ -47,6 +47,15 @@
@@ -27,16 +16,14 @@
  
      public DefaultModuleRegistry(@Nullable GradleInstallation gradleInstallation) {
          this(ClassPath.EMPTY, gradleInstallation);
-@@ -73,33 +81,17 @@
-     }
- 
+@@ -75,31 +83,19 @@
      public Module getExternalModule(String name) {
--        File externalJar = findJar(name);
--        if (externalJar == null) {
+         File externalJar = findJar(name);
+         if (externalJar == null) {
 -            throw new UnknownModuleException(String.format("Cannot locate JAR for module '%s' in distribution directory '%s'.", name, gradleInstallation.getGradleHome()));
--        }
--        return new DefaultModule(name, Collections.singleton(externalJar), Collections.<File>emptySet());
-+        return singleModule;
++            throw new UnknownModuleException(String.format("Cannot locate JAR for module '%s'.", name));
+         }
+         return new DefaultModule(name, Collections.singleton(externalJar), Collections.<File>emptySet());
      }
  
      public Module getModule(String name) {

@@ -1,0 +1,902 @@
+Adapted changes from the PR #16637
+(Skipped PRs #172179, #20037 as they only contain version bumps or updates for tests excluded in this package):
+From 2bb169ee02eb85d05dd81f382f4573e3a9ec6500 Mon Sep 17 00:00:00 2001
+From: Vaidotas Valuckas <vvaluckas@gradle.com>
+Date: Wed, 24 Mar 2021 08:59:34 +0200
+Subject: [PATCH 1/3] Bump Spock2 to milestone 5
+
+---
+ CONTRIBUTING.md                               |   2 +-
+ build-logic/build-platform/build.gradle.kts   |   4 +-
+ .../UpdateInitPluginTemplateVersionFile.kt    |   2 +-
+ gradle/verification-metadata.xml              |   2 +-
+ .../templates/library-versions.properties     |   2 +-
+ .../gradle/api/ApplyPluginIntegSpec.groovy    |   2 +-
+ ...rojectBuilderEndUserIntegrationTest.groovy |   2 +-
+ .../DefaultDomainObjectSetTest.groovy         |   2 +-
+ ...aultNamedDomainObjectCollectionTest.groovy |  14 +-
+ .../DefaultNamedDomainObjectListTest.groovy   |  14 +-
+ .../DefaultNamedDomainObjectSetSpec.groovy    |  14 +-
+ ...olymorphicDomainObjectContainerTest.groovy |   2 +-
+ .../tasks/DefaultTaskContainerTest.groovy     |  20 +--
+ ...rationExecutorParallelExecutionTest.groovy |   6 +-
+ .../ParallelDownloadsIntegrationTest.groovy   | 136 +++++++++---------
+ ...sOnAuthenticatedRepoIntegrationTest.groovy |   2 +-
+ .../IvyHttpRepoResolveIntegrationTest.groovy  |   2 +-
+ ...ultTransformerInvocationFactoryTest.groovy |   2 +-
+ ...pendencyConstraintMetadataRulesTest.groovy |   2 +-
+ .../diagnostics/ProjectReportTaskTest.groovy  |   2 +-
+ .../build.gradle.kts                          |   4 +-
+ .../migration/upgrading_version_6.adoc        |   2 +-
+ .../groovy/buildSrc/build.gradle              |   2 +-
+ .../groovy/convention-plugins/build.gradle    |   2 +-
+ .../testKit/build.gradle               |   2 +-
+ .../groovy/url-verifier-plugin/build.gradle   |   6 +-
+ .../url-verifier-plugin/build.gradle.kts      |   6 +-
+ .../build.gradle                       |   2 +-
+ .../kotlin/build.gradle.kts                   |   2 +-
+ .../build.gradle                       |   2 +-
+ .../kotlin/build.gradle.kts                   |   2 +-
+ .../testKit/gradleVersion/build.gradle |   2 +-
+ .../spockQuickstart/build.gradle       |   2 +-
+ .../build.gradle                       |   2 +-
+ ...areModelMultiProjectIntegrationTest.groovy |   2 +-
+ ...reModelSingleProjectIntegrationTest.groovy |   2 +-
+ .../ide/idea/model/IdeaProjectTest.groovy     |   2 +-
+ .../fixtures/AbstractIntegrationSpec.groovy   |  12 +-
+ .../performance/annotations/RunFor.groovy     |   2 +-
+ .../SpockJUnitAssumptionExtension.java        |  41 ------
+ .../fixtures/concurrent/ConcurrentSpec.groovy |  19 +--
+ ...amework.runtime.extension.IGlobalExtension |   1 -
+ ...ppUnexportMainSymbolIntegrationTest.groovy |   2 +-
+ ...ftUnexportMainSymbolIntegrationTest.groovy |   2 +-
+ ...ontinuousIntegrationTestFixtureTest.groovy |  10 +-
+ .../UnicastMessagingIntegrationTest.groovy    |   2 +-
+ .../hub/MessageHubIntegrationTest.groovy      |   2 +-
+ ...ackedClassGeneratedManagedStateTest.groovy |   2 +-
+ ...smBackedClassGeneratorDecoratedTest.groovy |   2 +-
+ ...edClassGeneratorInjectDecoratedTest.groovy |   2 +-
+ ...ClassGeneratorInjectUndecoratedTest.groovy |   2 +-
+ .../BaseGradleImplDepsIntegrationTest.groovy  |   2 +-
+ .../JavaGradlePluginRelocationTest.groovy     |   4 +-
+ ...ompiledGroovyPluginsIntegrationTest.groovy |   2 +-
+ ...timePluginValidationIntegrationTest.groovy |   2 +-
+ .../ValidatePluginsIntegrationTest.groovy     |   2 +-
+ .../plugins/DistributionPluginTest.groovy     |   4 +-
+ .../JavaLibraryDistributionPluginTest.groovy  |   5 +-
+ .../IvyGcsRepoResolveIntegrationTest.groovy   |   2 +-
+ .../IvyS3RepoResolveIntegrationTest.groovy    |   2 +-
+ ...IvySftpLegacyPublishIntegrationTest.groovy |   2 +-
+ .../IvySftpRepoResolveIntegrationTest.groovy  |   2 +-
+ ...rConsoleInputEndUserIntegrationTest.groovy |   2 +-
+ ...pathInjectionEndUserIntegrationTest.groovy |   2 +-
+ ...nerDefaultTestKitDirIntegrationTest.groovy |   2 +-
+ ...dleRunnerMiscEndUserIntegrationTest.groovy |   2 +-
+ ...pathInjectionEndUserIntegrationTest.groovy |   2 +-
+ .../junit/BuildSrcSpockIntegrationTest.groovy |   4 +-
+ .../spock/Spock2IntegrationSpec.groovy        |   2 +-
+ ...izedToolingImplementationLoaderTest.groovy |   2 +-
+ 70 files changed, 183 insertions(+), 243 deletions(-)
+ delete mode 100644 subprojects/internal-testing/src/main/groovy/org/gradle/integtests/fixtures/SpockJUnitAssumptionExtension.java
+
+diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
+index ff3b2e8dc33d1..750eb90499192 100644
+--- a/gradle/dependencies.gradle
++++ b/gradle/dependencies.gradle
+@@ -107,7 +107,7 @@ dependencies {
+ libraries.maven3 = "org.apache.maven:maven-core:${versions.maven}"
+ 
+ libraries.spock = [
+-    'org.spockframework:spock-core:2.0-M4-groovy-3.0',
+-    'org.spockframework:spock-junit4:2.0-M4-groovy-3.0',
++    'org.spockframework:spock-core:2.3-groovy-3.0',
++    'org.spockframework:spock-junit4:2.3-groovy-3.0',
+     libraries.groovy,
+     libraries.objenesis,
+     libraries.cglib
+diff --git a/subprojects/build-init/src/main/resources/org/gradle/buildinit/tasks/templates/library-versions.properties b/subprojects/build-init/src/main/resources/org/gradle/buildinit/tasks/templates/library-versions.properties
+index c141be461dc5b..5d4ce0cd32288 100644
+--- a/subprojects/build-init/src/main/resources/org/gradle/buildinit/tasks/templates/library-versions.properties
++++ b/subprojects/build-init/src/main/resources/org/gradle/buildinit/tasks/templates/library-versions.properties
+@@ -12,4 +12,4 @@ scala=2.13
+ scala=2.11
+ groovy=3.0.7
+ junit=4.12
+-spock=2.0-M4-groovy-3.0
++spock=2.3-groovy-3.0
+diff --git a/subprojects/core/src/integTest/groovy/org/gradle/api/ApplyPluginIntegSpec.groovy b/subprojects/core/src/integTest/groovy/org/gradle/api/ApplyPluginIntegSpec.groovy
+index 327a26ba2f4a2..612efa8f34569 100644
+--- a/subprojects/core/src/integTest/groovy/org/gradle/api/ApplyPluginIntegSpec.groovy
++++ b/subprojects/core/src/integTest/groovy/org/gradle/api/ApplyPluginIntegSpec.groovy
+@@ -178,7 +178,7 @@ class ApplyPluginIntegSpec extends AbstractIntegrationSpec {
+             ${basicBuildScript()}
+ 
+             dependencies {
+-                testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
++                testCompile ('org.spockframework:spock-core:2.3-groovy-3.0') {
+                     exclude group: 'org.codehaus.groovy'
+                 }
+             }
+diff --git a/subprojects/core/src/test/groovy/org/gradle/api/internal/DefaultNamedDomainObjectSetSpec.groovy b/subprojects/core/src/test/groovy/org/gradle/api/internal/DefaultNamedDomainObjectSetSpec.groovy
+index 4249158372ba9..b9b7773d9cdf8 100644
+--- a/subprojects/core/src/test/groovy/org/gradle/api/internal/DefaultNamedDomainObjectSetSpec.groovy
++++ b/subprojects/core/src/test/groovy/org/gradle/api/internal/DefaultNamedDomainObjectSetSpec.groovy
+@@ -30,7 +30,7 @@ class DefaultNamedDomainObjectSetSpec extends AbstractNamedDomainObjectCollectio
+             return bean.name
+         }
+     };
+-    private final def container = instantiator.newInstance(DefaultNamedDomainObjectSet.class, DefaultNamedDomainObjectSetTest.Bean.class, instantiator, namer)
++    def container = instantiator.newInstance(DefaultNamedDomainObjectSet.class, DefaultNamedDomainObjectSetTest.Bean.class, instantiator, namer)
+ 
+     def eachObjectIsAvailableAsADynamicProperty() {
+         def bean = new DefaultNamedDomainObjectSetTest.Bean("child");
+diff --git a/subprojects/base-services/src/test/groovy/org/gradle/internal/operations/DefaultBuildOperationExecutorParallelExecutionTest.groovy b/subprojects/base-services/src/test/groovy/org/gradle/internal/operations/DefaultBuildOperationExecutorParallelExecutionTest.groovy
+index 1490a1accf71f..9e9aa8ebdeb24 100644
+--- a/subprojects/base-services/src/test/groovy/org/gradle/internal/operations/DefaultBuildOperationExecutorParallelExecutionTest.groovy
++++ b/subprojects/base-services/src/test/groovy/org/gradle/internal/operations/DefaultBuildOperationExecutorParallelExecutionTest.groovy
+@@ -36,7 +36,7 @@ class DefaultBuildOperationExecutorParallelExecutionTest extends ConcurrentSpec
+     WorkerLeaseRegistry.WorkerLeaseCompletion outerOperationCompletion
+     WorkerLeaseRegistry.WorkerLease outerOperation
+     BuildOperationListener operationListener = Mock(BuildOperationListener)
+-    ExecutorFactory executorFactory = new DefaultExecutorFactory()
++    private ExecutorFactory executorFactory = new DefaultExecutorFactory()
+ 
+     def setupBuildOperationExecutor(int maxThreads) {
+         def parallelismConfiguration = new DefaultParallelismConfiguration(true, maxThreads)
+@@ -302,7 +302,7 @@ class DefaultBuildOperationExecutorParallelExecutionTest extends ConcurrentSpec
+         async {
+             buildOperationExecutor.run(new DefaultBuildOperationQueueTest.TestBuildOperation() {
+                 void run(BuildOperationContext context) {
+-                    operationState = buildOperationExecutor.getCurrentOperation()
++                    operationState = DefaultBuildOperationExecutorParallelExecutionTest.this.buildOperationExecutor.getCurrentOperation()
+                     assert operationState.running
+                     assert unmanaged.running
+                     assert operationState.description.parentId.id < 0
+@@ -368,7 +368,7 @@ class DefaultBuildOperationExecutorParallelExecutionTest extends ConcurrentSpec
+                 5.times {
+                     queue.add(new DefaultBuildOperationQueueTest.TestBuildOperation() {
+                         void run(BuildOperationContext context) {
+-                            def myOperationState = buildOperationExecutor.getCurrentOperation()
++                            def myOperationState = DefaultBuildOperationExecutorParallelExecutionTest.this.buildOperationExecutor.getCurrentOperation()
+                             assert parentOperationId == null || parentOperationId == myOperationState.description.parentId
+                             parentOperationId = myOperationState.description.parentId
+                             assert parentOperationId.id < 0
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ParallelDownloadsIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ParallelDownloadsIntegrationTest.groovy
+index d9eca86df6f10..9171f79564b4c 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ParallelDownloadsIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ParallelDownloadsIntegrationTest.groovy
+@@ -24,10 +24,10 @@ import spock.lang.Unroll
+ 
+ class ParallelDownloadsIntegrationTest extends AbstractHttpDependencyResolutionTest {
+     @Rule
+-    BlockingHttpServer server = new BlockingHttpServer()
++    public BlockingHttpServer blockingServer = new BlockingHttpServer()
+ 
+     def setup() {
+-        server.start()
++        blockingServer.start()
+     }
+ 
+     String getAuthConfig() { '' }
+@@ -41,8 +41,8 @@ class ParallelDownloadsIntegrationTest extends AbstractHttpDependencyResolutionT
+ 
+         buildFile << """
+             repositories {
+-                maven { 
+-                    url = uri('$server.uri')
++                maven {
++                    url = uri('$blockingServer.uri')
+                     $authConfig
+                 }
+             }
+@@ -62,16 +62,16 @@ class ParallelDownloadsIntegrationTest extends AbstractHttpDependencyResolutionT
+ """
+ 
+         given:
+-        server.expectConcurrent(
+-            server.file(m1.pom.path, m1.pom.file),
+-            server.file(m2.pom.path, m2.pom.file),
+-            server.file(m3.pom.path, m3.pom.file),
+-            server.file(m4.pom.path, m4.pom.file))
+-        server.expectConcurrent(
+-            server.file(m1.artifact.path, m1.artifact.file),
+-            server.file(m2.artifact.path, m2.artifact.file),
+-            server.file(m3.artifact.path, m3.artifact.file),
+-            server.file(m4.artifact.path, m4.artifact.file))
++        blockingServer.expectConcurrent(
++            blockingServer.file(m1.pom.path, m1.pom.file),
++            blockingServer.file(m2.pom.path, m2.pom.file),
++            blockingServer.file(m3.pom.path, m3.pom.file),
++            blockingServer.file(m4.pom.path, m4.pom.file))
++        blockingServer.expectConcurrent(
++            blockingServer.file(m1.artifact.path, m1.artifact.file),
++            blockingServer.file(m2.artifact.path, m2.artifact.file),
++            blockingServer.file(m3.artifact.path, m3.artifact.file),
++            blockingServer.file(m4.artifact.path, m4.artifact.file))
+ 
+         expect:
+         executer.withArguments('--max-workers', '4')
+@@ -94,8 +94,8 @@ class ParallelDownloadsIntegrationTest extends AbstractHttpDependencyResolutionT
+ 
+         buildFile << """
+             repositories {
+-                ivy { 
+-                    url = uri('$server.uri')
++                ivy {
++                    url = uri('$blockingServer.uri')
+                     $authConfig
+                 }
+             }
+@@ -115,16 +115,16 @@ class ParallelDownloadsIntegrationTest extends AbstractHttpDependencyResolutionT
+ """
+ 
+         given:
+-        server.expectConcurrent(
+-            server.file(m1.ivy.path, m1.ivy.file),
+-            server.file(m2.ivy.path, m2.ivy.file),
+-            server.file(m3.ivy.path, m3.ivy.file),
+-            server.file(m4.ivy.path, m4.ivy.file))
+-        server.expectConcurrent(
+-            server.file(m1.jar.path, m1.jar.file),
+-            server.file(m2.jar.path, m2.jar.file),
+-            server.file(m3.jar.path, m3.jar.file),
+-            server.file(m4.jar.path, m4.jar.file))
++        blockingServer.expectConcurrent(
++            blockingServer.file(m1.ivy.path, m1.ivy.file),
++            blockingServer.file(m2.ivy.path, m2.ivy.file),
++            blockingServer.file(m3.ivy.path, m3.ivy.file),
++            blockingServer.file(m4.ivy.path, m4.ivy.file))
++        blockingServer.expectConcurrent(
++            blockingServer.file(m1.jar.path, m1.jar.file),
++            blockingServer.file(m2.jar.path, m2.jar.file),
++            blockingServer.file(m3.jar.path, m3.jar.file),
++            blockingServer.file(m4.jar.path, m4.jar.file))
+ 
+         expect:
+         executer.withArguments('--max-workers', '4')
+@@ -139,8 +139,8 @@ class ParallelDownloadsIntegrationTest extends AbstractHttpDependencyResolutionT
+ 
+         buildFile << """
+             repositories {
+-                maven { 
+-                    url = uri('$server.uri')
++                maven {
++                    url = uri('$blockingServer.uri')
+                     $authConfig
+                 }
+             }
+@@ -160,16 +160,16 @@ class ParallelDownloadsIntegrationTest extends AbstractHttpDependencyResolutionT
+ """
+ 
+         given:
+-        def metadataRequests = server.expectConcurrentAndBlock(2,
+-            server.file(m1.pom.path, m1.pom.file),
+-            server.file(m2.pom.path, m2.pom.file),
+-            server.file(m3.pom.path, m3.pom.file),
+-            server.file(m4.pom.path, m4.pom.file))
+-        def requests = server.expectConcurrentAndBlock(2,
+-            server.file(m1.artifact.path, m1.artifact.file),
+-            server.file(m2.artifact.path, m2.artifact.file),
+-            server.file(m3.artifact.path, m3.artifact.file),
+-            server.file(m4.artifact.path, m4.artifact.file))
++        def metadataRequests = blockingServer.expectConcurrentAndBlock(2,
++            blockingServer.file(m1.pom.path, m1.pom.file),
++            blockingServer.file(m2.pom.path, m2.pom.file),
++            blockingServer.file(m3.pom.path, m3.pom.file),
++            blockingServer.file(m4.pom.path, m4.pom.file))
++        def requests = blockingServer.expectConcurrentAndBlock(2,
++            blockingServer.file(m1.artifact.path, m1.artifact.file),
++            blockingServer.file(m2.artifact.path, m2.artifact.file),
++            blockingServer.file(m3.artifact.path, m3.artifact.file),
++            blockingServer.file(m4.artifact.path, m4.artifact.file))
+ 
+         expect:
+         executer.withArguments('--max-workers', '2')
+@@ -198,21 +198,21 @@ class ParallelDownloadsIntegrationTest extends AbstractHttpDependencyResolutionT
+ 
+         buildFile << """
+             repositories {
+-                ivy { 
+-                    url = uri('$server.uri')
++                ivy {
++                    url = uri('$blockingServer.uri')
+                     $authConfig
+                 }
+             }
+-            
++
+             configurations { compile }
+             def lock = new java.util.concurrent.locks.ReentrantLock()
+-            
++
+             dependencies {
+                 compile 'test:test1:1.0'
+                 compile 'test:test2:1.0'
+                 compile 'test:test3:1.0'
+                 compile 'test:test4:1.0'
+-                
++
+                 components {
+                     all { ComponentMetadataDetails details ->
+                         if (!lock.tryLock()) {
+@@ -239,16 +239,16 @@ class ParallelDownloadsIntegrationTest extends AbstractHttpDependencyResolutionT
+ """
+ 
+         given:
+-        server.expectConcurrent(
+-            server.file(m1.ivy.path, m1.ivy.file),
+-            server.file(m2.ivy.path, m2.ivy.file),
+-            server.file(m3.ivy.path, m3.ivy.file),
+-            server.file(m4.ivy.path, m4.ivy.file))
+-        server.expectConcurrent(
+-            server.file(m1.jar.path, m1.jar.file),
+-            server.file(m2.jar.path, m2.jar.file),
+-            server.file(m3.jar.path, m3.jar.file),
+-            server.file(m4.jar.path, m4.jar.file))
++        blockingServer.expectConcurrent(
++            blockingServer.file(m1.ivy.path, m1.ivy.file),
++            blockingServer.file(m2.ivy.path, m2.ivy.file),
++            blockingServer.file(m3.ivy.path, m3.ivy.file),
++            blockingServer.file(m4.ivy.path, m4.ivy.file))
++        blockingServer.expectConcurrent(
++            blockingServer.file(m1.jar.path, m1.jar.file),
++            blockingServer.file(m2.jar.path, m2.jar.file),
++            blockingServer.file(m3.jar.path, m3.jar.file),
++            blockingServer.file(m4.jar.path, m4.jar.file))
+ 
+         expect:
+         executer.withArguments('--max-workers', '4')
+@@ -276,18 +276,18 @@ class ParallelDownloadsIntegrationTest extends AbstractHttpDependencyResolutionT
+ 
+         buildFile << """
+             repositories {
+-                maven { 
+-                    url = uri('$server.uri')
++                maven {
++                    url = uri('$blockingServer.uri')
+                     $authConfig
+                 }
+             }
+ 
+             configurations { compile }
+-            dependencies { 
+-                compile 'org:child1:1.0' 
+-                compile 'org:child2:1.0'    
++            dependencies {
++                compile 'org:child1:1.0'
++                compile 'org:child2:1.0'
+             }
+-            
++
+             task resolve {
+                inputs.files configurations.compile
+                   doLast {
+@@ -297,19 +297,19 @@ class ParallelDownloadsIntegrationTest extends AbstractHttpDependencyResolutionT
+         """
+ 
+         when:
+-        def getChildrenConcurrently = server.expectConcurrentAndBlock(
+-            server.file(child1.pom.path, child1.pom.file),
+-            server.file(child2.pom.path, child2.pom.file),
++        def getChildrenConcurrently = blockingServer.expectConcurrentAndBlock(
++            blockingServer.file(child1.pom.path, child1.pom.file),
++            blockingServer.file(child2.pom.path, child2.pom.file),
+         )
+ 
+-        def getParentsConcurrently = server.expectConcurrentAndBlock(
+-            server.file(parent1.pom.path, parent1.pom.file),
+-            server.file(parent2.pom.path, parent2.pom.file),
++        def getParentsConcurrently = blockingServer.expectConcurrentAndBlock(
++            blockingServer.file(parent1.pom.path, parent1.pom.file),
++            blockingServer.file(parent2.pom.path, parent2.pom.file),
+         )
+ 
+-        def jars = server.expectConcurrentAndBlock(
+-            server.file(child1.artifact.path, child1.artifact.file),
+-            server.file(child2.artifact.path, child2.artifact.file),
++        def jars = blockingServer.expectConcurrentAndBlock(
++            blockingServer.file(child1.artifact.path, child1.artifact.file),
++            blockingServer.file(child2.artifact.path, child2.artifact.file),
+         )
+ 
+         then:
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ParallelDownloadsOnAuthenticatedRepoIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ParallelDownloadsOnAuthenticatedRepoIntegrationTest.groovy
+index cac2dd890398a..b01ac28812f7c 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ParallelDownloadsOnAuthenticatedRepoIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ParallelDownloadsOnAuthenticatedRepoIntegrationTest.groovy
+@@ -34,6 +34,6 @@ class ParallelDownloadsOnAuthenticatedRepoIntegrationTest extends ParallelDownlo
+     }
+ 
+     def setup() {
+-        server.withBasicAuthentication(USERNAME, PASSWORD)
++        blockingServer.withBasicAuthentication(USERNAME, PASSWORD)
+     }
+ }
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ivy/IvyHttpRepoResolveIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ivy/IvyHttpRepoResolveIntegrationTest.groovy
+index 5169211011fd7..4c7be3c9cc628 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ivy/IvyHttpRepoResolveIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ivy/IvyHttpRepoResolveIntegrationTest.groovy
+@@ -26,7 +26,7 @@ import static org.gradle.internal.resource.transport.http.JavaSystemPropertiesHt
+ class IvyHttpRepoResolveIntegrationTest extends AbstractIvyRemoteRepoResolveIntegrationTest {
+ 
+     @Rule
+-    final RepositoryHttpServer server = new RepositoryHttpServer(temporaryFolder)
++    RepositoryHttpServer server = new RepositoryHttpServer(temporaryFolder)
+ 
+     @Override
+     RepositoryServer getServer() {
+diff --git a/subprojects/dependency-management/src/test/groovy/org/gradle/internal/component/external/model/DependencyConstraintMetadataRulesTest.groovy b/subprojects/dependency-management/src/test/groovy/org/gradle/internal/component/external/model/DependencyConstraintMetadataRulesTest.groovy
+index 8d4cad10d338b..2c12b639128d8 100644
+--- a/subprojects/dependency-management/src/test/groovy/org/gradle/internal/component/external/model/DependencyConstraintMetadataRulesTest.groovy
++++ b/subprojects/dependency-management/src/test/groovy/org/gradle/internal/component/external/model/DependencyConstraintMetadataRulesTest.groovy
+@@ -27,7 +27,7 @@ import org.gradle.internal.component.external.model.maven.MavenDependencyType
+ import static org.gradle.internal.component.external.model.DefaultModuleComponentSelector.newSelector
+ 
+ class DependencyConstraintMetadataRulesTest extends AbstractDependencyMetadataRulesTest {
+-    private final mavenMetadataFactory = new MavenMutableModuleMetadataFactory(new DefaultImmutableModuleIdentifierFactory(), TestUtil.attributesFactory(), TestUtil.objectInstantiator(), TestUtil.experimentalFeatures())
++    private mavenMetadataFactory = new MavenMutableModuleMetadataFactory(new DefaultImmutableModuleIdentifierFactory(), TestUtil.attributesFactory(), TestUtil.objectInstantiator(), TestUtil.experimentalFeatures())
+ 
+     @Override
+     boolean addAllDependenciesAsConstraints() {
+diff --git a/subprojects/diagnostics/src/test/groovy/org/gradle/api/tasks/diagnostics/ProjectReportTaskTest.groovy b/subprojects/diagnostics/src/test/groovy/org/gradle/api/tasks/diagnostics/ProjectReportTaskTest.groovy
+index f324fc5419ada..d47ca1d6c72d2 100644
+--- a/subprojects/diagnostics/src/test/groovy/org/gradle/api/tasks/diagnostics/ProjectReportTaskTest.groovy
++++ b/subprojects/diagnostics/src/test/groovy/org/gradle/api/tasks/diagnostics/ProjectReportTaskTest.groovy
+@@ -22,7 +22,7 @@ import org.gradle.test.fixtures.AbstractProjectBuilderSpec
+ import org.gradle.util.TestUtil
+ 
+ class ProjectReportTaskTest extends AbstractProjectBuilderSpec {
+-    final ProjectInternal project = TestUtil.createRootProject(temporaryFolder.testDirectory)
++    ProjectInternal project = TestUtil.createRootProject(temporaryFolder.testDirectory)
+     final ProjectReportTask task = TestUtil.createTask(ProjectReportTask, project)
+     final TestStyledTextOutput output = new TestStyledTextOutput().ignoreStyle()
+ 
+diff --git a/subprojects/docs/src/samples/testKit/gradleRunner/automaticClasspathInjectionCustomTestSourceSet/build.gradle b/subprojects/docs/src/samples/testKit/gradleRunner/automaticClasspathInjectionCustomTestSourceSet/build.gradle
+index e4dcb8a7e09ff..850b6bc22807f 100644
+--- a/subprojects/docs/src/samples/testKit/gradleRunner/automaticClasspathInjectionCustomTestSourceSet/build.gradle
++++ b/subprojects/docs/src/samples/testKit/gradleRunner/automaticClasspathInjectionCustomTestSourceSet/build.gradle
+@@ -21,7 +21,7 @@ gradlePlugin {
+ }
+ 
+ dependencies {
+-    functionalTestCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
++    functionalTestCompile('org.spockframework:spock-core:2.3-groovy-3.0') {
+         exclude group: 'org.codehaus.groovy'
+     }
+     functionalTestImplementation('org.junit.jupiter:junit-jupiter-api')
+diff --git a/subprojects/docs/src/samples/testKit/gradleRunner/automaticClasspathInjectionQuickstart/build.gradle b/subprojects/docs/src/samples/testKit/gradleRunner/automaticClasspathInjectionQuickstart/build.gradle
+index 43f24e84dec98..97ce3bb858ffa 100644
+--- a/subprojects/docs/src/samples/testKit/gradleRunner/automaticClasspathInjectionQuickstart/build.gradle
++++ b/subprojects/docs/src/samples/testKit/gradleRunner/automaticClasspathInjectionQuickstart/build.gradle
+@@ -5,7 +5,7 @@ plugins {
+ }
+ 
+ dependencies {
+-    testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
++    testCompile('org.spockframework:spock-core:2.3-groovy-3.0') {
+         exclude group: 'org.codehaus.groovy'
+     }
+     testCompile('org.junit.jupiter:junit-jupiter-api')
+diff --git a/subprojects/docs/src/samples/testKit/gradleRunner/gradleVersion/build.gradle b/subprojects/docs/src/samples/testKit/gradleRunner/gradleVersion/build.gradle
+index 49b019b29a54f..65c7865a5c3c8 100644
+--- a/subprojects/docs/src/samples/testKit/gradleRunner/gradleVersion/build.gradle
++++ b/subprojects/docs/src/samples/testKit/gradleRunner/gradleVersion/build.gradle
+@@ -8,7 +8,7 @@ dependencies {
+ }
+ 
+ dependencies {
+-    testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
++    testCompile('org.spockframework:spock-core:2.3-groovy-3.0') {
+         exclude group: 'org.codehaus.groovy'
+     }
+     testCompile('org.junit.jupiter:junit-jupiter-api')
+diff --git a/subprojects/docs/src/samples/testKit/gradleRunner/spockQuickstart/build.gradle b/subprojects/docs/src/samples/testKit/gradleRunner/spockQuickstart/build.gradle
+index 0ecb2826dceea..cbb6e60fb3558 100644
+--- a/subprojects/docs/src/samples/testKit/gradleRunner/spockQuickstart/build.gradle
++++ b/subprojects/docs/src/samples/testKit/gradleRunner/spockQuickstart/build.gradle
+@@ -9,7 +9,7 @@ dependencies {
+ 
+ // tag::declare-spock-dependency[]
+ dependencies {
+-    testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
++    testCompile('org.spockframework:spock-core:2.3-groovy-3.0') {
+         exclude group: 'org.codehaus.groovy'
+     }
+     testCompile('org.junit.jupiter:junit-jupiter-api')
+diff --git a/subprojects/docs/src/samples/testKit/gradleRunner/testKitFunctionalTestSpockBuildCache/build.gradle b/subprojects/docs/src/samples/testKit/gradleRunner/testKitFunctionalTestSpockBuildCache/build.gradle
+index b55949d7b0059..0f3559f206a77 100644
+--- a/subprojects/docs/src/samples/testKit/gradleRunner/testKitFunctionalTestSpockBuildCache/build.gradle
++++ b/subprojects/docs/src/samples/testKit/gradleRunner/testKitFunctionalTestSpockBuildCache/build.gradle
+@@ -4,7 +4,7 @@ plugins {
+ }
+ 
+ dependencies {
+-    testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
++    testCompile('org.spockframework:spock-core:2.3-groovy-3.0') {
+         exclude group: 'org.codehaus.groovy'
+     }
+ }
+diff --git a/subprojects/ide-native/src/integTest/groovy/org/gradle/ide/visualstudio/VisualStudioMultiProjectIntegrationTest.groovy b/subprojects/ide-native/src/integTest/groovy/org/gradle/ide/visualstudio/VisualStudioMultiProjectIntegrationTest.groovy
+index 9b6eb7ec83b62..a0b67a2a1921e 100755
+--- a/subprojects/ide-native/src/integTest/groovy/org/gradle/ide/visualstudio/VisualStudioMultiProjectIntegrationTest.groovy
++++ b/subprojects/ide-native/src/integTest/groovy/org/gradle/ide/visualstudio/VisualStudioMultiProjectIntegrationTest.groovy
+@@ -29,7 +29,7 @@ import org.gradle.util.TestPrecondition
+ import org.gradle.nativeplatform.fixtures.app.ExeWithLibraryUsingLibraryHelloWorldApp
+ 
+ class VisualStudioMultiProjectIntegrationTest extends AbstractInstalledToolChainIntegrationSpec {
+-    private final Set<String> projectConfigurations = ['debug', 'release'] as Set
++    Set<String> projectConfigurations = ['debug', 'release'] as Set
+ 
+     def app = new CppHelloWorldApp()
+ 
+diff --git a/subprojects/ide-native/src/integTest/groovy/org/gradle/ide/visualstudio/VisualStudioSingleProjectIntegrationTest.groovy b/subprojects/ide-native/src/integTest/groovy/org/gradle/ide/visualstudio/VisualStudioSingleProjectIntegrationTest.groovy
+index df4db5ae5c007..ce6221f5dcbac 100755
+--- a/subprojects/ide-native/src/integTest/groovy/org/gradle/ide/visualstudio/VisualStudioSingleProjectIntegrationTest.groovy
++++ b/subprojects/ide-native/src/integTest/groovy/org/gradle/ide/visualstudio/VisualStudioSingleProjectIntegrationTest.groovy
+@@ -36,7 +36,7 @@ import static org.gradle.nativeplatform.fixtures.ToolChainRequirement.WINDOWS_GC
+ import static org.gradle.nativeplatform.fixtures.ToolChainRequirement.VISUALCPP
+ 
+ class VisualStudioSingleProjectIntegrationTest extends AbstractInstalledToolChainIntegrationSpec {
+-    private final Set<String> projectConfigurations = ['win32Debug', 'win32Release', 'x64Debug', 'x64Release'] as Set
++    Set<String> projectConfigurations = ['win32Debug', 'win32Release', 'x64Debug', 'x64Release'] as Set
+ 
+     def app = new CppHelloWorldApp()
+ 
+diff --git a/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/idea/model/IdeaProjectTest.groovy b/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/idea/model/IdeaProjectTest.groovy
+index 5b142131d3338..5b1c5e76bf082 100644
+--- a/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/idea/model/IdeaProjectTest.groovy
++++ b/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/idea/model/IdeaProjectTest.groovy
+@@ -24,7 +24,7 @@ import org.gradle.test.fixtures.AbstractProjectBuilderSpec
+ import org.gradle.util.TestUtil
+ 
+ class IdeaProjectTest extends AbstractProjectBuilderSpec {
+-    private final ProjectInternal project = TestUtil.createRootProject(temporaryFolder.testDirectory)
++    ProjectInternal project = TestUtil.createRootProject(temporaryFolder.testDirectory)
+     private final ProjectInternal childProject = TestUtil.createChildProject(project, "child", new File("."))
+     private final ProjectInternal anotherChildProject = TestUtil.createChildProject(project, "child2", new File("."))
+ 
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AbstractIntegrationSpec.groovy b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AbstractIntegrationSpec.groovy
+index edb957a5dd42c..17dc4f520ac7b 100644
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AbstractIntegrationSpec.groovy
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AbstractIntegrationSpec.groovy
+@@ -87,8 +87,8 @@ class AbstractIntegrationSpec extends Specification {
+ 
+     ExecutionResult result
+     ExecutionFailure failure
+-    private final MavenFileRepository mavenRepo = new MavenFileRepository(temporaryFolder.testDirectory.file("maven-repo"))
+-    private final IvyFileRepository ivyRepo = new IvyFileRepository(temporaryFolder.testDirectory.file("ivy-repo"))
++    public final MavenFileRepository mavenRepo = new MavenFileRepository(temporaryFolder.testDirectory.file("maven-repo"))
++    public final IvyFileRepository ivyRepo = new IvyFileRepository(temporaryFolder.testDirectory.file("ivy-repo"))
+ 
+     def cleanup() {
+         executer.cleanup()
+@@ -426,10 +426,6 @@ class AbstractIntegrationSpec extends Specification {
+         return new MavenLocalRepository(file(repo))
+     }
+ 
+-    public MavenFileRepository getMavenRepo() {
+-        return mavenRepo
+-    }
+-
+     public MavenFileRepository publishedMavenModules(String... modulesToPublish) {
+         modulesToPublish.each { String notation ->
+             def modules = notation.split("->").reverse()
+@@ -451,10 +447,6 @@ class AbstractIntegrationSpec extends Specification {
+         return new IvyFileRepository(file(repo))
+     }
+ 
+-    public IvyFileRepository getIvyRepo() {
+-        return ivyRepo
+-    }
+-
+     public GradleExecuter using(Action<GradleExecuter> action) {
+         action.execute(executer)
+         executer
+diff --git a/subprojects/internal-testing/src/main/groovy/org/gradle/integtests/fixtures/SpockJUnitAssumptionExtension.java b/subprojects/internal-testing/src/main/groovy/org/gradle/integtests/fixtures/SpockJUnitAssumptionExtension.java
+deleted file mode 100644
+index 39acebb59b661..0000000000000
+--- a/subprojects/internal-testing/src/main/groovy/org/gradle/integtests/fixtures/SpockJUnitAssumptionExtension.java
++++ /dev/null
+@@ -1,41 +0,0 @@
+-/*
+- * Copyright 2021 the original author or authors.
+- *
+- * Licensed under the Apache License, Version 2.0 (the "License");
+- * you may not use this file except in compliance with the License.
+- * You may obtain a copy of the License at
+- *
+- *      http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS,
+- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+- */
+-
+-package org.gradle.integtests.fixtures;
+-
+-import org.junit.AssumptionViolatedException;
+-import org.opentest4j.TestAbortedException;
+-import org.spockframework.runtime.AbstractRunListener;
+-import org.spockframework.runtime.extension.AbstractGlobalExtension;
+-import org.spockframework.runtime.model.ErrorInfo;
+-import org.spockframework.runtime.model.SpecInfo;
+-
+-public class SpockJUnitAssumptionExtension extends AbstractGlobalExtension {
+-
+-    @Override
+-    public void visitSpec(SpecInfo spec) {
+-        spec.addListener(new AbstractRunListener() {
+-            @Override
+-            public void error(ErrorInfo error) {
+-                Throwable cause = error.getException();
+-                if (cause instanceof AssumptionViolatedException) {
+-                    throw new TestAbortedException(cause.getMessage(), cause);
+-                }
+-            }
+-        });
+-    }
+-
+-}
+diff --git a/subprojects/internal-testing/src/main/groovy/org/gradle/test/fixtures/concurrent/ConcurrentSpec.groovy b/subprojects/internal-testing/src/main/groovy/org/gradle/test/fixtures/concurrent/ConcurrentSpec.groovy
+index 255c597d2327b..27901dd4fb1a3 100644
+--- a/subprojects/internal-testing/src/main/groovy/org/gradle/test/fixtures/concurrent/ConcurrentSpec.groovy
++++ b/subprojects/internal-testing/src/main/groovy/org/gradle/test/fixtures/concurrent/ConcurrentSpec.groovy
+@@ -16,7 +16,6 @@
+ 
+ package org.gradle.test.fixtures.concurrent
+ 
+-import org.gradle.internal.concurrent.ExecutorFactory
+ import spock.lang.Specification
+ import spock.lang.Timeout
+ 
+@@ -60,22 +59,8 @@ class ConcurrentSpec extends Specification {
+ 
+     final BlockTarget waitFor = new BlockTarget(instant)
+ 
+-    private final TestExecutor executor = new TestExecutor(logger)
+-    private final TestExecutorFactory executorFactory = new TestExecutorFactory(executor)
+-
+-    /**
+-     * Returns an Executor that should be used for running asynchronous actions.
+-     */
+-    Executor getExecutor() {
+-        return executor
+-    }
+-
+-    /**
+-     * Returns an ExecutorFactory that should be used for running asynchronous actions.
+-     */
+-    ExecutorFactory getExecutorFactory() {
+-        return executorFactory
+-    }
++    public final TestExecutor executor = new TestExecutor(logger)
++    public final TestExecutorFactory executorFactory = new TestExecutorFactory(executor)
+ 
+     def setup() {
+         instant.mainThread(Thread.currentThread())
+diff --git a/subprojects/internal-testing/src/main/resources/META-INF/services/org.spockframework.runtime.extension.IGlobalExtension b/subprojects/internal-testing/src/main/resources/META-INF/services/org.spockframework.runtime.extension.IGlobalExtension
+deleted file mode 100644
+index 733aa643114ce..0000000000000
+--- a/subprojects/internal-testing/src/main/resources/META-INF/services/org.spockframework.runtime.extension.IGlobalExtension
++++ /dev/null
+@@ -1,1 +0,0 @@
+-org.gradle.integtests.fixtures.SpockJUnitAssumptionExtension
+diff --git a/subprojects/messaging/src/integTest/groovy/org/gradle/internal/remote/UnicastMessagingIntegrationTest.groovy b/subprojects/messaging/src/integTest/groovy/org/gradle/internal/remote/UnicastMessagingIntegrationTest.groovy
+index eb328e31db64c..9f28820924cd8 100644
+--- a/subprojects/messaging/src/integTest/groovy/org/gradle/internal/remote/UnicastMessagingIntegrationTest.groovy
++++ b/subprojects/messaging/src/integTest/groovy/org/gradle/internal/remote/UnicastMessagingIntegrationTest.groovy
+@@ -291,7 +291,7 @@ class UnicastMessagingIntegrationTest extends ConcurrentSpec {
+ 
+     class TestMessagingServices extends MessagingServices {
+         protected ExecutorFactory createExecutorFactory() {
+-            return getExecutorFactory()
++            return executorFactory
+         }
+     }
+ }
+diff --git a/subprojects/messaging/src/integTest/groovy/org/gradle/internal/remote/internal/hub/MessageHubIntegrationTest.groovy b/subprojects/messaging/src/integTest/groovy/org/gradle/internal/remote/internal/hub/MessageHubIntegrationTest.groovy
+index e61f053c1deaa..02ec720267bd1 100644
+--- a/subprojects/messaging/src/integTest/groovy/org/gradle/internal/remote/internal/hub/MessageHubIntegrationTest.groovy
++++ b/subprojects/messaging/src/integTest/groovy/org/gradle/internal/remote/internal/hub/MessageHubIntegrationTest.groovy
+@@ -161,7 +161,7 @@ class MessageHubIntegrationTest extends ConcurrentSpec {
+     }
+ 
+     private class Participant {
+-        MessageHub hub = new MessageHub("participant", getExecutorFactory(), getErrorHandler())
++        MessageHub hub = new MessageHub("participant", executorFactory, getErrorHandler())
+ 
+         Dispatch<String> createOutgoing(String channel) {
+             return hub.getOutgoing(channel, String)
+diff --git a/subprojects/plugin-development/src/integTest/groovy/org/gradle/plugin/devel/impldeps/BaseGradleImplDepsIntegrationTest.groovy b/subprojects/plugin-development/src/integTest/groovy/org/gradle/plugin/devel/impldeps/BaseGradleImplDepsIntegrationTest.groovy
+index fa00d4a2b6086..962b2ea6ba367 100644
+--- a/subprojects/plugin-development/src/integTest/groovy/org/gradle/plugin/devel/impldeps/BaseGradleImplDepsIntegrationTest.groovy
++++ b/subprojects/plugin-development/src/integTest/groovy/org/gradle/plugin/devel/impldeps/BaseGradleImplDepsIntegrationTest.groovy
+@@ -67,7 +67,7 @@ abstract class BaseGradleImplDepsIntegrationTest extends AbstractIntegrationSpec
+     static String spockDependency() {
+         """
+             dependencies {
+-                testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
++                testCompile('org.spockframework:spock-core:2.3-groovy-3.0') {
+                     exclude group: 'org.codehaus.groovy'
+                 }
+             }
+diff --git a/subprojects/plugins/src/test/groovy/org/gradle/api/distribution/plugins/DistributionPluginTest.groovy b/subprojects/plugins/src/test/groovy/org/gradle/api/distribution/plugins/DistributionPluginTest.groovy
+index 982431879ec83..3a2cd2f530f2e 100644
+--- a/subprojects/plugins/src/test/groovy/org/gradle/api/distribution/plugins/DistributionPluginTest.groovy
++++ b/subprojects/plugins/src/test/groovy/org/gradle/api/distribution/plugins/DistributionPluginTest.groovy
+@@ -17,9 +17,9 @@
+ package org.gradle.api.distribution.plugins
+ 
+ import org.gradle.api.DefaultTask
+-import org.gradle.api.Project
+ import org.gradle.api.Task
+ import org.gradle.api.distribution.DistributionContainer
++import org.gradle.api.internal.project.ProjectInternal
+ import org.gradle.api.tasks.Sync
+ import org.gradle.api.tasks.TaskDependencyMatchers
+ import org.gradle.api.tasks.bundling.Tar
+@@ -27,7 +27,7 @@ import org.gradle.test.fixtures.AbstractProjectBuilderSpec
+ import org.gradle.util.TestUtil
+ 
+ class DistributionPluginTest extends AbstractProjectBuilderSpec {
+-    private final Project project = TestUtil.builder(temporaryFolder).withName("test-project").build()
++    ProjectInternal project = TestUtil.builder(temporaryFolder).withName("test-project").build()
+ 
+     def "adds convention object and a main distribution"() {
+         when:
+diff --git a/subprojects/plugins/src/test/groovy/org/gradle/api/plugins/JavaLibraryDistributionPluginTest.groovy b/subprojects/plugins/src/test/groovy/org/gradle/api/plugins/JavaLibraryDistributionPluginTest.groovy
+index 27244162f4c67..c03c2a94f7d48 100644
+--- a/subprojects/plugins/src/test/groovy/org/gradle/api/plugins/JavaLibraryDistributionPluginTest.groovy
++++ b/subprojects/plugins/src/test/groovy/org/gradle/api/plugins/JavaLibraryDistributionPluginTest.groovy
+@@ -15,15 +15,16 @@
+  */
+ package org.gradle.api.plugins
+ 
+-import org.gradle.api.Project
++
+ import org.gradle.api.distribution.DistributionContainer
+ import org.gradle.api.distribution.plugins.DistributionPlugin
++import org.gradle.api.internal.project.ProjectInternal
+ import org.gradle.api.tasks.bundling.Zip
+ import org.gradle.test.fixtures.AbstractProjectBuilderSpec
+ import org.gradle.util.TestUtil
+ 
+ class JavaLibraryDistributionPluginTest extends AbstractProjectBuilderSpec {
+-    private final Project project = TestUtil.builder(temporaryFolder).withName("test-project").build()
++    ProjectInternal project = TestUtil.builder(temporaryFolder).withName("test-project").build()
+ 
+     def "applies JavaLibraryPlugin and adds convention object with default values"() {
+         when:
+diff --git a/subprojects/resources-gcs/src/integTest/groovy/org/gradle/integtests/resource/gcs/ivy/IvyGcsRepoResolveIntegrationTest.groovy b/subprojects/resources-gcs/src/integTest/groovy/org/gradle/integtests/resource/gcs/ivy/IvyGcsRepoResolveIntegrationTest.groovy
+index 18b79a1b517c9..5236e37a41080 100644
+--- a/subprojects/resources-gcs/src/integTest/groovy/org/gradle/integtests/resource/gcs/ivy/IvyGcsRepoResolveIntegrationTest.groovy
++++ b/subprojects/resources-gcs/src/integTest/groovy/org/gradle/integtests/resource/gcs/ivy/IvyGcsRepoResolveIntegrationTest.groovy
+@@ -30,7 +30,7 @@ import static org.gradle.internal.resource.transport.gcp.gcs.GcsConnectionProper
+ class IvyGcsRepoResolveIntegrationTest extends AbstractIvyRemoteRepoResolveIntegrationTest {
+ 
+     @Rule
+-    final GcsServer server = new GcsServer(temporaryFolder)
++    GcsServer server = new GcsServer(temporaryFolder)
+ 
+     @Override
+     RepositoryServer getServer() {
+diff --git a/subprojects/resources-s3/src/integTest/groovy/org/gradle/integtests/resource/s3/ivy/IvyS3RepoResolveIntegrationTest.groovy b/subprojects/resources-s3/src/integTest/groovy/org/gradle/integtests/resource/s3/ivy/IvyS3RepoResolveIntegrationTest.groovy
+index 1bc320617583e..a391c573962d8 100644
+--- a/subprojects/resources-s3/src/integTest/groovy/org/gradle/integtests/resource/s3/ivy/IvyS3RepoResolveIntegrationTest.groovy
++++ b/subprojects/resources-s3/src/integTest/groovy/org/gradle/integtests/resource/s3/ivy/IvyS3RepoResolveIntegrationTest.groovy
+@@ -26,7 +26,7 @@ import org.junit.Rule
+ class IvyS3RepoResolveIntegrationTest extends AbstractIvyRemoteRepoResolveIntegrationTest {
+ 
+     @Rule
+-    final S3Server server = new S3Server(temporaryFolder)
++    S3Server server = new S3Server(temporaryFolder)
+ 
+     @Override
+     RepositoryServer getServer() {
+diff --git a/subprojects/resources-sftp/src/integTest/groovy/org/gradle/api/publish/ivy/IvySftpLegacyPublishIntegrationTest.groovy b/subprojects/resources-sftp/src/integTest/groovy/org/gradle/api/publish/ivy/IvySftpLegacyPublishIntegrationTest.groovy
+index abad9152289f2..5a80daad9a42c 100644
+--- a/subprojects/resources-sftp/src/integTest/groovy/org/gradle/api/publish/ivy/IvySftpLegacyPublishIntegrationTest.groovy
++++ b/subprojects/resources-sftp/src/integTest/groovy/org/gradle/api/publish/ivy/IvySftpLegacyPublishIntegrationTest.groovy
+@@ -21,7 +21,7 @@ import org.junit.Rule
+ 
+ class IvySftpLegacyPublishIntegrationTest extends AbstractIvyRemoteLegacyPublishIntegrationTest {
+     @Rule
+-    final SFTPServer server = new SFTPServer(temporaryFolder)
++    SFTPServer server = new SFTPServer(temporaryFolder)
+ 
+     def setup() {
+         // SFTP test fixture does not handle parallel resolution requests
+diff --git a/subprojects/resources-sftp/src/integTest/groovy/org/gradle/integtests/resolve/resource/sftp/ivy/IvySftpRepoResolveIntegrationTest.groovy b/subprojects/resources-sftp/src/integTest/groovy/org/gradle/integtests/resolve/resource/sftp/ivy/IvySftpRepoResolveIntegrationTest.groovy
+index 6a5001f4135d1..c3ceb45348d58 100644
+--- a/subprojects/resources-sftp/src/integTest/groovy/org/gradle/integtests/resolve/resource/sftp/ivy/IvySftpRepoResolveIntegrationTest.groovy
++++ b/subprojects/resources-sftp/src/integTest/groovy/org/gradle/integtests/resolve/resource/sftp/ivy/IvySftpRepoResolveIntegrationTest.groovy
+@@ -24,7 +24,7 @@ import org.junit.Rule
+ class IvySftpRepoResolveIntegrationTest extends AbstractIvyRemoteRepoResolveIntegrationTest {
+ 
+     @Rule
+-    final SFTPServer server = new SFTPServer(temporaryFolder)
++    SFTPServer server = new SFTPServer(temporaryFolder)
+ 
+     @Override
+     RepositoryServer getServer() {
+diff --git a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/enduser/GradleRunnerConsoleInputEndUserIntegrationTest.groovy b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/enduser/GradleRunnerConsoleInputEndUserIntegrationTest.groovy
+index b6093d7705a8c..83faf5a055d5a 100644
+--- a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/enduser/GradleRunnerConsoleInputEndUserIntegrationTest.groovy
++++ b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/enduser/GradleRunnerConsoleInputEndUserIntegrationTest.groovy
+@@ -33,7 +33,7 @@ class GradleRunnerConsoleInputEndUserIntegrationTest extends BaseTestKitEndUserI
+             dependencies {
+                 testCompile localGroovy()
+                 testCompile gradleTestKit()
+-                testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
++                testCompile('org.spockframework:spock-core:2.3-groovy-3.0') {
+                     exclude group: 'org.codehaus.groovy'
+                 }
+                 testCompile 'junit:junit:4.13.1'
+diff --git a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/enduser/GradleRunnerConventionalPluginClasspathInjectionEndUserIntegrationTest.groovy b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/enduser/GradleRunnerConventionalPluginClasspathInjectionEndUserIntegrationTest.groovy
+index da80c58891820..d8206d05901f7 100644
+--- a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/enduser/GradleRunnerConventionalPluginClasspathInjectionEndUserIntegrationTest.groovy
++++ b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/enduser/GradleRunnerConventionalPluginClasspathInjectionEndUserIntegrationTest.groovy
+@@ -34,7 +34,7 @@ class GradleRunnerConventionalPluginClasspathInjectionEndUserIntegrationTest ext
+             }
+             ${jcenterRepository()}
+             dependencies {
+-                testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
++                testCompile('org.spockframework:spock-core:2.3-groovy-3.0') {
+                     exclude group: 'org.codehaus.groovy'
+                 }
+                 testCompile 'junit:junit:4.13.1'
+diff --git a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/enduser/GradleRunnerMiscEndUserIntegationTest.groovy b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/enduser/GradleRunnerMiscEndUserIntegationTest.groovy
+index 9d8cec98094c6..1ab3cd2d86e02 100644
+--- a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/enduser/GradleRunnerMiscEndUserIntegationTest.groovy
++++ b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/enduser/GradleRunnerMiscEndUserIntegationTest.groovy
+@@ -37,7 +37,7 @@ class GradleRunnerMiscEndUserIntegrationTest extends BaseTestKitEndUserIntegrati
+ 
+             dependencies {
+                 compile localGroovy()
+-                testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
++                testCompile('org.spockframework:spock-core:2.3-groovy-3.0') {
+                     exclude group: 'org.codehaus.groovy'
+                 }
+                 testCompile('org.junit.jupiter:junit-jupiter-api')
+diff --git a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/enduser/GradleRunnerPluginClasspathInjectionEndUserIntegrationTest.groovy b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/enduser/GradleRunnerPluginClasspathInjectionEndUserIntegrationTest.groovy
+index ec6acba129720..8fb57fbbf4e03 100644
+--- a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/enduser/GradleRunnerPluginClasspathInjectionEndUserIntegrationTest.groovy
++++ b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/enduser/GradleRunnerPluginClasspathInjectionEndUserIntegrationTest.groovy
+@@ -44,7 +44,7 @@ class GradleRunnerPluginClasspathInjectionEndUserIntegrationTest extends BaseTes
+ 
+             dependencies {
+                 compile localGroovy()
+-                testCompile('org.spockframework:spock-core:2.0-M4-groovy-3.0') {
++                testCompile('org.spockframework:spock-core:2.3-groovy-3.0'))
+                     exclude group: 'org.codehaus.groovy'
+                 }
+                 testCompile 'junit:junit:4.13.1'
+
+diff --git a/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/junit/BuildSrcSpockIntegrationTest.groovy b/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/junit/BuildSrcSpockIntegrationTest.groovy
+index 4984255cbc87c..67f1888d0e9a0 100644
+--- a/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/junit/BuildSrcSpockIntegrationTest.groovy
++++ b/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/junit/BuildSrcSpockIntegrationTest.groovy
+@@ -39,7 +39,7 @@ class BuildSrcSpockIntegrationTest extends JUnitMultiVersionIntegrationSpec {
+     compile localGroovy()
+ 
+     testCompile '$dependencyNotation',
+-        'org.spockframework:spock-core:2.0-M4-groovy-3.0@jar',
++        'org.spockframework:spock-core:2.3-groovy-3.0'
+         'cglib:cglib-nodep:2.2',
+         'org.objenesis:objenesis:1.2'
+ }
+diff --git a/subprojects/tooling-api/src/test/groovy/org/gradle/tooling/internal/consumer/loader/SynchronizedToolingImplementationLoaderTest.groovy b/subprojects/tooling-api/src/test/groovy/org/gradle/tooling/internal/consumer/loader/SynchronizedToolingImplementationLoaderTest.groovy
+index afd81bb138f45..d60c8a8096c21 100644
+--- a/subprojects/tooling-api/src/test/groovy/org/gradle/tooling/internal/consumer/loader/SynchronizedToolingImplementationLoaderTest.groovy
++++ b/subprojects/tooling-api/src/test/groovy/org/gradle/tooling/internal/consumer/loader/SynchronizedToolingImplementationLoaderTest.groovy
+@@ -29,7 +29,7 @@ public class SynchronizedToolingImplementationLoaderTest extends ConcurrentSpec
+ 
+     def factory = Mock(ProgressLoggerFactory)
+     def distro = Mock(Distribution)
+-    def logger = Mock(ProgressLogger)
++    private def logger = Mock(ProgressLogger)
+     def params = Mock(ConnectionParameters)
+     def cancellationToken = Mock(BuildCancellationToken)
+     def target = Mock(ToolingImplementationLoader)

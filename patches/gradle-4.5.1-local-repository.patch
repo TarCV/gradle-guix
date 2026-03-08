@@ -12,9 +12,10 @@
  }
  
  dependencies {
+TODO: Move dependencies part into unshaded-groovy.patch
 --- /dev/null
 +++ b/init.gradle
-@@ -0,0 +1,22 @@
+@@ -0,0 +1,33 @@
 +gradle.projectsEvaluated {
 +    allprojects {
 +        buildscript {
@@ -26,6 +27,17 @@
 +        repositories {
 +            clear()
 +            mavenLocal()
++        }
++        dependencies {
++            components {
++                all {
++                    allVariants {
++                        withDependencies {
++                            it.removeAll { it.group == 'org.codehaus.groovy' }
++                        }
++                    }
++                }
++            }
 +        }
 +    }
 +}

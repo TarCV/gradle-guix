@@ -1,0 +1,17 @@
+Make annotations from the base class visible to components.sh by copying them
+--- a/maven-model-builder/src/main/java/org/apache/maven/model/interpolation/StringSearchModelInterpolator.java
++++ b/maven-model-builder/src/main/java/org/apache/maven/model/interpolation/StringSearchModelInterpolator.java
+@@ -52,6 +52,13 @@
+     private static final Map<Class<?>, Boolean> fieldIsPrimitiveByClass =
+             new ConcurrentHashMap<Class<?>, Boolean>( 62, 0.75f, 2 ); // Empirical data from 3.x, actual 31
+ 
++/*
++    @Requirement
++    private PathTranslator pathTranslator;
++
++    @Requirement
++    private UrlNormalizer urlNormalizer;
++*/
+     public Model interpolateModel( Model model, File projectDir, ModelBuildingRequest config,
+                                    ModelProblemCollector problems )
+     {

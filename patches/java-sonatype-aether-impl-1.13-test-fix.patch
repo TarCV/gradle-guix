@@ -1,0 +1,38 @@
+diff --git a/aether-impl/src/test/java/org/sonatype/aether/impl/PlexusSupportTest.java b/aether-impl/src/test/java/org/sonatype/aether/impl/PlexusSupportTest.java
+--- a/aether-impl/src/test/java/org/sonatype/aether/impl/PlexusSupportTest.java
++++ b/aether-impl/src/test/java/org/sonatype/aether/impl/PlexusSupportTest.java
+@@ -11,6 +11,9 @@
+ import java.util.List;
+ 
+ import org.codehaus.plexus.PlexusTestCase;
++import org.codehaus.plexus.classworlds.realm.ClassRealm;
++import org.codehaus.plexus.component.composition.CycleDetectedInComponentGraphException;
++import org.codehaus.plexus.component.repository.ComponentDescriptor;
+ import org.sonatype.aether.RepositorySystem;
+ import org.sonatype.aether.impl.ArtifactDescriptorReader;
+ import org.sonatype.aether.impl.VersionRangeResolver;
+@@ -26,9 +29,9 @@
+     public void testExistenceOfPlexusComponentMetadata()
+         throws Exception
+     {
+-        getContainer().addComponent( new StubVersionRangeResolver(), VersionRangeResolver.class, null );
+-        getContainer().addComponent( new StubVersionResolver(), VersionResolver.class, null );
+-        getContainer().addComponent( new StubArtifactDescriptorReader(), ArtifactDescriptorReader.class, null );
++        addPublishedComponent( StubVersionRangeResolver.class, VersionRangeResolver.class );
++        addPublishedComponent( StubVersionResolver.class, VersionResolver.class);
++        addPublishedComponent( StubArtifactDescriptorReader.class, ArtifactDescriptorReader.class );
+ 
+         RepositorySystem repoSystem = lookup( RepositorySystem.class );
+         assertNotNull( repoSystem );
+@@ -39,4 +42,11 @@
+         assertEquals( 2, lrmfs.size() );
+     }
+ 
++    private <T, I extends T> void addPublishedComponent(Class<I> component, Class<T> role) throws CycleDetectedInComponentGraphException {
++        ClassRealm realm = getContainer().getLookupRealm();
++        ComponentDescriptor<I> componentDescriptor = new ComponentDescriptor<I>(component, realm);
++        componentDescriptor.setRole(role.getCanonicalName());
++        getContainer().addComponentDescriptor(componentDescriptor);
++    }
++
+ }

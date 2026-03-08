@@ -1,0 +1,3990 @@
+This patch backports PR #15710 originally made by Vaidotas Valuckas <vvaluckas@gradle.com>.
+diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
+index d45fb4f4d0b4d..6b3a62df13a00 100644
+--- a/gradle/dependencies.gradle
++++ b/gradle/dependencies.gradle
+@@ -112,11 +112,12 @@
+ libraries.maven3 = "org.apache.maven:maven-core:${versions.maven}"
+ 
+ libraries.spock = [
+-    'org.spockframework:spock-core:1.2-RC2-groovy-2.5',
++    'org.spockframework:spock-core:2.0-M4-groovy-2.5',
+     libraries.groovy,
+     libraries.objenesis,
+     libraries.cglib
+ ]
++libraries.spockJUnit4 = "org.spockframework:spock-junit4:2.0-M4-groovy-2.5"
+ libraries.jmock = [
+     'org.jmock:jmock:2.5.1',
+     'org.hamcrest:hamcrest-core:1.3',
+diff --git a/subprojects/core/src/crossVersionTest/groovy/org/gradle/internal/scopeids/CrossVersionScopeIdsIntegrationTest.groovy b/subprojects/core/src/crossVersionTest/groovy/org/gradle/internal/scopeids/CrossVersionScopeIdsIntegrationTest.groovy
+index c0cee956df7a2..6aa3eb84d577c 100644
+--- a/subprojects/core/src/crossVersionTest/groovy/org/gradle/internal/scopeids/CrossVersionScopeIdsIntegrationTest.groovy
++++ b/subprojects/core/src/crossVersionTest/groovy/org/gradle/internal/scopeids/CrossVersionScopeIdsIntegrationTest.groovy
+@@ -19,18 +19,20 @@ package org.gradle.internal.scopeids
+ import org.gradle.integtests.fixtures.CrossVersionIntegrationSpec
+ import org.gradle.integtests.fixtures.ScopeIdsFixture
+ import org.gradle.integtests.fixtures.TargetVersions
++import org.gradle.integtests.fixtures.executer.GradleExecuter
+ import org.junit.Rule
+ 
+ @TargetVersions("4.0+")
+ class CrossVersionScopeIdsIntegrationTest extends CrossVersionIntegrationSpec {
+ 
+-    def currentExecuter = version(current)
+-    def previousExecuter = version(previous)
++    GradleExecuter currentExecuter = version(current)
++    GradleExecuter previousExecuter
+ 
+     @Rule
+     ScopeIdsFixture scopeIds = new ScopeIdsFixture(currentExecuter, temporaryFolder)
+ 
+     def setup() {
++        previousExecuter = version(previous)
+         scopeIds.configureExecuter(previousExecuter)
+     }
+ 
+diff --git a/subprojects/core/src/integTest/groovy/org/gradle/api/ConfigurationOnDemandIntegrationTest.groovy b/subprojects/core/src/integTest/groovy/org/gradle/api/ConfigurationOnDemandIntegrationTest.groovy
+index 92a5c3da57e6e..75faec2fa5940 100644
+--- a/subprojects/core/src/integTest/groovy/org/gradle/api/ConfigurationOnDemandIntegrationTest.groovy
++++ b/subprojects/core/src/integTest/groovy/org/gradle/api/ConfigurationOnDemandIntegrationTest.groovy
+@@ -17,14 +17,13 @@
+ package org.gradle.api
+ 
+ import org.gradle.integtests.fixtures.AbstractIntegrationSpec
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
+ import org.gradle.integtests.fixtures.executer.GradleContextualExecuter
+ import org.gradle.integtests.fixtures.executer.ProjectLifecycleFixture
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+ import org.junit.Rule
+-import org.junit.runner.RunWith
+ import spock.lang.IgnoreIf
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class ConfigurationOnDemandIntegrationTest extends AbstractIntegrationSpec {
+ 
+     @Rule ProjectLifecycleFixture fixture = new ProjectLifecycleFixture(executer, temporaryFolder)
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ArtifactDependenciesIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ArtifactDependenciesIntegrationTest.groovy
+index cdecf3cebb916..611ae067603a2 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ArtifactDependenciesIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ArtifactDependenciesIntegrationTest.groovy
+@@ -16,13 +16,12 @@
+ package org.gradle.integtests.resolve
+ 
+ import org.gradle.integtests.fixtures.AbstractIntegrationTest
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
+ import org.gradle.integtests.fixtures.TestResources
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+ import org.gradle.test.fixtures.file.TestFile
+ import org.junit.Before
+ import org.junit.Rule
+ import org.junit.Test
+-import org.junit.runner.RunWith
+ import spock.lang.Issue
+ 
+ import static org.hamcrest.Matchers.containsString
+@@ -32,7 +31,7 @@ import static org.hamcrest.CoreMatchers.containsString
+  * This test contains some of the original coverage for dependency resolution.
+  * These tests should be migrated to live with the rest of the coverage over time.
+  */
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class ArtifactDependenciesIntegrationTest extends AbstractIntegrationTest {
+     @Rule
+     public final TestResources testResources = new TestResources(testDirectoryProvider)
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ArtifactSelectionIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ArtifactSelectionIntegrationTest.groovy
+index d744ef4b01c98..a899f48b24cd1 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ArtifactSelectionIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ArtifactSelectionIntegrationTest.groovy
+@@ -17,10 +17,9 @@
+ package org.gradle.integtests.resolve
+ 
+ import org.gradle.integtests.fixtures.AbstractHttpDependencyResolutionTest
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
+-import org.junit.runner.RunWith
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class ArtifactSelectionIntegrationTest extends AbstractHttpDependencyResolutionTest {
+     def setup() {
+         settingsFile << """
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DependencyResolutionEventsIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DependencyResolutionEventsIntegrationTest.groovy
+index d05b45c2dc016..360f85ec8a151 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DependencyResolutionEventsIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DependencyResolutionEventsIntegrationTest.groovy
+@@ -15,18 +15,19 @@
+  */
+ package org.gradle.integtests.resolve
+ 
+-import org.gradle.integtests.fixtures.*
+-import org.junit.runner.RunWith
++
++import org.gradle.integtests.fixtures.AbstractIntegrationSpec
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+ import spock.lang.Issue
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class DependencyResolutionEventsIntegrationTest extends AbstractIntegrationSpec {
+     def "fires exactly one beforeResolve and afterResolve event when configuration is resolved"() {
+         given:
+         buildFile << """
+             configurations {
+                 parent { }
+-                things.extendsFrom parent          
++                things.extendsFrom parent
+                 all {
+                     incoming.beforeResolve { c -> println "before " + c.path }
+                     incoming.afterResolve { c -> println "after " + c.path }
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DetachedConfigurationsIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DetachedConfigurationsIntegrationTest.groovy
+index 43b83a224bddd..1bd1c089ea0f9 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DetachedConfigurationsIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DetachedConfigurationsIntegrationTest.groovy
+@@ -17,11 +17,10 @@
+ package org.gradle.integtests.resolve
+ 
+ import org.gradle.integtests.fixtures.AbstractIntegrationSpec
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
+-import org.junit.runner.RunWith
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+ import spock.lang.Issue
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class DetachedConfigurationsIntegrationTest extends AbstractIntegrationSpec {
+ 
+     @Issue("GRADLE-2889")
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/FileDependencyResolveIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/FileDependencyResolveIntegrationTest.groovy
+index 708019a36ffa6..a9867b671df67 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/FileDependencyResolveIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/FileDependencyResolveIntegrationTest.groovy
+@@ -17,11 +17,10 @@
+ package org.gradle.integtests.resolve
+ 
+ import org.gradle.integtests.fixtures.AbstractDependencyResolutionTest
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+ import org.gradle.integtests.fixtures.resolve.ResolveTestFixture
+-import org.junit.runner.RunWith
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class FileDependencyResolveIntegrationTest extends AbstractDependencyResolutionTest {
+     def resolve = new ResolveTestFixture(buildFile, "compile")
+ 
+@@ -41,14 +40,14 @@ class FileDependencyResolveIntegrationTest extends AbstractDependencyResolutionT
+                     }
+                 }
+             }
+-            dependencies { 
+-                compile project(path: ':sub', configuration: 'compile') 
+-                compile files('main.jar') { builtBy jar } 
++            dependencies {
++                compile project(path: ':sub', configuration: 'compile')
++                compile files('main.jar') { builtBy jar }
+             }
+ '''
+         file("sub/build.gradle") << '''
+-            dependencies { 
+-                compile files('sub.jar') { builtBy jar } 
++            dependencies {
++                compile files('sub.jar') { builtBy jar }
+             }
+ '''
+ 
+@@ -83,17 +82,17 @@ class FileDependencyResolveIntegrationTest extends AbstractDependencyResolutionT
+                     }
+                 }
+             }
+-            dependencies { 
+-                compile project(path: ':sub', configuration: 'compile') 
+-                compile fileTree(dir: projectDir, include: '*.jar', builtBy: [jar]) 
++            dependencies {
++                compile project(path: ':sub', configuration: 'compile')
++                compile fileTree(dir: projectDir, include: '*.jar', builtBy: [jar])
+             }
+-            
++
+             // Nothing built yet, result should be empty
+             assert configurations.compile.files.empty
+ '''
+         file("sub/build.gradle") << '''
+-            dependencies { 
+-                compile fileTree(dir: projectDir, include: '*.jar', builtBy: [jar]) 
++            dependencies {
++                compile fileTree(dir: projectDir, include: '*.jar', builtBy: [jar])
+             }
+ '''
+ 
+@@ -152,20 +151,20 @@ class FileDependencyResolveIntegrationTest extends AbstractDependencyResolutionT
+                 task jar {
+                     def outputFile = file("${project.name}.jar")
+                     outputs.file outputFile
+-                    doLast { 
+-                        outputFile.text = 'content' 
+-                    } 
++                    doLast {
++                        outputFile.text = 'content'
++                    }
+                 }
+             }
+-            dependencies { 
+-                compile project(path: ':sub', configuration: 'compile') 
++            dependencies {
++                compile project(path: ':sub', configuration: 'compile')
+                 compile jar.outputs.files
+             }
+ '''
+         file("sub/build.gradle") << '''
+-            dependencies { 
++            dependencies {
+                 compile jar.outputs.files
+-                compile project(path: ':', configuration: 'compile') 
++                compile project(path: ':', configuration: 'compile')
+             }
+ '''
+ 
+@@ -198,18 +197,18 @@ class FileDependencyResolveIntegrationTest extends AbstractDependencyResolutionT
+                 task jar {
+                     def outputFile = file("${project.name}.jar")
+                     outputs.file outputFile
+-                    doLast { 
+-                        outputFile.text = 'content' 
+-                    } 
++                    doLast {
++                        outputFile.text = 'content'
++                    }
+                 }
+             }
+-            dependencies { 
++            dependencies {
+                 compile project(path: ':sub', configuration: 'compile', transitive: false)
+                 compile jar.outputs.files
+             }
+ '''
+         file("sub/build.gradle") << '''
+-            dependencies { 
++            dependencies {
+                 compile jar.outputs.files
+             }
+ '''
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/FilteredConfigurationIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/FilteredConfigurationIntegrationTest.groovy
+index 9bc88af63d23c..e3eef0aed6e1c 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/FilteredConfigurationIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/FilteredConfigurationIntegrationTest.groovy
+@@ -17,10 +17,9 @@
+ package org.gradle.integtests.resolve
+ 
+ import org.gradle.integtests.fixtures.AbstractDependencyResolutionTest
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
+-import org.junit.runner.RunWith
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class FilteredConfigurationIntegrationTest extends AbstractDependencyResolutionTest {
+     def "can query files for filtered first level dependencies"() {
+         mavenRepo.module("group", "test1", "1.0").publish()
+@@ -35,7 +34,7 @@ allprojects {
+     repositories {
+         maven { url '${mavenRepo.uri}' }
+     }
+-    configurations { 
++    configurations {
+         compile
+         create('default') { extendsFrom compile }
+     }
+@@ -107,7 +106,7 @@ allprojects {
+     repositories {
+         maven { url '${mavenRepo.uri}' }
+     }
+-    configurations { 
++    configurations {
+         compile
+         create('default') { extendsFrom compile }
+     }
+@@ -159,7 +158,7 @@ include "child1", "child2"
+ """
+         buildFile << """
+ allprojects {
+-    configurations { 
++    configurations {
+         compile
+         create('default') { extendsFrom compile }
+     }
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/LocalExcludeResolveIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/LocalExcludeResolveIntegrationTest.groovy
+index c564f0f3cef80..3c225087d03bd 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/LocalExcludeResolveIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/LocalExcludeResolveIntegrationTest.groovy
+@@ -17,12 +17,11 @@
+ package org.gradle.integtests.resolve
+ 
+ import org.gradle.integtests.fixtures.AbstractDependencyResolutionTest
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
+-import org.junit.runner.RunWith
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+ import spock.lang.Issue
+ import spock.lang.Unroll
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class LocalExcludeResolveIntegrationTest extends AbstractDependencyResolutionTest {
+     /**
+      * Dependency exclude rules defined through Gradle DSL.
+@@ -196,7 +195,7 @@ task check {
+                 apply plugin: 'java'
+                 repositories { maven { url "${mavenRepo.uri}" } }
+             }
+-            
++
+             project(':a') {
+                 configurations {
+                     implementation {
+@@ -213,7 +212,7 @@ task check {
+                     implementation project(':b')
+                 }
+             }
+-            
++
+             project(':b') {
+                 configurations {
+                     implementation {
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ProjectDependenciesIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ProjectDependenciesIntegrationTest.groovy
+index d3818f0e04384..b73c5cf348227 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ProjectDependenciesIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ProjectDependenciesIntegrationTest.groovy
+@@ -19,11 +19,10 @@
+ package org.gradle.integtests.resolve
+ 
+ import org.gradle.integtests.fixtures.AbstractDependencyResolutionTest
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
+-import org.junit.runner.RunWith
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+ import spock.lang.Issue
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class ProjectDependenciesIntegrationTest extends AbstractDependencyResolutionTest {
+ 
+     @Issue("GRADLE-2477") //this is a feature on its own but also covers one of the reported issues
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ProjectDependencyResolveIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ProjectDependencyResolveIntegrationTest.groovy
+index 8c293857164a3..0360d98d44a16 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ProjectDependencyResolveIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ProjectDependencyResolveIntegrationTest.groovy
+@@ -17,13 +17,12 @@ package org.gradle.integtests.resolve
+ 
+ import groovy.transform.NotYetImplemented
+ import org.gradle.integtests.fixtures.AbstractIntegrationSpec
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
+ import org.gradle.integtests.fixtures.executer.GradleContextualExecuter
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+-import org.junit.runner.RunWith
+ import spock.lang.IgnoreIf
+ import spock.lang.Issue
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class ProjectDependencyResolveIntegrationTest extends AbstractIntegrationSpec {
+     def "project dependency includes artifacts and transitive dependencies of default configuration in target project"() {
+         given:
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ResolvedConfigurationIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ResolvedConfigurationIntegrationTest.groovy
+index fcad58e4f70fd..1277e1f94e744 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ResolvedConfigurationIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ResolvedConfigurationIntegrationTest.groovy
+@@ -16,12 +16,11 @@
+ package org.gradle.integtests.resolve
+ 
+ import org.gradle.integtests.fixtures.AbstractHttpDependencyResolutionTest
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
+-import org.junit.runner.RunWith
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+ import spock.lang.Issue
+ import spock.lang.Unroll
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class ResolvedConfigurationIntegrationTest extends AbstractHttpDependencyResolutionTest {
+     def setup() {
+         buildFile << """
+@@ -155,19 +154,19 @@ class ResolvedConfigurationIntegrationTest extends AbstractHttpDependencyResolut
+ 
+                     assert resolved.size() == 3
+                     assert resolved.collect { it.moduleName } == ['hiphop', 'child', 'rock']
+-                    
++
+                     resolved = compile.getFirstLevelModuleDependencies { true }
+                     assert resolved.collect { it.moduleName } == ['hiphop', 'child', 'rock']
+ 
+                     def files = compile.files
+-                    
++
+                     assert files.size() == 3
+                     assert files.collect { it.name } == ['hiphop-1.0.jar', 'child.jar', 'rock-1.0.jar']
+-                    
++
+                     files = compile.getFiles { true }
+-                    
++
+                     assert files.collect { it.name } == ['hiphop-1.0.jar', 'child.jar', 'rock-1.0.jar']
+-                    
++
+                     def artifacts = compile.artifacts
+ 
+                     assert artifacts.size() == 3
+@@ -294,19 +293,19 @@ class ResolvedConfigurationIntegrationTest extends AbstractHttpDependencyResolut
+ 
+                     assert resolved.size() == 3
+                     assert resolved.collect { it.moduleName } == ['hiphop', 'child', 'rock']
+-                    
++
+                     resolved = compile.getFirstLevelModuleDependencies { true }
+                     assert resolved.collect { it.moduleName } == ['hiphop', 'child', 'rock']
+ 
+                     def files = compile.files
+-                    
++
+                     assert files.size() == 2
+                     assert files.collect { it.name } == ['hiphop-1.0.jar', 'child.jar']
+-                    
++
+                     files = compile.getFiles { true }
+-                    
++
+                     assert files.collect { it.name } == ['hiphop-1.0.jar', 'child.jar']
+-                    
++
+                     def artifacts = compile.artifacts
+ 
+                     assert artifacts.size() == 2
+@@ -399,19 +398,19 @@ class ResolvedConfigurationIntegrationTest extends AbstractHttpDependencyResolut
+                     def resolved = compile.firstLevelModuleDependencies
+ 
+                     assert resolved.collect { "\${it.moduleName}:\${it.moduleVersion}" } == ['bar:1', 'foo:2']
+-                    
++
+                     resolved = compile.getFirstLevelModuleDependencies { true }
+                     assert resolved.collect { "\${it.moduleName}:\${it.moduleVersion}" } == ['bar:1', 'foo:2']
+ 
+                     def files = compile.files
+-                    
++
+                     assert files.size() == 2
+                     assert files.collect { it.name } == ['bar-1.jar', 'foo-2.jar']
+-                    
++
+                     files = compile.getFiles { true }
+-                    
++
+                     assert files.collect { it.name } == ['bar-1.jar', 'foo-2.jar']
+-                    
++
+                     def artifacts = compile.artifacts
+ 
+                     assert artifacts.size() == 2
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ArtifactCollectionIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ArtifactCollectionIntegrationTest.groovy
+index 9b36c7b2c2c86..e520c7f9c41f2 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ArtifactCollectionIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ArtifactCollectionIntegrationTest.groovy
+@@ -17,10 +17,10 @@
+ package org.gradle.integtests.resolve
+ 
+ import org.gradle.integtests.fixtures.AbstractHttpDependencyResolutionTest
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
+-import org.junit.runner.RunWith
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveInterceptor
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class ArtifactCollectionIntegrationTest extends AbstractHttpDependencyResolutionTest {
+ 
+     def setup() {
+@@ -195,7 +195,7 @@ class Main {
+         fails "verify"
+ 
+         then:
+-        if (FluidDependenciesResolveRunner.isFluid()) {
++        if (FluidDependenciesResolveInterceptor.isFluid()) {
+             failure.assertHasDescription("Could not determine the dependencies of task ':verify'.")
+             failure.assertHasCause("Could not resolve all task dependencies for configuration ':compile'.")
+             failure.assertHasCause("Could not find org:does-not-exist:1.0.")
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ConfigurationRoleIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ConfigurationRoleIntegrationTest.groovy
+index 185c6b3b6261d..42b2ee68c6c64 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ConfigurationRoleIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ConfigurationRoleIntegrationTest.groovy
+@@ -17,11 +17,10 @@
+ package org.gradle.integtests.resolve
+ 
+ import org.gradle.integtests.fixtures.AbstractIntegrationSpec
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
+-import org.junit.runner.RunWith
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+ import spock.lang.Unroll
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class ConfigurationRoleIntegrationTest extends AbstractIntegrationSpec {
+ 
+     @Unroll("cannot resolve a configuration with role #role at execution time")
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ExtendingConfigurationsIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ExtendingConfigurationsIntegrationTest.groovy
+index 76204b1a98906..9734cae1345bc 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ExtendingConfigurationsIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ExtendingConfigurationsIntegrationTest.groovy
+@@ -13,15 +13,14 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.gradle.integtests.resolve;
++package org.gradle.integtests.resolve
+ 
+ import org.gradle.integtests.fixtures.AbstractDependencyResolutionTest
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
+-import org.junit.runner.RunWith
+-import spock.lang.Issue;
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
++import spock.lang.Issue
+ 
+-@RunWith(FluidDependenciesResolveRunner)
+-public class ExtendingConfigurationsIntegrationTest extends AbstractDependencyResolutionTest {
++@FluidDependenciesResolveTest
++class ExtendingConfigurationsIntegrationTest extends AbstractDependencyResolutionTest {
+ 
+     @Issue("GRADLE-2873")
+     def "may replace configuration extension targets"() {
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ResolutionResultApiIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ResolutionResultApiIntegrationTest.groovy
+index f91f4721dde9e..4306d9ded9efb 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ResolutionResultApiIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ResolutionResultApiIntegrationTest.groovy
+@@ -19,10 +19,9 @@
+ package org.gradle.integtests.resolve
+ 
+ import org.gradle.integtests.fixtures.AbstractDependencyResolutionTest
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+-import org.junit.runner.RunWith
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class ResolutionResultApiIntegrationTest extends AbstractDependencyResolutionTest {
+ 
+     /*
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ResolvedArtifactsApiIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ResolvedArtifactsApiIntegrationTest.groovy
+index 53d9e33f8c8e5..db2a4111b16c8 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ResolvedArtifactsApiIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ResolvedArtifactsApiIntegrationTest.groovy
+@@ -17,10 +17,9 @@
+ package org.gradle.integtests.resolve
+ 
+ import org.gradle.integtests.fixtures.AbstractHttpDependencyResolutionTest
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
+-import org.junit.runner.RunWith
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class ResolvedArtifactsApiIntegrationTest extends AbstractHttpDependencyResolutionTest {
+     def setup() {
+         settingsFile << """
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ResolvedConfigurationApiIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ResolvedConfigurationApiIntegrationTest.groovy
+index 1c44bf0f065ab..8dca92257d091 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ResolvedConfigurationApiIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/ResolvedConfigurationApiIntegrationTest.groovy
+@@ -17,10 +17,9 @@
+ package org.gradle.integtests.resolve
+ 
+ import org.gradle.integtests.fixtures.AbstractHttpDependencyResolutionTest
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
+-import org.junit.runner.RunWith
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class ResolvedConfigurationApiIntegrationTest extends AbstractHttpDependencyResolutionTest {
+     def setup() {
+         settingsFile << """
+@@ -28,7 +27,7 @@ rootProject.name = 'test'
+ """
+         buildFile << """
+ allprojects {
+-    configurations { 
++    configurations {
+         compile
+         "default" {
+             extendsFrom compile
+@@ -89,7 +88,7 @@ task show {
+                 compile 'test:test2:1.2'
+                 compile 'test:test3:1.2'
+             }
+-            
++
+             task show {
+                 doLast {
+                     configurations.compile.resolvedConfiguration.resolvedArtifacts
+@@ -122,7 +121,7 @@ task show {
+                 compile 'test:test2:1.2'
+                 compile 'test:test3:1.2'
+             }
+-            
++
+             task show {
+                 doLast {
+                     configurations.compile.resolvedConfiguration.resolvedArtifacts.each { it.file }
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/UnsupportedConfigurationMutationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/UnsupportedConfigurationMutationTest.groovy
+index a95675df95755..94da73248d834 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/UnsupportedConfigurationMutationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/UnsupportedConfigurationMutationTest.groovy
+@@ -15,14 +15,14 @@
+  */
+ 
+ package org.gradle.integtests.resolve
++
+ import org.gradle.integtests.fixtures.AbstractIntegrationSpec
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+ import org.gradle.test.fixtures.maven.MavenFileRepository
+-import org.junit.runner.RunWith
+ import spock.lang.Issue
+ import spock.lang.Unroll
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class UnsupportedConfigurationMutationTest extends AbstractIntegrationSpec {
+ 
+     def "does not allow adding dependencies to a configuration that has been resolved"() {
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/AbstractConfigurationAttributesResolveIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/AbstractConfigurationAttributesResolveIntegrationTest.groovy
+index 997383d800c0e..9402720a38a00 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/AbstractConfigurationAttributesResolveIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/AbstractConfigurationAttributesResolveIntegrationTest.groovy
+@@ -18,10 +18,9 @@
+ package org.gradle.integtests.resolve
+ 
+ import org.gradle.integtests.fixtures.AbstractIntegrationSpec
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
+-import org.junit.runner.RunWith
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ abstract class AbstractConfigurationAttributesResolveIntegrationTest extends AbstractIntegrationSpec {
+ 
+     abstract String getTypeDefs()
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/VariantAwareResolutionWithConfigurationAttributesIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/VariantAwareResolutionWithConfigurationAttributesIntegrationTest.groovy
+index 3ff0e29c5ea04..b9d0c2858566c 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/VariantAwareResolutionWithConfigurationAttributesIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/VariantAwareResolutionWithConfigurationAttributesIntegrationTest.groovy
+@@ -18,11 +18,10 @@
+ package org.gradle.integtests.resolve
+ 
+ import org.gradle.integtests.fixtures.AbstractIntegrationSpec
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+ import org.gradle.test.fixtures.archive.JarTestFixture
+-import org.junit.runner.RunWith
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class VariantAwareResolutionWithConfigurationAttributesIntegrationTest extends AbstractIntegrationSpec {
+ 
+     def setup() {
+diff --git a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DependencyResolveRulesIntegrationTest.groovy b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DependencyResolveRulesIntegrationTest.groovy
+index 64a6e8f42a018..e2117aab3880f 100644
+--- a/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DependencyResolveRulesIntegrationTest.groovy
++++ b/subprojects/dependency-management/src/integTest/groovy/org/gradle/integtests/resolve/DependencyResolveRulesIntegrationTest.groovy
+@@ -18,10 +18,9 @@
+ package org.gradle.integtests.resolve
+ 
+ import org.gradle.integtests.fixtures.AbstractIntegrationSpec
+-import org.gradle.integtests.fixtures.FluidDependenciesResolveRunner
+-import org.junit.runner.RunWith
++import org.gradle.integtests.fixtures.extensions.FluidDependenciesResolveTest
+ 
+-@RunWith(FluidDependenciesResolveRunner)
++@FluidDependenciesResolveTest
+ class DependencyResolveRulesIntegrationTest extends AbstractIntegrationSpec {
+ 
+     /**
+diff --git a/subprojects/dependency-management/src/testFixtures/groovy/org/gradle/integtests/resolve/AbstractModuleDependencyResolveTest.groovy b/subprojects/dependency-management/src/testFixtures/groovy/org/gradle/integtests/resolve/AbstractModuleDependencyResolveTest.groovy
+index 98e48e61fede0..80bcc8fc44682 100644
+--- a/subprojects/dependency-management/src/testFixtures/groovy/org/gradle/integtests/resolve/AbstractModuleDependencyResolveTest.groovy
++++ b/subprojects/dependency-management/src/testFixtures/groovy/org/gradle/integtests/resolve/AbstractModuleDependencyResolveTest.groovy
+@@ -18,20 +18,20 @@
+ 
+ import org.gradle.integtests.fixtures.AbstractHttpDependencyResolutionTest
+ import org.gradle.integtests.fixtures.ExperimentalFeaturesFixture
+-import org.gradle.integtests.fixtures.GradleMetadataResolveRunner
++import org.gradle.integtests.fixtures.extensions.GradleMetadataResolveInterceptor
++import org.gradle.integtests.fixtures.extensions.GradleMetadataResolveTest
+ import org.gradle.integtests.fixtures.publish.RemoteRepositorySpec
+ import org.gradle.integtests.fixtures.resolve.ResolveTestFixture
+ import org.gradle.test.fixtures.HttpRepository
+-import org.junit.runner.RunWith
+ 
+-@RunWith(GradleMetadataResolveRunner)
++@GradleMetadataResolveTest
+ abstract class AbstractModuleDependencyResolveTest extends AbstractHttpDependencyResolutionTest {
+     ResolveTestFixture resolve
+ 
+     private final RemoteRepositorySpec repoSpec = new RemoteRepositorySpec()
+ 
+     boolean useIvy() {
+-        GradleMetadataResolveRunner.useIvy()
++        GradleMetadataResolveInterceptor.useIvy()
+     }
+ 
+     boolean useMaven() {
+@@ -38,15 +38,15 @@ abstract class AbstractModuleDependencyResolveTest extends AbstractHttpDependenc
+     }
+ 
+     boolean isGradleMetadataEnabled() {
+-        GradleMetadataResolveRunner.isGradleMetadataEnabled()
++        GradleMetadataResolveInterceptor.isGradleMetadataPublished()
+     }
+ 
+     boolean isExperimentalEnabled() {
+-        GradleMetadataResolveRunner.isExperimentalResolveBehaviorEnabled()
++        GradleMetadataResolveInterceptor.isExperimentalResolveBehaviorEnabled()
+     }
+ 
+     boolean usesJavaLibraryVariants() {
+-        GradleMetadataResolveRunner.isGradleMetadataEnabled() || (useMaven() && isExperimentalEnabled())
++        GradleMetadataResolveInterceptor.isGradleMetadataEnabled() || (useMaven() && isExperimentalEnabled())
+     }
+ 
+     String getTestConfiguration() { 'conf' }
+@@ -55,11 +55,11 @@ abstract class AbstractModuleDependencyResolveTest extends AbstractHttpDependenc
+     }
+ 
+     String versionListingURI(String group, String module) {
+-        GradleMetadataResolveRunner.useIvy() ? "${ivyHttpRepo.uri}/$group/$module/" : "${mavenHttpRepo.uri}/${group.replace('.', '/')}/${module}/maven-metadata.xml"
++        GradleMetadataResolveInterceptor.useIvy() ? "${ivyHttpRepo.uri}/$group/$module/" : "${mavenHttpRepo.uri}/${group.replace('.', '/')}/${module}/maven-metadata.xml"
+     }
+ 
+     String artifactURI(String group, String module, String version) {
+-        if (GradleMetadataResolveRunner.useIvy()) {
++        if (GradleMetadataResolveInterceptor.useIvy()) {
+             def httpModule = ivyHttpRepo.module(group, module, version)
+             return httpModule.artifact.uri
+         } else {
+@@ -70,7 +70,7 @@ abstract class AbstractModuleDependencyResolveTest extends AbstractHttpDependenc
+     }
+ 
+     String metadataURI(String group, String module, String version) {
+-        getMetadataUri(group, module, version, GradleMetadataResolveRunner.experimentalResolveBehaviorEnabled)
++        getMetadataUri(group, module, version, GradleMetadataResolveInterceptor.experimentalResolveBehaviorEnabled)
+     }
+ 
+     String legacyMetadataURI(String group, String module, String version) {
+@@ -77,7 +77,7 @@ abstract class AbstractModuleDependencyResolveTest extends AbstractHttpDependenc
+     }
+ 
+     private String getMetadataUri(String group, String module, String version, boolean experimentalResolve) {
+-        if (GradleMetadataResolveRunner.useIvy()) {
++        if (GradleMetadataResolveInterceptor.useIvy()) {
+             def ivyModule = ivyHttpRepo.module(group, module, version)
+             if (experimentalResolve) {
+                 return ivyModule.moduleMetadata.uri
+@@ -97,7 +97,7 @@ abstract class AbstractModuleDependencyResolveTest extends AbstractHttpDependenc
+         resolve = new ResolveTestFixture(buildFile, testConfiguration)
+         resolve.expectDefaultConfiguration(usesJavaLibraryVariants() ? "runtime" : "default")
+         settingsFile << "rootProject.name = '$rootProjectName'"
+-        if (GradleMetadataResolveRunner.experimentalResolveBehaviorEnabled) {
++        if (GradleMetadataResolveInterceptor.experimentalResolveBehaviorEnabled) {
+             ExperimentalFeaturesFixture.enable(settingsFile)
+         }
+         resolve.prepare()
+diff --git a/subprojects/dependency-management/src/testFixtures/groovy/org/gradle/integtests/resolve/AbstractProjectDependencyConflictResolutionIntegrationSpec.groovy b/subprojects/dependency-management/src/testFixtures/groovy/org/gradle/integtests/resolve/AbstractProjectDependencyConflictResolutionIntegrationSpec.groovy
+index a39a4f971ec85..47d159aa75466 100644
+--- a/subprojects/dependency-management/src/testFixtures/groovy/org/gradle/integtests/resolve/AbstractProjectDependencyConflictResolutionIntegrationSpec.groovy
++++ b/subprojects/dependency-management/src/testFixtures/groovy/org/gradle/integtests/resolve/AbstractProjectDependencyConflictResolutionIntegrationSpec.groovy
+@@ -58,7 +58,7 @@ abstract class AbstractProjectDependencyConflictResolutionIntegrationSpec extend
+     abstract boolean isAutoDependencySubstitution();
+ 
+     @Unroll
+-    def "project dependency (#versionInProject) vs external dependency (#versionExternal) resolves to winner, when preferProjectModules=#preferProjectModules and forceVersion=#forceVersion and depSubstitution=#depSubstitution"() {
++    def "project (#versionInProject) vs external (#versionExternal) resolves to, when preferProjectModules=#preferProjectModules and forceVersion=#forceVersion and depSubstitution=#depSubstitution"() {
+         given:
+         //required for composite builds
+         buildTestFixture.withBuildInSubDir()
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AbstractIntegrationSpec.groovy b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AbstractIntegrationSpec.groovy
+index 9d2857f83e512..1144d616ac7b4 100644
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AbstractIntegrationSpec.groovy
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AbstractIntegrationSpec.groovy
+@@ -60,7 +60,7 @@ import static org.gradle.util.Matchers.normalizedLineSeparators
+ @CleanupTestDirectory
+ class AbstractIntegrationSpec extends Specification {
+     @Rule
+-    final TestNameTestDirectoryProvider temporaryFolder = new TestNameTestDirectoryProvider()
++    public final TestNameTestDirectoryProvider temporaryFolder = new TestNameTestDirectoryProvider()
+ 
+     GradleDistribution distribution = new UnderDevelopmentGradleDistribution(getBuildContext())
+     GradleExecuter executer = new GradleContextualExecuter(distribution, temporaryFolder, getBuildContext())
+@@ -86,8 +86,8 @@ class AbstractIntegrationSpec extends Specification {
+ 
+     ExecutionResult result
+     ExecutionFailure failure
+-    private MavenFileRepository mavenRepo
+-    private IvyFileRepository ivyRepo
++    private final MavenFileRepository mavenRepo = new MavenFileRepository(temporaryFolder.testDirectory.file("maven-repo"))
++    private final IvyFileRepository ivyRepo = new IvyFileRepository(temporaryFolder.testDirectory.file("ivy-repo"))
+ 
+     protected int maxHttpRetries = 1
+     protected Integer maxUploadAttempts
+@@ -418,9 +418,6 @@ class AbstractIntegrationSpec extends Specification {
+     }
+ 
+     public MavenFileRepository getMavenRepo() {
+-        if (mavenRepo == null) {
+-            mavenRepo = new MavenFileRepository(file("maven-repo"))
+-        }
+         return mavenRepo
+     }
+ 
+@@ -446,9 +443,6 @@ class AbstractIntegrationSpec extends Specification {
+     }
+ 
+     public IvyFileRepository getIvyRepo() {
+-        if (ivyRepo == null) {
+-            ivyRepo = new IvyFileRepository(file("ivy-repo"))
+-        }
+         return ivyRepo
+     }
+ 
+@@ -531,4 +525,12 @@ class AbstractIntegrationSpec extends Specification {
+             executor.ignoreCleanupAssertions()
+         }
+     }
++
++    /**
++     * Called by {@link org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor} when the test class is reused
++     */
++    void resetExecuter() {
++        this.ignoreCleanupAssertions = false
++        recreateExecuter()
++    }
+ }
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/CrossVersionIntegrationSpec.groovy b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/CrossVersionIntegrationSpec.groovy
+index 90911a0785040..40febcde01069 100755
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/CrossVersionIntegrationSpec.groovy
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/CrossVersionIntegrationSpec.groovy
+@@ -15,6 +15,7 @@
+  */
+ package org.gradle.integtests.fixtures
+ 
++import org.gradle.integtests.fixtures.compatibility.CrossVersionTest
+ import org.gradle.integtests.fixtures.executer.GradleDistribution
+ import org.gradle.integtests.fixtures.executer.GradleExecuter
+ import org.gradle.integtests.fixtures.executer.IntegrationTestBuildContext
+@@ -23,13 +24,12 @@ import org.gradle.test.fixtures.file.TestFile
+ import org.gradle.test.fixtures.file.TestNameTestDirectoryProvider
+ import org.gradle.test.fixtures.maven.MavenFileRepository
+ import org.junit.Rule
+-import org.junit.runner.RunWith
+ import spock.lang.Retry
+ import spock.lang.Specification
+ 
+ import static spock.lang.Retry.Mode.SETUP_FEATURE_CLEANUP
+ 
+-@RunWith(CrossVersionTestRunner)
++@CrossVersionTest
+ @Retry(condition = { RetryConditions.onIssueWithReleasedGradleVersion(instance, failure) }, mode = SETUP_FEATURE_CLEANUP, count = 2)
+ abstract class CrossVersionIntegrationSpec extends Specification {
+     @Rule TestNameTestDirectoryProvider temporaryFolder = new TestNameTestDirectoryProvider(getClass())
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/DirectoryBuildCacheFixture.groovy b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/DirectoryBuildCacheFixture.groovy
+index 2332eca9c88e6..336a7a2306f5b 100644
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/DirectoryBuildCacheFixture.groovy
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/DirectoryBuildCacheFixture.groovy
+@@ -26,33 +26,48 @@ trait DirectoryBuildCacheFixture {
+         // Make sure cache dir is empty for every test execution
+         buildCache = new TestBuildCache(temporaryFolder.file("cache-dir").deleteDir().createDir())
+         settingsFile << buildCache.localCacheConfiguration()
++    }
++
++    // Spock 2 executes @Before after the setup() methods
++    // this is a workaround for tests that use this fixture from their setup() methods
++    private void initIfNeeded() {
++        if (buildCache == null) {
++            setupCacheDirectory()
++        }
+     }
+ 
+     def localCacheConfiguration() {
++        initIfNeeded()
+         buildCache.localCacheConfiguration()
+     }
+ 
+     TestFile getCacheDir() {
++        initIfNeeded()
+         buildCache.cacheDir
+     }
+ 
+     TestFile gcFile() {
++        initIfNeeded()
+         buildCache.gcFile()
+     }
+ 
+     List<TestFile> listCacheTempFiles() {
++        initIfNeeded()
+         buildCache.listCacheTempFiles()
+     }
+ 
+     List<TestFile> listCacheFiles() {
++        initIfNeeded()
+         buildCache.listCacheFiles()
+     }
+ 
+     List<TestFile> listCacheFailedFiles() {
++        initIfNeeded()
+         buildCache.listCacheFailedFiles()
+     }
+ 
+     TestFile cacheArtifact(String cacheKey) {
++        initIfNeeded()
+         buildCache.cacheArtifact(cacheKey)
+     }
+ }
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/GradleMetadataResolveRunner.groovy b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/GradleMetadataResolveInterceptor.groovy
+rename from subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/GradleMetadataResolveRunner.groovy
+rename to subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/GradleMetadataResolveInterceptor.groovy
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/GradleMetadataResolveRunner.groovy
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/GradleMetadataResolveInterceptor.groovy
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2017 the original author or authors.
++ * Copyright 2020 the original author or authors.
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+@@ -17,19 +17,21 @@
+  * limitations under the License.
+  */
+ 
+-package org.gradle.integtests.fixtures
++package org.gradle.integtests.fixtures.extensions
+ 
+ import groovy.transform.CompileStatic
++import org.gradle.integtests.fixtures.executer.GradleContextualExecuter
++
+ /**
+  * Runs tests with and without Gradle metadata support enabled
+  */
+ @CompileStatic
+-class GradleMetadataResolveRunner extends BehindFlagFeatureRunner {
++class GradleMetadataResolveInterceptor extends BehindFlagFeatureInterceptor {
+     public final static String GRADLE_METADATA = "org.gradle.internal.resolution.testWithGradleMetadata"
+     public final static String EXPERIMENTAL_RESOLVE_BEHAVIOR = "org.gradle.internal.resolution.testWithExperimentalResolveBehavior"
+     public final static String REPOSITORY_TYPE = "org.gradle.internal.resolution.testRepositoryType"
+ 
+-    GradleMetadataResolveRunner(Class<?> target) {
++    GradleMetadataResolveInterceptor(Class<?> target) {
+         super(target, [
+             (GRADLE_METADATA): booleanFeature("Gradle metadata"),
+             (EXPERIMENTAL_RESOLVE_BEHAVIOR): booleanFeature("Experimental"),
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/MultiVersionIntegrationSpec.groovy b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/MultiVersionIntegrationSpec.groovy
+index c2737afa6a48a..59914114cf5f7 100644
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/MultiVersionIntegrationSpec.groovy
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/MultiVersionIntegrationSpec.groovy
+@@ -16,10 +16,11 @@
+ 
+ package org.gradle.integtests.fixtures
+ 
+-import org.junit.runner.RunWith
++import org.gradle.integtests.fixtures.compatibility.MultiVersionTest
+ import org.gradle.util.VersionNumber
++import org.junit.experimental.categories.Category
+ 
+-@RunWith(MultiVersionSpecRunner)
++@MultiVersionTest
+ abstract class MultiVersionIntegrationSpec extends AbstractIntegrationSpec {
+     static def version
+ 
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/TestResources.java b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/TestResources.java
+index 00a257f711a69..5977b169c39b5 100644
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/TestResources.java
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/TestResources.java
+@@ -70,6 +70,11 @@ public void evaluate() throws Throwable {
+      * Copies the given resource to the test directory.
+      */
+     public void maybeCopy(String resource) {
++        // Multi version tests append to the method name, making it miss the resources
++        // Below is a dirty way to strip the added content
++        if (resource.contains(" ")) {
++            resource = resource.substring(0, resource.indexOf(' '));
++        }
+         TestFile dir = resources.findResource(resource);
+         if (dir != null) {
+             logger.debug("Copying test resource '{}' from {} to test directory.", resource, dir);
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/archives/ReproducibleArchivesInterceptor.groovy b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/archives/ReproducibleArchivesInterceptor.groovy
+index 9b03b9b7cbabf..50e7d26bda021 100644
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/archives/ReproducibleArchivesInterceptor.groovy
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/archives/ReproducibleArchivesInterceptor.groovy
+@@ -17,6 +17,8 @@
+ package org.gradle.integtests.fixtures.archives
+ 
+ import org.gradle.integtests.fixtures.AbstractIntegrationSpec
++import org.spockframework.lang.SpecInternals
++import org.spockframework.mock.runtime.MockController
+ import org.spockframework.runtime.extension.AbstractMethodInterceptor
+ import org.spockframework.runtime.extension.IMethodInvocation
+ import org.spockframework.runtime.model.IterationInfo
+@@ -30,6 +32,7 @@ class ReproducibleArchivesInterceptor extends AbstractMethodInterceptor {
+     void interceptFeatureExecution(IMethodInvocation invocation) throws Throwable {
+         reproducibleArchives = false
+         invocation.proceed()
++        ((MockController)((SpecInternals)invocation.getInstance()).getSpecificationContext().getMockController()).enterScope()
+         reproducibleArchives = true
+         invocation.proceed()
+     }
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/archives/ReproducibleArchivesTestExtension.groovy b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/archives/ReproducibleArchivesTestExtension.groovy
+index 30975cd199c37..8d83f8694bb92 100644
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/archives/ReproducibleArchivesTestExtension.groovy
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/archives/ReproducibleArchivesTestExtension.groovy
+@@ -17,12 +17,12 @@
+ package org.gradle.integtests.fixtures.archives
+ 
+ import groovy.transform.CompileStatic
+-import org.spockframework.runtime.extension.AbstractAnnotationDrivenExtension
++import org.spockframework.runtime.extension.IAnnotationDrivenExtension
+ import org.spockframework.runtime.model.FeatureInfo
+ import org.spockframework.runtime.model.SpecInfo
+ 
+ @CompileStatic
+-class ReproducibleArchivesTestExtension extends AbstractAnnotationDrivenExtension<TestReproducibleArchives> {
++class ReproducibleArchivesTestExtension implements IAnnotationDrivenExtension<TestReproducibleArchives> {
+     @Override
+     void visitSpecAnnotation(TestReproducibleArchives annotation, SpecInfo spec) {
+         spec.features.each { feature ->
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AbstractCompatibilityTestRunner.java b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/AbstractCompatibilityTestInterceptor.java
+old mode 100755
+new mode 100644
+similarity index 66%
+rename from subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AbstractCompatibilityTestRunner.java
+rename to subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/AbstractCompatibilityTestInterceptor.java
+index b25fac58efb86..55650972f0570
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AbstractCompatibilityTestRunner.java
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/AbstractCompatibilityTestInterceptor.java
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2011 the original author or authors.
++ * Copyright 2021 the original author or authors.
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+@@ -13,17 +13,17 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.gradle.integtests.fixtures;
++package org.gradle.integtests.fixtures.compatibility;
+ 
+ import org.gradle.api.Action;
+ import org.gradle.api.Transformer;
+ import org.gradle.integtests.fixtures.executer.GradleDistribution;
+ import org.gradle.integtests.fixtures.executer.IntegrationTestBuildContext;
+ import org.gradle.integtests.fixtures.executer.UnderDevelopmentGradleDistribution;
+ import org.gradle.integtests.fixtures.versions.ReleasedVersionDistributions;
+ import org.gradle.internal.jvm.Jvm;
+ import org.gradle.internal.os.OperatingSystem;
+ import org.gradle.util.CollectionUtils;
+ import org.gradle.util.GradleVersion;
+ 
+ import java.util.ArrayList;
+@@ -32,12 +32,9 @@
+ 
+ import static org.gradle.util.CollectionUtils.*;
+ 
+-/**
+- * A base class for those test runners which execute a test multiple times against a set of Gradle versions.
+- */
+-public abstract class AbstractCompatibilityTestRunner extends AbstractMultiTestRunner {
++import static org.gradle.integtests.fixtures.compatibility.MultiVersionTestInterceptor.VERSIONS_SYSPROP_NAME;
++public abstract class AbstractCompatibilityTestInterceptor extends AbstractMultiTestInterceptor {
+ 
+-    private static final String VERSIONS_SYSPROP_NAME = "org.gradle.integtest.versions";
+     protected final IntegrationTestBuildContext buildContext = IntegrationTestBuildContext.INSTANCE;
+     protected final GradleDistribution current = new UnderDevelopmentGradleDistribution(buildContext);
+     protected final List<GradleDistribution> previous;
+@@ -42,11 +39,11 @@
+     protected final List<GradleDistribution> previous;
+     protected final boolean implicitVersion;
+ 
+-    protected AbstractCompatibilityTestRunner(Class<?> target) {
+-        this(target, System.getProperty(VERSIONS_SYSPROP_NAME, "latest"));
++    protected AbstractCompatibilityTestInterceptor(Class<?> target) {
++        this(target, System.getProperty(MultiVersionTestInterceptor.VERSIONS_SYSPROP_NAME, "latest"));
+     }
+ 
+-    private AbstractCompatibilityTestRunner(Class<?> target, String versionStr) {
++    private AbstractCompatibilityTestInterceptor(Class<?> target, String versionStr) {
+         super(target);
+         validateTestName(target);
+ 
+@@ -112,9 +90,9 @@ private GradleDistributionTool versionedToolFrom(GradleDistribution distribution
+     private void validateTestName(Class<?> target) {
+         if (!target.getSimpleName().contains("CrossVersion")) {
+             throw new RuntimeException("The tests that use " + this.getClass().getSimpleName()
+-                    + " must follow a certain naming convention, e.g. name must contain 'CrossVersion' substring.\n"
+-                    + "This way we can include/exclude those test nicely and it is easier to configure the CI.\n"
+-                    + "Please include 'CrossVersion' in the name of the test: '" + target.getSimpleName() + "'");
++                + " must follow a certain naming convention, e.g. name must contain 'CrossVersion' substring.\n"
++                + "This way we can include/exclude those test nicely and it is easier to configure the CI.\n"
++                + "Please include 'CrossVersion' in the name of the test: '" + target.getSimpleName() + "'");
+         }
+     }
+ 
+@@ -128,7 +106,7 @@ private IgnoredVersion(GradleDistribution distribution, String why) {
+         }
+ 
+         @Override
+-        protected boolean isTestEnabled(TestDetails testDetails) {
++        public boolean isTestEnabled(TestDetails testDetails) {
+             return false;
+         }
+ 
+@@ -136,5 +114,10 @@ protected boolean isTestEnabled(TestDetails testDetails) {
+         protected String getDisplayName() {
+             return String.format("%s %s", distribution.getVersion(), why);
+         }
++
++        @Override
++        public String toString() {
++            return getDisplayName();
++        }
+     }
+ }
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/CoverageContext.java b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/CoverageContext.java
+new file mode 100644
+index 0000000000000..c6f072e575144
+--- /dev/null
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/CoverageContext.java
+@@ -0,0 +1,36 @@
++/*
++ * Copyright 2021 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.gradle.integtests.fixtures.compatibility;
++
++public enum CoverageContext {
++    DEFAULT("default"), LATEST("latest"), PARTIAL("partial"), FULL("all"), UNKNOWN(null);
++
++    public final String selector;
++
++    CoverageContext(String selector) {
++        this.selector = selector;
++    }
++
++    static CoverageContext from(String requested) {
++        for (CoverageContext context : values()) {
++            if (context != UNKNOWN && context.selector.equals(requested)) {
++                return context;
++            }
++        }
++        return UNKNOWN;
++    }
++}
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/CrossVersionTest.java b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/CrossVersionTest.java
+new file mode 100644
+index 0000000000000..fb2ce88713c00
+--- /dev/null
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/CrossVersionTest.java
+@@ -0,0 +1,32 @@
++/*
++ * Copyright 2021 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.gradle.integtests.fixtures.compatibility;
++
++import org.spockframework.runtime.extension.ExtensionAnnotation;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Inherited;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.TYPE)
++@ExtensionAnnotation(CrossVersionTestExtension.class)
++@Inherited
++public @interface CrossVersionTest {
++}
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/CrossVersionTestExtension.java b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/CrossVersionTestExtension.java
+new file mode 100644
+index 0000000000000..545609770a25e
+--- /dev/null
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/CrossVersionTestExtension.java
+@@ -0,0 +1,28 @@
++/*
++ * Copyright 2021 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.gradle.integtests.fixtures.compatibility;
++
++import org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor;
++import org.gradle.integtests.fixtures.extensions.MultiTestExtension;
++
++public class CrossVersionTestExtension extends MultiTestExtension<CrossVersionTest> {
++
++    @Override
++    protected AbstractMultiTestInterceptor makeInterceptor(Class<?> testClass) {
++        return new CrossVersionTestInterceptor(testClass);
++    }
++}
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/CrossVersionTestRunner.groovy b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/CrossVersionTestInterceptor.groovy
+similarity index 69%
+rename from subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/CrossVersionTestRunner.groovy
+rename to subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/CrossVersionTestInterceptor.groovy
+index 2f16c4290f7f0..3ecd3399f74bf 100755
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/CrossVersionTestRunner.groovy
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/CrossVersionTestInterceptor.groovy
+@@ -13,22 +13,25 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
+-package org.gradle.integtests.fixtures
++package org.gradle.integtests.fixtures.compatibility
+ 
++import org.gradle.integtests.fixtures.IgnoreVersions
++import org.gradle.integtests.fixtures.TargetVersions
+ import org.gradle.integtests.fixtures.executer.GradleDistribution
+ import org.gradle.integtests.fixtures.versions.ReleasedVersionDistributions
+ import org.gradle.util.GradleVersion
++import org.spockframework.runtime.extension.IMethodInvocation
+ 
+ /**
+- * <p>Executes instances of {@link CrossVersionIntegrationSpec} against each previous Gradle version.
++ * <p>Executes instances of {@link org.gradle.integtests.fixtures.CrossVersionIntegrationSpec} against each previous Gradle version.
+  *
+- * <p>Sets the {@link CrossVersionIntegrationSpec#previous} property of the test instance before executing it.
++ * <p>Sets the {@link org.gradle.integtests.fixtures.CrossVersionIntegrationSpec#previous} property of the test instance before executing it.
+  *
+- * <p>A test class can be annotated with {@link TargetVersions} to specify the set of versions the test is compatible with, and {@link IgnoreVersions} to specify the set of versions the
++ * <p>A test class can be annotated with {@link org.gradle.integtests.fixtures.TargetVersions} to specify the set of versions the test is compatible with, and {@link org.gradle.integtests.fixtures.IgnoreVersions} to specify the set of versions the
+  * test should not be run for.
+  */
+-class CrossVersionTestRunner extends AbstractCompatibilityTestRunner {
+-    CrossVersionTestRunner(Class<? extends CrossVersionIntegrationSpec> target) {
++class CrossVersionTestInterceptor extends AbstractCompatibilityTestInterceptor {
++    CrossVersionTestInterceptor(Class<?> target) {
+         super(target)
+     }
+ 
+@@ -80,7 +84,7 @@ class CrossVersionTestRunner extends AbstractCompatibilityTestRunner {
+         a ? a.value().newInstance(target, target) : defaultValue
+     }
+ 
+-    private static class PreviousVersionExecution extends AbstractMultiTestRunner.Execution {
++    private static class PreviousVersionExecution extends org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor.Execution {
+         final GradleDistribution previousVersion
+         final boolean enabled
+ 
+@@ -95,12 +99,17 @@ class CrossVersionTestRunner extends AbstractCompatibilityTestRunner {
+         }
+ 
+         @Override
+-        protected void before() {
++        String toString() {
++            return getDisplayName()
++        }
++
++        @Override
++        protected void before(IMethodInvocation invocation) {
+             target.previous = previousVersion
+         }
+ 
+         @Override
+-        protected boolean isTestEnabled(AbstractMultiTestRunner.TestDetails testDetails) {
++        boolean isTestEnabled(org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor.TestDetails testDetails) {
+             return enabled
+         }
+     }
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/MultiVersionTest.java b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/MultiVersionTest.java
+new file mode 100644
+index 0000000000000..de871ec9d7f24
+--- /dev/null
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/MultiVersionTest.java
+@@ -0,0 +1,32 @@
++/*
++ * Copyright 2021 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.gradle.integtests.fixtures.compatibility;
++
++import org.spockframework.runtime.extension.ExtensionAnnotation;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Inherited;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.TYPE)
++@ExtensionAnnotation(MultiVersionTestExtension.class)
++@Inherited
++public @interface MultiVersionTest {
++}
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/MultiVersionTestExtension.java b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/MultiVersionTestExtension.java
+new file mode 100644
+index 0000000000000..4e2177b8b520b
+--- /dev/null
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/MultiVersionTestExtension.java
+@@ -0,0 +1,28 @@
++/*
++ * Copyright 2021 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.gradle.integtests.fixtures.compatibility;
++
++import org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor;
++import org.gradle.integtests.fixtures.extensions.MultiTestExtension;
++
++public class MultiVersionTestExtension extends MultiTestExtension<MultiVersionTest> {
++
++    @Override
++    protected AbstractMultiTestInterceptor makeInterceptor(Class<?> testClass) {
++        return new MultiVersionTestInterceptor(testClass);
++    }
++}
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/MultiVersionSpecRunner.groovy b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/MultiVersionTestInterceptor.groovy
+similarity index 68%
+rename from subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/MultiVersionSpecRunner.groovy
+rename to subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/MultiVersionTestInterceptor.groovy
+index 4c1cbe7e139a2..b7127a1ef2842 100644
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/MultiVersionSpecRunner.groovy
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/MultiVersionTestInterceptor.groovy
+@@ -14,17 +14,22 @@
+  * limitations under the License.
+  */
+ 
+-package org.gradle.integtests.fixtures
++package org.gradle.integtests.fixtures.compatibility
+ 
++import org.gradle.integtests.fixtures.TargetCoverage
++import org.gradle.integtests.fixtures.TargetVersions
++import org.spockframework.runtime.extension.IMethodInvocation
++
+ /**
+- * Runs the target test class against the versions specified in a {@link TargetVersions} or {@link TargetCoverage}
++ * Runs the target test class against the versions specified in a {@link org.gradle.integtests.fixtures.TargetVersions} or {@link org.gradle.integtests.fixtures.TargetCoverage}.
++ * See {@link AbstractMultiTestInterceptor} for information on running these tests.
+  */
+-class MultiVersionSpecRunner extends AbstractMultiTestRunner {
++class MultiVersionTestInterceptor extends AbstractMultiTestInterceptor {
+ 
+-    private static final String VERSIONS_SYSPROP_NAME = "org.gradle.integtest.versions"
++    public static final String VERSIONS_SYSPROP_NAME = "org.gradle.integtest.versions"
+     public static final String MULTI_VERSION_SYS_PROP = "org.gradle.integtest.multiversion"
+ 
+-    MultiVersionSpecRunner(Class<?> target) {
++    MultiVersionTestInterceptor(Class<?> target) {
+         super(target)
+     }
+ 
+@@ -55,7 +61,7 @@ class MultiVersionSpecRunner extends AbstractContextualMultiVersionSpecRunner<De
+         return versions.collect { new DefaultVersionedTool(it) }
+     }
+ 
+-    private static class VersionExecution extends AbstractMultiTestRunner.Execution {
++    private static class VersionExecution extends org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor.Execution {
+         final def version
+ 
+         VersionExecution(def version) {
+@@ -68,7 +74,12 @@ class MultiVersionSpecRunner extends AbstractContextualMultiVersionSpecRunner<De
+         }
+ 
+         @Override
+-        protected void before() {
++        String toString() {
++            return getDisplayName()
++        }
++
++        @Override
++        protected void before(IMethodInvocation invocation) {
+             target.version = version
+         }
+     }
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AbstractMultiTestRunner.java  b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/AbstractMultiTestInterceptor.java
+rename from subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AbstractMultiTestRunner.java
+rename to subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/AbstractMultiTestInterceptor.java
+index 3e2b25d4eacfb..9aa4a92028cdc
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AbstractMultiTestRunner.java
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/compatibility/AbstractMultiTestInterceptor.java
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2012 the original author or authors.
++ * Copyright 2020 the original author or authors.
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+@@ -14,307 +14,186 @@
+  * limitations under the License.
+  */
+-package org.gradle.integtests.fixtures;
++package org.gradle.integtests.fixtures.compatibility;
+ 
+-import org.gradle.internal.UncheckedException;
+-import org.junit.runner.Description;
+-import org.junit.runner.RunWith;
+-import org.junit.runner.Runner;
+-import org.junit.runner.manipulation.Filter;
+-import org.junit.runner.manipulation.Filterable;
+-import org.junit.runner.manipulation.NoTestsRemainException;
+-import org.junit.runner.notification.Failure;
+-import org.junit.runner.notification.RunListener;
+-import org.junit.runner.notification.RunNotifier;
+-import org.junit.runners.BlockJUnit4ClassRunner;
+-import org.junit.runners.Suite;
+-import org.junit.runners.model.InitializationError;
+-import org.junit.runners.model.RunnerBuilder;
+-import org.spockframework.runtime.Sputnik;
++import org.gradle.integtests.fixtures.AbstractIntegrationSpec;
++import org.junit.AssumptionViolatedException;
++import org.spockframework.lang.SpecInternals;
++import org.spockframework.mock.runtime.MockController;
++import org.spockframework.runtime.extension.AbstractMethodInterceptor;
++import org.spockframework.runtime.extension.IMethodInterceptor;
++import org.spockframework.runtime.extension.IMethodInvocation;
+ import org.spockframework.runtime.model.FeatureInfo;
+ import org.spockframework.runtime.model.IterationInfo;
+ import org.spockframework.runtime.model.NameProvider;
+ import org.spockframework.runtime.model.SpecInfo;
+ 
+-import javax.annotation.Nullable;
+ import java.lang.annotation.Annotation;
+-import java.lang.reflect.InvocationTargetException;
+ import java.lang.reflect.Method;
+ import java.util.ArrayList;
+-import java.util.Collections;
+-import java.util.HashMap;
+-import java.util.LinkedHashSet;
+-import java.util.LinkedList;
++import java.util.Iterator;
+ import java.util.List;
+-import java.util.Map;
+-import java.util.Set;
+ 
+ /**
+  * A base class for those test runners which execute a test multiple times.
+  */
+-public abstract class AbstractMultiTestRunner extends Runner implements Filterable {
++public abstract class AbstractMultiTestInterceptor extends AbstractMethodInterceptor {
+     protected final Class<?> target;
+     private final List<Execution> executions = new ArrayList<Execution>();
+-    private Description description;
+-    private Description templateDescription;
++
+     private boolean executionsInitialized;
++    private IMethodInvocation initInvocation;
+ 
+-    protected AbstractMultiTestRunner(Class<?> target) {
++    protected AbstractMultiTestInterceptor(Class<?> target) {
+         this.target = target;
+     }
+ 
+-    @Override
+-    public Description getDescription() {
+-        initDescription();
+-        return description;
+-    }
+ 
+-    @Override
+-    public void run(RunNotifier notifier) {
+-        initDescription();
+-        for (Execution execution : executions) {
+-            execution.run(notifier);
+-        }
++    public void interceptFeature(FeatureInfo feature) {
++        initExecutions();
++        NameProvider<IterationInfo> iterationNameProvider = feature.getIterationNameProvider();
++        if (iterationNameProvider == null) {
++            feature.setName(feature.getName() + " " + executions);
++        } else {
++            feature.setIterationNameProvider(p -> iterationNameProvider.getName(p) + " " + executions);
++        }
++
++        if (canSkipFeature(feature, executions)) {
++            feature.skip(executions.toString());
++            return;
++        }
++
++        if (feature.isParameterized()) {
++            feature.getIterationInterceptors().add(0, new MultiVersionIterationInterceptor() {
++                @Override
++                public void interceptIterationExecution(IMethodInvocation invocation) throws Throwable {
++                    interceptFeatureExecution(invocation);
++                }
++
++                @Override
++                void interceptIteration(IMethodInvocation invocation, Execution currentExecution) throws Throwable {
++                    currentExecution.assertCanExecute();
++                    currentExecution.before(invocation);
++                    // TODO: there is still some clash between Spock's JUnit rule interceptor and our cleanup interceptor
++                    // that causes @Rule fields to be initialized with before() and torn down with after() twice.
++                    // A particularly nasty side effect of this was that the HttpServerFixture allocates the ports twice,
++                    // but releases them only once. This is worked-around on the HttpServerFixture for now to not start the
++                    // server if it is already started. To sanity-check this, run ForcingPlatformAlignmentTest from dependency-management
++                    // - it will cause the port exhaustion.
++                    Iterator<IMethodInterceptor> iterator = invocation.getMethod().getInterceptors().iterator();
++                    iterator.next(); // This interceptor should be the first - skip it
++                    if (iterator.hasNext()) {
++                        iterator.next().intercept(invocation);
++                    } else {
++                        invocation.proceed();
++                    }
++                    currentExecution.after();
++                }
++            });
++        } else {
++            IMethodInterceptor interceptor = new MultiVersionIterationInterceptor() {
++                @Override
++                void interceptIteration(IMethodInvocation invocation, Execution currentExecution) throws Throwable {
++                    invocation.proceed();
++                }
++            };
++            feature.addInterceptor(interceptor);
++            feature.addIterationInterceptor(interceptor);
++        }
++    }
++
++    @Override
++    public void interceptInitializerMethod(IMethodInvocation invocation) throws Throwable {
++        this.initInvocation = invocation;
++        initInvocation.proceed();
++    }
++
++    abstract class MultiVersionIterationInterceptor extends AbstractMethodInterceptor {
++        private Execution currentExecution;
++
++        @Override
++        public void interceptFeatureExecution(IMethodInvocation invocation) throws Throwable {
++            IterationExceptionInterceptor iterationExceptionInterceptor = new IterationExceptionInterceptor();
++            invocation.getFeature().getFeatureMethod().addInterceptor(iterationExceptionInterceptor);
++
++            TestDetails testDetails = new TestDetails(invocation.getFeature());
++
++            for (Execution execution : executions) {
++                if (!execution.isTestEnabled(testDetails)) {
++                    continue;
++                }
++                // Spock 2 does not treat a test repeatedly invoked from an interceptor as a new test iteration
++                // Until we can solve this in a better way, the printout below indicates the start of an iteration with a different configuration
++                if (executions.size() > 1) {
++                    System.out.println("\nRUNNING ITERATION [" + execution.getDisplayName() + "]\n");
++                }
++                if (AbstractIntegrationSpec.class.isAssignableFrom(target)) {
++                    ((AbstractIntegrationSpec) invocation.getInstance()).resetExecuter();
++                }
++                if (initInvocation != null) { // null happens when a test class contains only features with 'where' clause
++                    initInvocation.proceed();
++                }
++                currentExecution = execution;
++                interceptIteration(invocation, currentExecution);
++                // When the current iteration fails, we abort the following executions, which is far from ideal
++                // This, however, makes it evident which iteration failed in this loop
++                if (iterationExceptionInterceptor.hasThrown) {
++                    break;
++                }
++                ((MockController) ((SpecInternals) invocation.getInstance()).getSpecificationContext().getMockController()).enterScope();
++            }
++        }
++
++        @Override
++        public void interceptIterationExecution(IMethodInvocation invocation) throws Throwable {
++            currentExecution.assertCanExecute();
++            currentExecution.before(invocation);
++            invocation.proceed();
++            currentExecution.after();
++        }
++
++        abstract void interceptIteration(IMethodInvocation invocation, Execution currentExecution) throws Throwable;
+     }
+-
+-    public void filter(Filter filter) throws NoTestsRemainException {
+-        initExecutions();
+-        for (Execution execution : executions) {
+-            execution.filter(filter);
+-        }
+-        invalidateDescription();
+-    }
+ 
+     private void initExecutions() {
+         if (!executionsInitialized) {
+-            try {
+-                UnrollAwareSuite descriptionProvider = createRunnerFor(Collections.singletonList(target), Collections.<Filter>emptyList(), null);
+-                templateDescription = descriptionProvider.getDescription();
+-            } catch (InitializationError initializationError) {
+-                throw UncheckedException.throwAsUncheckedException(initializationError);
+-            }
+             createExecutions();
++            executions.sort((e1, e2) -> e2.getDisplayName().compareTo(e1.getDisplayName()));
+             for (Execution execution : executions) {
+-                execution.init(target, templateDescription);
++                execution.init(target);
+             }
+             executionsInitialized = true;
+         }
+     }
+ 
+-    private void initDescription() {
+-        initExecutions();
+-        if (description == null) {
+-            description = Description.createSuiteDescription(target);
+-            for (Execution execution : executions) {
+-                execution.addDescriptions(description);
+-            }
+-        }
+-    }
+-
+-    private void invalidateDescription() {
+-        description = null;
+-        templateDescription = null;
+-    }
+-
++    private static boolean canSkipFeature(FeatureInfo feature, List<Execution> executions) {
++        TestDetails testDetails = new TestDetails(feature);
++        for (Execution execution : executions) {
++            if (execution.isTestEnabled(testDetails)) {
++                return false;
++            }
++        }
++        return true;
++    }
+     protected abstract void createExecutions();
+ 
+     protected void add(Execution execution) {
+         executions.add(execution);
+     }
+ 
+-    private static UnrollAwareSuite createRunnerFor(List<? extends Class<?>> targetClasses, final List<Filter> filters, Execution execution) throws InitializationError {
+-        RunnerBuilder runnerBuilder = new RunnerBuilder() {
+-            @Override
+-            public Runner runnerForClass(Class<?> testClass) throws Throwable {
+-                for (Class<?> candidate = testClass; candidate != null; candidate = candidate.getSuperclass()) {
+-                    RunWith runWith = candidate.getAnnotation(RunWith.class);
+-                    if (runWith != null && !AbstractMultiTestRunner.class.isAssignableFrom(runWith.value())) {
+-                        try {
+-                            Runner r = (Runner) runWith.value().getConstructors()[0].newInstance(testClass);
+-                            return filter(r);
+-                        } catch (InvocationTargetException e) {
+-                            throw e.getTargetException();
+-                        }
+-                    }
+-                }
+-                return filter(new BlockJUnit4ClassRunner(testClass));
+-            }
+-
+-            //we need to filter at the level child runners because the suite is not doing the right thing here
+-            private Runner filter(Runner r) {
+-                for (Filter filter : filters) {
+-                    try {
+-                        ((Filterable) r).filter(filter);
+-                    } catch (NoTestsRemainException e) {
+-                        //ignore
+-                    }
+-                }
+-                return r;
+-            }
+-        };
+-        return new UnrollAwareSuite(runnerBuilder, targetClasses.toArray(new Class<?>[0]), execution);
+-    }
+-
+-    private static class UnrollAwareSuite extends Suite {
+-
+-        private static final Method SPEC_METHOD;
+-
+-        static {
+-            Method spec = null;
+-            try {
+-                spec = Sputnik.class.getDeclaredMethod("getSpec");
+-                spec.setAccessible(true);
+-            } catch (NoSuchMethodException e) {
+-                spec = null;
+-            } finally {
+-                SPEC_METHOD = spec;
+-            }
+-        }
+-
+-        public UnrollAwareSuite(RunnerBuilder builder, Class<?>[] classes, final Execution execution) throws InitializationError {
+-            super(builder, classes);
+-            if (execution != null) {
+-                fixupNameProvider(execution);
+-            }
+-        }
+-
+-        private void fixupNameProvider(final Execution execution) {
+-            for (Runner child : getChildren()) {
+-                if (child instanceof Sputnik && SPEC_METHOD != null) {
+-                    try {
+-                        child.getDescription();
+-                        SpecInfo spec = (SpecInfo) SPEC_METHOD.invoke(child);
+-                        List<FeatureInfo> allFeatures = spec.getAllFeatures();
+-                        for (FeatureInfo feature : allFeatures) {
+-                            final NameProvider<IterationInfo> provider = feature.getIterationNameProvider();
+-                            if (provider!=null) {
+-                                feature.setIterationNameProvider(new NameProvider<IterationInfo>() {
+-                                    @Override
+-                                    public String getName(IterationInfo iterationInfo) {
+-                                        return provider.getName(iterationInfo) + " [" + execution.getDisplayName() + "]";
+-                                    }
+-                                });
+-                            }
+-                        }
+-                    } catch (IllegalAccessException e) {
+-                        // no luck
+-                    } catch (InvocationTargetException e) {
+-                        // no luck
+-                    }
+-                }
+-            }
+-        }
+-    }
+ 
+-    protected static abstract class Execution implements Filterable {
++    public static abstract class Execution {
+         protected Class<?> target;
+-        private Description templateDescription;
+-        private final Map<Description, Description> descriptionTranslations = new HashMap<Description, Description>();
+-        private final Set<Description> enabledTests = new LinkedHashSet<Description>();
+-        private final Set<Description> disabledTests = new LinkedHashSet<Description>();
+-        private final List<Filter> filters = new LinkedList<Filter>();
+ 
+-        final void init(Class<?> target, Description templateDescription) {
++        final void init(Class<?> target) {
+             this.target = target;
+-            this.templateDescription = templateDescription;
+         }
+ 
+-        private Runner createExecutionRunner() throws InitializationError {
+-            List<? extends Class<?>> targetClasses = loadTargetClasses();
+-            return createRunnerFor(targetClasses, filters, this);
+-        }
+-
+-        final void addDescriptions(Description parent) {
+-            map(templateDescription, parent);
+-        }
+-
+-        final void run(final RunNotifier notifier) {
+-            RunNotifier nested = new RunNotifier();
+-            NestedRunListener nestedListener = new NestedRunListener(notifier);
+-            nested.addListener(nestedListener);
+-
+-            try {
+-                runEnabledTests(nested);
+-            } finally {
+-                nestedListener.cleanup();
+-            }
+-
+-            for (Description disabledTest : disabledTests) {
+-                nested.fireTestIgnored(disabledTest);
+-            }
+-        }
+-
+-        private void runEnabledTests(RunNotifier nested) {
+-            if (enabledTests.isEmpty()) {
+-                return;
+-            }
+-
+-            Runner runner;
+-            try {
+-                runner = createExecutionRunner();
+-            } catch (Throwable t) {
+-                runner = new CannotExecuteRunner(getDisplayName(), target, t);
+-            }
+-
+-            try {
+-                if (!disabledTests.isEmpty()) {
+-                    ((Filterable) runner).filter(new Filter() {
+-                        @Override
+-                        public boolean shouldRun(Description description) {
+-                            return !disabledTests.contains(description);
+-                        }
+-
+-                        @Override
+-                        public String describe() {
+-                            return "disabled tests";
+-                        }
+-                    });
+-                }
+-            } catch (NoTestsRemainException e) {
+-                return;
+-            }
+-
+-            runner.run(nested);
+-        }
+-
+-        private Description translateDescription(Description description) {
+-            return descriptionTranslations.containsKey(description) ? descriptionTranslations.get(description) : description;
+-        }
+-
+-        public void filter(Filter filter) throws NoTestsRemainException {
+-            filters.add(filter);
+-            for (Map.Entry<Description, Description> entry : descriptionTranslations.entrySet()) {
+-                if (!filter.shouldRun(entry.getKey())) {
+-                    enabledTests.remove(entry.getValue());
+-                    disabledTests.remove(entry.getValue());
+-                }
+-            }
+-        }
+-
+-        protected void before() {
++        protected void before(IMethodInvocation invocation) {
+         }
+ 
+         protected void after() {
+         }
+ 
+-        private void map(Description source, Description parent) {
+-            for (Description child : source.getChildren()) {
+-                Description mappedChild;
+-                if (child.getMethodName() != null) {
+-                    mappedChild = Description.createSuiteDescription(String.format("%s [%s](%s)", child.getMethodName(), getDisplayName(), child.getClassName()));
+-                    parent.addChild(mappedChild);
+-                    if (!isTestEnabled(new TestDescriptionBackedTestDetails(source, child))) {
+-                        disabledTests.add(child);
+-                    } else {
+-                        enabledTests.add(child);
+-                    }
+-                } else {
+-                    mappedChild = Description.createSuiteDescription(child.getClassName());
+-                }
+-                descriptionTranslations.put(child, mappedChild);
+-                map(child, parent);
+-            }
+-        }
+-
+         /**
+          * Returns a display name for this execution. Used in the JUnit descriptions for test execution.
+          */
+@@ -323,7 +323,7 @@
+         /**
+          * Returns true if the given test should be executed, false if it should be ignored. Default is true.
+          */
+-        protected boolean isTestEnabled(TestDetails testDetails) {
++        public boolean isTestEnabled(TestDetails testDetails) {
+             return true;
+         }
+ 
+@@ -332,123 +332,41 @@
+          */
+         protected void assertCanExecute() {
+         }
+-
+-        /**
+-         * Loads the target classes for this execution. Default is the target class that this runner was constructed with.
+-         */
+-        protected List<? extends Class<?>> loadTargetClasses() {
+-            return Collections.singletonList(target);
+-        }
+-
+-        private static class CannotExecuteRunner extends Runner {
+-            private final Description description;
+-            private final Throwable failure;
+-
+-            public CannotExecuteRunner(String displayName, Class<?> testClass, Throwable failure) {
+-                description = Description.createSuiteDescription(String.format("%s(%s)", displayName, testClass.getName()));
+-                this.failure = failure;
+-            }
+-
+-            @Override
+-            public Description getDescription() {
+-                return description;
+-            }
+-
+-            @Override
+-            public void run(RunNotifier notifier) {
+-                Description description = getDescription();
+-                notifier.fireTestStarted(description);
+-                notifier.fireTestFailure(new Failure(description, failure));
+-                notifier.fireTestFinished(description);
+-            }
+-        }
+-
+-        private class NestedRunListener extends RunListener {
+-            private final RunNotifier notifier;
+-            boolean started;
+-            boolean complete;
+-
+-            public NestedRunListener(RunNotifier notifier) {
+-                this.notifier = notifier;
+-            }
+-
+-            @Override
+-            public void testStarted(Description description) {
+-                Description translated = translateDescription(description);
+-                notifier.fireTestStarted(translated);
+-                if (!started && !complete) {
+-                    try {
+-                        assertCanExecute();
+-                        started = true;
+-                        before();
+-                    } catch (Throwable t) {
+-                        notifier.fireTestFailure(new Failure(translated, t));
+-                    }
+-                }
+-            }
+-
+-            @Override
+-            public void testFailure(Failure failure) {
+-                Description translated = translateDescription(failure.getDescription());
+-                notifier.fireTestFailure(new Failure(translated, failure.getException()));
+-            }
+-
+-            @Override
+-            public void testAssumptionFailure(Failure failure) {
+-                Description translated = translateDescription(failure.getDescription());
+-                notifier.fireTestAssumptionFailed(new Failure(translated, failure.getException()));
+-            }
+-
+-            @Override
+-            public void testIgnored(Description description) {
+-                Description translated = translateDescription(description);
+-                notifier.fireTestIgnored(translated);
+-            }
+-
+-            @Override
+-            public void testFinished(Description description) {
+-                Description translated = translateDescription(description);
+-                notifier.fireTestFinished(translated);
+-            }
+-
+-            public void cleanup() {
+-                if (started) {
+-                    after();
+-                }
+-                // Prevent further tests (ignored) from triggering start actions
+-                complete = true;
+-            }
+-        }
+-    }
+-
+-    public interface TestDetails {
+-        /**
+-         * Locates the given annotation for the test. May be inherited from test class.
+-         */
+-        @Nullable
+-        <A extends Annotation> A getAnnotation(Class<A> type);
++    }
++
++    private static class IterationExceptionInterceptor implements IMethodInterceptor {
++
++        private boolean hasThrown = false;
++
++        @Override
++        public void intercept(IMethodInvocation invocation) throws Throwable {
++            try {
++                invocation.proceed();
++            } catch (AssumptionViolatedException e) {
++                System.out.println("Skipping iteration: assumption not satisfied");
++                throw e;
++            } catch (Throwable t) {
++                hasThrown = true;
++                throw t;
++            }
++        }
+     }
+ 
+-    private static class TestDescriptionBackedTestDetails implements TestDetails {
+-        private final Description parent;
+-        private final Description test;
++    public static class TestDetails {
++        private final SpecInfo spec;
++        private final Method featureMethod;
+ 
+-        private TestDescriptionBackedTestDetails(Description parent, Description test) {
+-            this.parent = parent;
+-            this.test = test;
++        TestDetails(FeatureInfo feature) {
++            this.spec = feature.getSpec().getBottomSpec();
++            this.featureMethod = feature.getFeatureMethod().getReflection();
+         }
+-
+-        @Override
+-        public String toString() {
+-            return test.toString();
+-        }
+ 
+         public <A extends Annotation> A getAnnotation(Class<A> type) {
+-            A annotation = test.getAnnotation(type);
+-            if (annotation != null) {
+-                return annotation;
++            A methodAnnotation = featureMethod.getAnnotation(type);
++            if (methodAnnotation != null) {
++                return methodAnnotation;
+             }
+-            return parent.getAnnotation(type);
++            return spec.getAnnotation(type);
+         }
+     }
+ }
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/BehindFlagFeatureRunner.groovy b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/BehindFlagFeatureInterceptor.groovy
+similarity index 82%
+rename from subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/BehindFlagFeatureRunner.groovy
+rename to subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/BehindFlagFeatureInterceptor.groovy
+index cc749b693a6aa..7e363e6c7b7c1 100644
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/BehindFlagFeatureRunner.groovy
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/BehindFlagFeatureInterceptor.groovy
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2017 the original author or authors.
++ * Copyright 2020 the original author or authors.
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+@@ -14,19 +14,23 @@
+  * limitations under the License.
+  */
+ 
+-package org.gradle.integtests.fixtures
++package org.gradle.integtests.fixtures.extensions
+ 
+ import groovy.transform.CompileStatic
++import org.gradle.integtests.fixtures.RequiredFeature
++import org.gradle.integtests.fixtures.RequiredFeatures
+ import org.gradle.integtests.fixtures.executer.AbstractGradleExecuter
++import org.spockframework.runtime.extension.IMethodInvocation
++import org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor
+ /**
+- * A base runner for features hidden behind a flag, convenient for executing tests with the flag on or off.
++ * A base interceptor for features hidden behind a flag, convenient for executing tests with the flag on or off.
+  * If a test only makes sense if the feature is enabled, then it needs to be annotated with {@link RequiredFeatures}.
+  */
+ @CompileStatic
+-abstract class BehindFlagFeatureRunner extends AbstractMultiTestRunner {
++abstract class BehindFlagFeatureInterceptor extends AbstractMultiTestInterceptor {
+     final Map<String, Feature> features
+ 
+-    BehindFlagFeatureRunner(Class<?> target, Map<String, Feature> features) {
++    BehindFlagFeatureInterceptor(Class<?> target, Map<String, Feature> features) {
+         super(target)
+         features.each { systemProperty, description ->
+             // Ensure that the system property is propagated to forked Gradle executions
+@@ -80,7 +83,7 @@ abstract class BehindFlagFeatureRunner extends AbstractMultiTestRunner {
+         }
+     }
+ 
+-    private static class FeatureExecution extends AbstractMultiTestRunner.Execution {
++    private static class FeatureExecution extends org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor.Execution {
+         final Map<String, Feature> features
+         final Map<String, String> featureValues
+ 
+@@ -97,7 +100,12 @@ abstract class BehindFlagFeatureRunner extends AbstractMultiTestRunner {
+         }
+ 
+         @Override
+-        protected void before() {
++        String toString() {
++            return "[" + getDisplayName() + "]"
++        }
++
++        @Override
++        protected void before(IMethodInvocation invocation) {
+             featureValues.each { sysProp, value ->
+                 // Ensure that the system property is propagated to forked Gradle executions
+                 AbstractGradleExecuter.propagateSystemProperty(sysProp)
+@@ -115,7 +123,7 @@ abstract class BehindFlagFeatureRunner extends AbstractMultiTestRunner {
+         }
+ 
+         @Override
+-        protected boolean isTestEnabled(AbstractMultiTestRunner.TestDetails testDetails) {
++        boolean isTestEnabled(org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor.TestDetails testDetails) {
+             def requiredFeatures = testDetails.getAnnotation(RequiredFeatures)
+             def enabled = true
+             if (requiredFeatures) {
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/FluidDependenciesResolveRunner.groovy b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/FluidDependenciesResolveInterceptor.groovy
+similarity index 88%
+rename from subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/FluidDependenciesResolveRunner.groovy
+rename to subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/FluidDependenciesResolveInterceptor.groovy
+index ed09dc41c6640..1bfd84e0156f3 100644
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/FluidDependenciesResolveRunner.groovy
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/FluidDependenciesResolveInterceptor.groovy
+@@ -14,7 +14,7 @@
+  * limitations under the License.
+  */
+ 
+-package org.gradle.integtests.fixtures
++package org.gradle.integtests.fixtures.extensions
+ 
+ import groovy.transform.CompileStatic
+ import org.gradle.integtests.fixtures.executer.GradleContextualExecuter
+@@ -25,10 +25,10 @@ import org.gradle.integtests.fixtures.executer.GradleContextualExecuter
+  * Test classes that use this runner will have tests run twice, with and without fluid dependencies enabled.
+  */
+ @CompileStatic
+-class FluidDependenciesResolveRunner extends BehindFlagFeatureRunner {
++class FluidDependenciesResolveInterceptor extends BehindFlagFeatureInterceptor {
+     public final static String ASSUME_FLUID_DEPENDENCIES = "org.gradle.resolution.assumeFluidDependencies"
+ 
+-    FluidDependenciesResolveRunner(Class<?> target) {
++    FluidDependenciesResolveInterceptor(Class<?> target) {
+         super(target, [ASSUME_FLUID_DEPENDENCIES: booleanFeature("fluid dependencies")])
+     }
+ 
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/FluidDependenciesResolveTest.java b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/FluidDependenciesResolveTest.java
+new file mode 100644
+index 0000000000000..f10271645e65d
+--- /dev/null
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/FluidDependenciesResolveTest.java
+@@ -0,0 +1,32 @@
++/*
++ * Copyright 2020 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.gradle.integtests.fixtures.extensions;
++
++import org.spockframework.runtime.extension.ExtensionAnnotation;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Inherited;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.TYPE)
++@ExtensionAnnotation(FluidDependenciesResolveTestExtension.class)
++@Inherited
++public @interface FluidDependenciesResolveTest {
++}
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/FluidDependenciesResolveTestExtension.java b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/FluidDependenciesResolveTestExtension.java
+new file mode 100644
+index 0000000000000..f720f5f5ba6d3
+--- /dev/null
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/FluidDependenciesResolveTestExtension.java
+@@ -0,0 +1,25 @@
++/*
++ * Copyright 2020 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.gradle.integtests.fixtures.extensions;
++
++public class FluidDependenciesResolveTestExtension extends MultiTestExtension<FluidDependenciesResolveTest> {
++
++    @Override
++    protected org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor makeInterceptor(Class<?> testClass) {
++        return new FluidDependenciesResolveInterceptor(testClass);
++    }
++}
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/GradleMetadataResolveExtension.java b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/GradleMetadataResolveExtension.java
+new file mode 100644
+index 0000000000000..d75097b47b282
+--- /dev/null
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/GradleMetadataResolveExtension.java
+@@ -0,0 +1,25 @@
++/*
++ * Copyright 2020 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.gradle.integtests.fixtures.extensions;
++
++public class GradleMetadataResolveExtension extends MultiTestExtension<GradleMetadataResolveTest> {
++
++    @Override
++    protected org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor makeInterceptor(Class<?> testClass) {
++        return new GradleMetadataResolveInterceptor(testClass);
++    }
++}
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/GradleMetadataResolveTest.java b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/GradleMetadataResolveTest.java
+new file mode 100644
+index 0000000000000..b557401f1375e
+--- /dev/null
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/GradleMetadataResolveTest.java
+@@ -0,0 +1,32 @@
++/*
++ * Copyright 2020 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.gradle.integtests.fixtures.extensions;
++
++import org.spockframework.runtime.extension.ExtensionAnnotation;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Inherited;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.TYPE)
++@ExtensionAnnotation(GradleMetadataResolveExtension.class)
++@Inherited
++public @interface GradleMetadataResolveTest {
++}
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/MultiTestExtension.java b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/MultiTestExtension.java
+new file mode 100644
+index 0000000000000..bf88c4a6340e8
+--- /dev/null
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/extensions/MultiTestExtension.java
+@@ -0,0 +1,39 @@
++/*
++ * Copyright 2020 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.gradle.integtests.fixtures.extensions;
++
++import org.spockframework.runtime.extension.IAnnotationDrivenExtension;
++import org.spockframework.runtime.model.FeatureInfo;
++import org.spockframework.runtime.model.SpecInfo;
++
++import java.lang.annotation.Annotation;
++
++public abstract class MultiTestExtension<T extends Annotation> implements IAnnotationDrivenExtension<T> {
++
++    @Override
++    public void visitSpecAnnotation(T annotation, SpecInfo spec) {
++        if (!spec.getFeatures().isEmpty()) {
++            org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor interceptor = makeInterceptor(spec.getBottomSpec().getReflection());
++            spec.addInitializerInterceptor(interceptor);
++            for (FeatureInfo feature : spec.getFeatures()) {
++                interceptor.interceptFeature(feature);
++            }
++        }
++    }
++
++    protected abstract org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor makeInterceptor(Class<?> testClass);
++}
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/test/fixtures/server/http/HttpServerFixture.groovy b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/test/fixtures/server/http/HttpServerFixture.groovy
+index 90bee8fd4e127..eab9b59fd3cd8 100644
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/test/fixtures/server/http/HttpServerFixture.groovy
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/test/fixtures/server/http/HttpServerFixture.groovy
+@@ -136,6 +136,7 @@ trait HttpServerFixture {
+             configured = true
+         }
+ 
++        if (!server.started) {
+         def assignedPort = portAllocator.assignPort()
+         connector = new ServerConnector(server)
+         connector.port = assignedPort
+@@ -164,6 +165,7 @@ trait HttpServerFixture {
+             }
+         }
+         throw new AssertionError("SocketConnector failed to start.")
++        }
+     }
+ 
+     void stop() {
+diff --git a/subprojects/internal-testing/internal-testing.gradle b/subprojects/internal-testing/internal-testing.gradle
+index b98be099f3569..138aadd186a7b 100644
+--- a/subprojects/internal-testing/internal-testing.gradle
++++ b/subprojects/internal-testing/internal-testing.gradle
+@@ -16,6 +16,7 @@ dependencies {
+     compile libraries.junit
+     compile libraries.jmock
+     compile libraries.spock
++    compile libraries.spockJUnit4
+     compile libraries.jsoup
+ 
+     components {
+diff --git a/subprojects/internal-testing/src/main/groovy/org/gradle/integtests/fixtures/SpockJUnitAssumptionExtension.java b/subprojects/internal-testing/src/main/groovy/org/gradle/integtests/fixtures/SpockJUnitAssumptionExtension.java
+new file mode 100644
+index 0000000000000..39acebb59b661
+--- /dev/null
++++ b/subprojects/internal-testing/src/main/groovy/org/gradle/integtests/fixtures/SpockJUnitAssumptionExtension.java
+@@ -0,0 +1,41 @@
++/*
++ * Copyright 2021 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.gradle.integtests.fixtures;
++
++import org.junit.AssumptionViolatedException;
++import org.opentest4j.TestAbortedException;
++import org.spockframework.runtime.AbstractRunListener;
++import org.spockframework.runtime.extension.AbstractGlobalExtension;
++import org.spockframework.runtime.model.ErrorInfo;
++import org.spockframework.runtime.model.SpecInfo;
++
++public class SpockJUnitAssumptionExtension extends AbstractGlobalExtension {
++
++    @Override
++    public void visitSpec(SpecInfo spec) {
++        spec.addListener(new AbstractRunListener() {
++            @Override
++            public void error(ErrorInfo error) {
++                Throwable cause = error.getException();
++                if (cause instanceof AssumptionViolatedException) {
++                    throw new TestAbortedException(cause.getMessage(), cause);
++                }
++            }
++        });
++    }
++
++}
+diff --git a/subprojects/internal-testing/src/main/resources/META-INF/services/org.spockframework.runtime.extension.IGlobalExtension b/subprojects/internal-testing/src/main/resources/META-INF/services/org.spockframework.runtime.extension.IGlobalExtension
+new file mode 100644
+index 0000000..733aa643114ce
+--- /dev/null
++++ b/subprojects/internal-testing/src/main/resources/META-INF/services/org.spockframework.runtime.extension.IGlobalExtension
+@@ -0,0 +1,1 @@
++org.gradle.integtests.fixtures.SpockJUnitAssumptionExtension
+diff --git a/subprojects/language-native/src/integTest/groovy/org/gradle/language/DuplicateBaseNamesIntegrationTest.groovy b/subprojects/language-native/src/integTest/groovy/org/gradle/language/DuplicateBaseNamesIntegrationTest.groovy
+index 0c2c84a31dfe5..6b567f5c249e3 100644
+--- a/subprojects/language-native/src/integTest/groovy/org/gradle/language/DuplicateBaseNamesIntegrationTest.groovy
++++ b/subprojects/language-native/src/integTest/groovy/org/gradle/language/DuplicateBaseNamesIntegrationTest.groovy
+@@ -27,6 +27,7 @@ import org.gradle.language.fixtures.app.DuplicateObjectiveCppBaseNamesTestApp
+ import org.gradle.language.fixtures.app.DuplicateWindowsResourcesBaseNamesTestApp
+ import org.gradle.nativeplatform.fixtures.AbstractInstalledToolChainIntegrationSpec
+ import org.gradle.nativeplatform.fixtures.RequiresInstalledToolChain
++import org.gradle.nativeplatform.fixtures.app.TestNativeComponent
+ import org.gradle.util.Requires
+ import org.gradle.util.TestPrecondition
+ 
+@@ -39,10 +40,13 @@ class DuplicateBaseNamesIntegrationTest extends AbstractInstalledToolChainIntegr
+     @RequiresInstalledToolChain(SUPPORTS_32)
+     @ToBeFixedForConfigurationCache
+     def "can have sourcefiles with same base name but different directories"() {
+-        setup:
++        given:
++        def testApp = initTestApp(testAppType)
++
++        when:
+         testApp.writeSources(file("src/main"))
+         buildFile.text = ""
+-        testApp.plugins.each{ plugin ->
++        testApp.plugins.each { plugin ->
+             buildFile << "apply plugin: '$plugin'\n"
+         }
+ 
+@@ -63,15 +67,25 @@ model {
+     }
+ }
+             """
+-        expect:
++        then:
+         succeeds "mainExecutable"
+         executable("build/exe/main/main").exec().out == expectedOutput
+         where:
+-        testApp                                              |   expectedOutput
+-        new DuplicateCBaseNamesTestApp()                     |    "foo1foo2"
+-        new DuplicateCppBaseNamesTestApp()                   |    "foo1foo2"
+-        new DuplicateAssemblerBaseNamesTestApp(toolChain)    |    "foo1foo2"
+-        new DuplicateMixedSameBaseNamesTestApp(toolChain)    |    "fooFromC\nfooFromCpp\nfooFromAsm\n"
++        testAppType                                   | expectedOutput
++        DuplicateCBaseNamesTestApp.simpleName         | "foo1foo2"
++        DuplicateCppBaseNamesTestApp.simpleName       | "foo1foo2"
++        DuplicateAssemblerBaseNamesTestApp.simpleName | "foo1foo2"
++        DuplicateMixedSameBaseNamesTestApp.simpleName | "fooFromC\nfooFromCpp\nfooFromAsm\n"
++    }
++
++    private TestNativeComponent initTestApp(String testAppType) {
++        switch (testAppType) {
++            case DuplicateCBaseNamesTestApp.simpleName: return new DuplicateCBaseNamesTestApp()
++            case DuplicateCppBaseNamesTestApp.simpleName: return new DuplicateCppBaseNamesTestApp()
++            case DuplicateAssemblerBaseNamesTestApp.simpleName: return new DuplicateAssemblerBaseNamesTestApp(toolChain)
++            case DuplicateMixedSameBaseNamesTestApp.simpleName: return new DuplicateMixedSameBaseNamesTestApp(toolChain)
++            default: throw IllegalArgumentException(testAppType)
++        }
+     }
+ 
+     /**
+@@ -86,7 +100,7 @@ model {
+         def testApp = new DuplicateMixedSameBaseNamesTestApp(AbstractInstalledToolChainIntegrationSpec.toolChain)
+ 
+ 
+-        testApp.getSourceFiles().each {  SourceFile sourceFile ->
++        testApp.getSourceFiles().each { SourceFile sourceFile ->
+             file("src/main/all/${sourceFile.name}") << sourceFile.content
+         }
+ 
+@@ -115,7 +129,7 @@ model {
+             sources {"""
+ 
+         testApp.functionalSourceSets.each { name, filterPattern ->
+-                buildFile << """
++            buildFile << """
+                 $name {
+                     source {
+                         include '$filterPattern'
+@@ -139,11 +153,11 @@ model {
+     }
+ 
+     @Requires(TestPrecondition.OBJECTIVE_C_SUPPORT)
+-    def "can have objectiveC and objectiveCpp source files with same name in different directories"(){
++    def "can have objectiveC and objectiveCpp source files with same name in different directories"() {
+         setup:
+         testApp.writeSources(file("src/main"))
+         buildFile.text = ""
+-        testApp.plugins.each{ plugin ->
++        testApp.plugins.each { plugin ->
+             buildFile << "apply plugin: '$plugin'\n"
+         }
+ 
+@@ -159,7 +173,7 @@ model {
+         succeeds "mainExecutable"
+         executable("build/exe/main/main").exec().out == "foo1foo2"
+         where:
+-        testApp << [ new DuplicateObjectiveCBaseNamesTestApp(), new DuplicateObjectiveCppBaseNamesTestApp() ]
++        testApp << [new DuplicateObjectiveCBaseNamesTestApp(), new DuplicateObjectiveCppBaseNamesTestApp()]
+     }
+ 
+     @RequiresInstalledToolChain(VISUALCPP)
+@@ -169,10 +183,10 @@ model {
+         def testApp = new DuplicateWindowsResourcesBaseNamesTestApp()
+         testApp.writeSources(file("src/main"))
+         buildFile.text = ""
+-        testApp.plugins.each{ plugin ->
++        testApp.plugins.each { plugin ->
+             buildFile << "apply plugin: '$plugin'\n"
+         }
+-        buildFile <<"""
++        buildFile << """
+ model {
+     components {
+         main(NativeExecutableSpec) {
+diff --git a/subprojects/language-native/src/integTest/groovy/org/gradle/language/assembler/AssemblyLanguageIncrementalBuildIntegrationTest.groovy b/subprojects/language-native/src/integTest/groovy/org/gradle/language/assembler/AssemblyLanguageIncrementalBuildIntegrationTest.groovy
+index e5ff694e69306..736e878fe2adf 100755
+--- a/subprojects/language-native/src/integTest/groovy/org/gradle/language/assembler/AssemblyLanguageIncrementalBuildIntegrationTest.groovy
++++ b/subprojects/language-native/src/integTest/groovy/org/gradle/language/assembler/AssemblyLanguageIncrementalBuildIntegrationTest.groovy
+@@ -31,11 +31,12 @@ import org.gradle.util.TestPrecondition
+ @UnsupportedWithConfigurationCache(because = "setup fails")
+ class AssemblyLanguageIncrementalBuildIntegrationTest extends AbstractInstalledToolChainIntegrationSpec {
+ 
+-    HelloWorldApp app = new MixedLanguageHelloWorldApp(AbstractInstalledToolChainIntegrationSpec.toolChain)
++    HelloWorldApp app
+     TestFile asmSourceFile
+     def install
+ 
+-    def "setup"() {
++    def setup() {
++        app = new MixedLanguageHelloWorldApp(toolChain)
+         buildFile << """
+             plugins {
+                 id 'assembler'
+diff --git a/subprojects/language-native/src/integTest/groovy/org/gradle/language/assembler/AssemblyLanguageIntegrationTest.groovy b/subprojects/language-native/src/integTest/groovy/org/gradle/language/assembler/AssemblyLanguageIntegrationTest.groovy
+index d55878dfa7289..4cd33b193959b 100755
+--- a/subprojects/language-native/src/integTest/groovy/org/gradle/language/assembler/AssemblyLanguageIntegrationTest.groovy
++++ b/subprojects/language-native/src/integTest/groovy/org/gradle/language/assembler/AssemblyLanguageIntegrationTest.groovy
+@@ -29,7 +29,10 @@ import static org.gradle.util.Matchers.containsText
+ @RequiresInstalledToolChain(ToolChainRequirement.SUPPORTS_32_AND_64)
+ class AssemblyLanguageIntegrationTest extends AbstractNativeLanguageIntegrationTest {
+ 
+-    HelloWorldApp helloWorldApp = new AssemblerWithCHelloWorldApp(toolChain)
++    @Override
++    HelloWorldApp getHelloWorldApp() {
++        return new AssemblerWithCHelloWorldApp(toolChain)
++    }
+ 
+     def "build fails when assemble fails"() {
+         given:
+diff --git a/subprojects/language-native/src/integTest/groovy/org/gradle/language/assembler/AssemblyLanguageParallelIntegrationTest.groovy b/subprojects/language-native/src/integTest/groovy/org/gradle/language/assembler/AssemblyLanguageParallelIntegrationTest.groovy
+index 84a46f898eb27..5724fa4014721 100644
+--- a/subprojects/language-native/src/integTest/groovy/org/gradle/language/assembler/AssemblyLanguageParallelIntegrationTest.groovy
++++ b/subprojects/language-native/src/integTest/groovy/org/gradle/language/assembler/AssemblyLanguageParallelIntegrationTest.groovy
+@@ -23,7 +23,11 @@ import org.gradle.nativeplatform.fixtures.app.HelloWorldApp
+ 
+ 
+ class AssemblyLanguageParallelIntegrationTest extends AbstractNativeSoftwareModelParallelIntegrationTest {
+-    HelloWorldApp app = new AssemblerWithCHelloWorldApp(toolChain)
++
++    @Override
++    HelloWorldApp getApp() {
++        return new AssemblerWithCHelloWorldApp(toolChain)
++    }
+ 
+     @ToBeFixedForConfigurationCache
+     def "can execute assembler tasks in parallel"() {
+diff --git a/subprojects/language-native/src/integTest/groovy/org/gradle/language/c/MixedLanguageIntegrationTest.groovy b/subprojects/language-native/src/integTest/groovy/org/gradle/language/c/MixedLanguageIntegrationTest.groovy
+index 2d295369a8415..ff8f91089d2c6 100755
+--- a/subprojects/language-native/src/integTest/groovy/org/gradle/language/c/MixedLanguageIntegrationTest.groovy
++++ b/subprojects/language-native/src/integTest/groovy/org/gradle/language/c/MixedLanguageIntegrationTest.groovy
+@@ -27,7 +27,10 @@ import org.gradle.nativeplatform.fixtures.app.MixedLanguageHelloWorldApp
+ @RequiresInstalledToolChain(ToolChainRequirement.SUPPORTS_32_AND_64)
+ class MixedLanguageIntegrationTest extends AbstractNativeLanguageIntegrationTest {
+ 
+-    HelloWorldApp helloWorldApp = new MixedLanguageHelloWorldApp(toolChain)
++    @Override
++    HelloWorldApp getHelloWorldApp() {
++        return new MixedLanguageHelloWorldApp(toolChain)
++    }
+ 
+     @ToBeFixedForConfigurationCache
+     def "can have all source files co-located in a common directory"() {
+diff --git a/subprojects/platform-native/src/testFixtures/groovy/org/gradle/nativeplatform/fixtures/AbstractInstalledToolChainIntegrationSpec.groovy b/subprojects/platform-native/src/testFixtures/groovy/org/gradle/nativeplatform/fixtures/AbstractInstalledToolChainIntegrationSpec.groovy
+index 73e8f941ea0e7..6ae06ed360e8f 100755
+--- a/subprojects/platform-native/src/testFixtures/groovy/org/gradle/nativeplatform/fixtures/AbstractInstalledToolChainIntegrationSpec.groovy
++++ b/subprojects/platform-native/src/testFixtures/groovy/org/gradle/nativeplatform/fixtures/AbstractInstalledToolChainIntegrationSpec.groovy
+@@ -27,11 +27,10 @@ import org.gradle.nativeplatform.internal.CompilerOutputFileNamingSchemeFactory
+ import org.gradle.internal.time.Time
+ import org.gradle.nativeplatform.internal.CompilerOutputFileNamingSchemeFactory
+ import org.gradle.test.fixtures.file.TestFile
+-import org.junit.runner.RunWith
+ /**
+  * Runs a test separately for each installed tool chain.
+  */
+-@RunWith(SingleToolChainTestRunner.class)
++@NativeToolchainTest
+ abstract class AbstractInstalledToolChainIntegrationSpec extends AbstractIntegrationSpec {
+     static AvailableToolChains.InstalledToolChain toolChain
+     File initScript
+diff --git a/subprojects/platform-native/src/testFixtures/groovy/org/gradle/nativeplatform/fixtures/SingleToolChainTestRunner.java b/subprojects/platform-native/src/testFixtures/groovy/org/gradle/nativeplatform/fixtures/NativeToolChainTestInterceptor.java
+similarity index 88%
+rename from subprojects/platform-native/src/testFixtures/groovy/org/gradle/nativeplatform/fixtures/SingleToolChainTestRunner.java
+rename to subprojects/platform-native/src/testFixtures/groovy/org/gradle/nativeplatform/fixtures/NativeToolChainTestInterceptor.java
+index 9e4e47f0942c0..6afec7f5e17ed 100755
+--- a/subprojects/platform-native/src/testFixtures/groovy/org/gradle/nativeplatform/fixtures/SingleToolChainTestRunner.java
++++ b/subprojects/platform-native/src/testFixtures/groovy/org/gradle/nativeplatform/fixtures/NativeToolChainTestInterceptor.java
+@@ -19,9 +19,10 @@
+ 
+ package org.gradle.nativeplatform.fixtures;
+ 
+-import org.gradle.integtests.fixtures.AbstractMultiTestRunner;
++import org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor;
+ import org.gradle.util.Requires;
+ import org.gradle.util.TestPrecondition;
++import org.spockframework.runtime.extension.IMethodInvocation;
+ 
+ import java.util.Arrays;
+ import java.util.EnumSet;
+@@ -28,10 +29,10 @@
+ import java.util.EnumSet;
+ import java.util.List;
+ 
+-public class SingleToolChainTestRunner extends AbstractMultiTestRunner {
++public class NativeToolChainTestInterceptor extends AbstractMultiTestInterceptor {
+     private static final String TOOLCHAINS_SYSPROP_NAME = "org.gradle.integtest.cpp.toolChains";
+ 
+-    public SingleToolChainTestRunner(Class<? extends AbstractInstalledToolChainIntegrationSpec> target) {
++    public NativeToolChainTestInterceptor(Class<?> target) {
+         super(target);
+     }
+ 
+@@ -107,7 +108,12 @@ protected String getDisplayName() {
+             return toolChain.getDisplayName();
+         }
+ 
++        @Override
++        public String toString() {
++            return getDisplayName();
++        }
++
+         @Override
+-        protected boolean isTestEnabled(TestDetails testDetails) {
++        public boolean isTestEnabled(TestDetails testDetails) {
+             if (enabled) {
+                 RequiresInstalledToolChain toolChainRestriction = testDetails.getAnnotation(RequiresInstalledToolChain.class);
+@@ -118,7 +124,7 @@ protected void assertCanExecute() {
+         }
+ 
+         @Override
+-        protected void before() {
++        protected void before(IMethodInvocation invocation) {
+             System.out.println(String.format("Using tool chain %s", toolChain.getDisplayName()));
+             AbstractInstalledToolChainIntegrationSpec.setToolChain((AvailableToolChains.InstalledToolChain) toolChain);
+         }
+diff --git a/subprojects/platform-native/src/testFixtures/groovy/org/gradle/nativeplatform/fixtures/NativeToolchainTest.java b/subprojects/platform-native/src/testFixtures/groovy/org/gradle/nativeplatform/fixtures/NativeToolchainTest.java
+new file mode 100644
+index 0000000000000..f1439acac321e
+--- /dev/null
++++ b/subprojects/platform-native/src/testFixtures/groovy/org/gradle/nativeplatform/fixtures/NativeToolchainTest.java
+@@ -0,0 +1,32 @@
++/*
++ * Copyright 2021 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.gradle.nativeplatform.fixtures;
++
++import org.spockframework.runtime.extension.ExtensionAnnotation;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Inherited;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.TYPE)
++@ExtensionAnnotation(NativeToolchainTestExtension.class)
++@Inherited
++public @interface NativeToolchainTest {
++}
+diff --git a/subprojects/platform-native/src/testFixtures/groovy/org/gradle/nativeplatform/fixtures/NativeToolchainTestExtension.java b/subprojects/platform-native/src/testFixtures/groovy/org/gradle/nativeplatform/fixtures/NativeToolchainTestExtension.java
+new file mode 100644
+index 0000000000000..622a498076ce2
+--- /dev/null
++++ b/subprojects/platform-native/src/testFixtures/groovy/org/gradle/nativeplatform/fixtures/NativeToolchainTestExtension.java
+@@ -0,0 +1,28 @@
++/*
++ * Copyright 2021 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.gradle.nativeplatform.fixtures;
++
++import org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor;
++import org.gradle.integtests.fixtures.extensions.MultiTestExtension;
++
++public class NativeToolchainTestExtension extends MultiTestExtension<NativeToolchainTest> {
++
++    @Override
++    protected AbstractMultiTestInterceptor makeInterceptor(Class<?> testClass) {
++        return new NativeToolChainTestInterceptor(testClass);
++    }
++}
+diff --git a/subprojects/plugins/src/integTest/groovy/org/gradle/groovy/compile/BasicGroovyCompilerIntegrationSpec.groovy b/subprojects/plugins/src/integTest/groovy/org/gradle/groovy/compile/BasicGroovyCompilerIntegrationSpec.groovy
+index 4590aa3131bb4..0326e4f555e8e 100644
+--- a/subprojects/plugins/src/integTest/groovy/org/gradle/groovy/compile/BasicGroovyCompilerIntegrationSpec.groovy
++++ b/subprojects/plugins/src/integTest/groovy/org/gradle/groovy/compile/BasicGroovyCompilerIntegrationSpec.groovy
+@@ -37,7 +37,7 @@ abstract class BasicGroovyCompilerIntegrationSpec extends MultiVersionIntegratio
+     @Rule
+     TestResources resources = new TestResources(temporaryFolder)
+ 
+-    String groovyDependency = "org.codehaus.groovy:groovy-all:$version"
++    String groovyDependency
+ 
+     String getGroovyVersionNumber() {
+         version.split(":", 2)[0]
+@@ -47,6 +47,7 @@ abstract class BasicGroovyCompilerIntegrationSpec extends MultiVersionIntegratio
+     def setup() {
+         // necessary for picking up some of the output/errorOutput when forked executer is used
+         executer.withArgument("-i")
++        groovyDependency = "org.codehaus.groovy:groovy-all:$version"
+     }
+ 
+     def "compileGoodCode"() {
+diff --git a/subprojects/platform-play/src/testFixtures/groovy/org/gradle/play/integtest/fixtures/AbstractMultiVersionPlayContinuousBuildIntegrationTest.groovy b/subprojects/platform-play/src/testFixtures/groovy/org/gradle/play/integtest/fixtures/AbstractMultiVersionPlayContinuousBuildIntegrationTest.groovy
+index 675a315dc5237..6ef64177c5dde 100644
+--- a/subprojects/platform-play/src/testFixtures/groovy/org/gradle/play/integtest/fixtures/AbstractMultiVersionPlayContinuousBuildIntegrationTest.groovy
++++ b/subprojects/platform-play/src/testFixtures/groovy/org/gradle/play/integtest/fixtures/AbstractMultiVersionPlayContinuousBuildIntegrationTest.groovy
+@@ -17,13 +17,12 @@
+ package org.gradle.play.integtest.fixtures
+ 
+ import org.gradle.api.JavaVersion
+-import org.gradle.integtests.fixtures.MultiVersionSpecRunner
+ import org.gradle.integtests.fixtures.TargetCoverage
++import org.gradle.integtests.fixtures.compatibility.MultiVersionTest
+ import org.gradle.util.VersionNumber
+-import org.junit.runner.RunWith
+ 
+-@RunWith(MultiVersionSpecRunner)
+ @TargetCoverage({ JavaVersion.current().isJava8Compatible() ? PlayCoverage.ALL : PlayCoverage.PLAY23_OR_EARLIER })
++@MultiVersionTest
+ abstract class AbstractMultiVersionPlayContinuousBuildIntegrationTest extends AbstractPlayContinuousBuildIntegrationTest {
+     static def version
+ 
+diff --git a/subprojects/soak/src/testFixtures/groovy/org/gradle/launcher/daemon/fixtures/DaemonMultiJdkIntegrationTest.groovy b/subprojects/soak/src/testFixtures/groovy/org/gradle/launcher/daemon/fixtures/DaemonMultiJdkIntegrationTest.groovy
+index cc801b78f2bd3..49755ab9691a9 100644
+--- a/subprojects/soak/src/testFixtures/groovy/org/gradle/launcher/daemon/fixtures/DaemonMultiJdkIntegrationTest.groovy
++++ b/subprojects/soak/src/testFixtures/groovy/org/gradle/launcher/daemon/fixtures/DaemonMultiJdkIntegrationTest.groovy
+@@ -18,7 +18,7 @@ package org.gradle.launcher.daemon.fixtures
+ 
+ 
+ import org.gradle.api.specs.Spec
+-import org.gradle.integtests.fixtures.MultiVersionSpecRunner
++import org.gradle.integtests.fixtures.compatibility.MultiVersionTest
+ import org.gradle.integtests.fixtures.daemon.DaemonIntegrationSpec
+ import org.gradle.internal.jvm.JavaInfo
+ import org.gradle.internal.jvm.inspection.JvmInstallationMetadata
+@@ -27,15 +27,14 @@ import org.gradle.util.VersionNumber
+ import org.junit.Rule
+ import org.junit.rules.TestRule
+ import org.junit.runner.Description
+-import org.junit.runner.RunWith
+ import org.junit.runners.model.Statement
+ 
+ import java.util.regex.Matcher
+ import java.util.regex.Pattern
+ 
+ import static org.gradle.integtests.fixtures.AvailableJavaHomes.getAvailableJdk
+ 
+-@RunWith(MultiVersionSpecRunner)
++@MultiVersionTest
+ class DaemonMultiJdkIntegrationTest extends DaemonIntegrationSpec {
+     static def version
+     @Rule IgnoreIfJdkNotFound ignoreRule = new IgnoreIfJdkNotFound()
+diff --git a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/BaseGradleRunnerIntegrationTest.groovy b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/BaseGradleRunnerIntegrationTest.groovy
+index 298122467dcec..195345069cca4 100644
+--- a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/BaseGradleRunnerIntegrationTest.groovy
++++ b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/BaseGradleRunnerIntegrationTest.groovy
+@@ -19,7 +19,6 @@ package org.gradle.testkit.runner
+ 
+ import groovy.transform.Sortable
+ import org.gradle.integtests.fixtures.AbstractIntegrationSpec
+-import org.gradle.integtests.fixtures.AbstractMultiTestRunner
+ import org.gradle.integtests.fixtures.daemon.DaemonLogsAnalyzer
+ import org.gradle.integtests.fixtures.daemon.DaemonsFixture
+ import org.gradle.integtests.fixtures.executer.ExecutionFailure
+@@ -29,6 +28,7 @@ import org.gradle.integtests.fixtures.executer.GradleDistribution
+ import org.gradle.integtests.fixtures.executer.IntegrationTestBuildContext
+ import org.gradle.integtests.fixtures.executer.OutputScrapingExecutionFailure
+ import org.gradle.integtests.fixtures.executer.OutputScrapingExecutionResult
++import org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor
+ import org.gradle.integtests.fixtures.versions.ReleasedVersionDistributions
+ import org.gradle.internal.jvm.Jvm
+ import org.gradle.internal.nativeintegration.services.NativeServices
+@@ -51,7 +51,7 @@ import org.gradle.util.GradleVersion
+ import org.gradle.util.SetSystemProperties
+ import org.gradle.wrapper.GradleUserHomeLookup
+ import org.junit.Rule
+-import org.junit.runner.RunWith
++import org.spockframework.runtime.extension.IMethodInvocation
+ import spock.lang.Retry
+ 
+ import java.lang.annotation.Annotation
+ @@ -57,7 +57,7 @@
+ import static org.gradle.testkit.runner.internal.ToolingApiGradleExecutor.TEST_KIT_DAEMON_DIR_NAME
+ import static spock.lang.Retry.Mode.SETUP_FEATURE_CLEANUP
+ 
+-@RunWith(Runner)
++@GradleRunnerTest
+ @Retry(condition = { onIssueWithReleasedGradleVersion(instance, failure) }, mode = SETUP_FEATURE_CLEANUP, count = 2)
+ abstract class BaseGradleRunnerIntegrationTest extends AbstractIntegrationSpec {
+ 
+@@ -191,7 +191,7 @@ abstract class BaseGradleRunnerIntegrationTest extends AbstractIntegrationSpec {
+         return desiredGradleVersion
+     }
+ 
+-    static class Runner extends AbstractMultiTestRunner {
++    static class Interceptor extends AbstractMultiTestInterceptor {
+ 
+         private static final Map<Class<? extends Annotation>, GradleVersion> MINIMUM_VERSIONS_BY_ANNOTATIONS = [
+             (InspectsExecutedTasks): TestKitFeature.CAPTURE_BUILD_RESULT_TASKS.since,
+@@ -207,7 +207,7 @@ abstract class BaseGradleRunnerIntegrationTest extends AbstractIntegrationSpec {
+         private static final String COMPATIBILITY_SYSPROP_NAME = 'org.gradle.integtest.testkit.compatibility'
+         private static final ReleasedVersionDistributions RELEASED_VERSION_DISTRIBUTIONS = new ReleasedVersionDistributions()
+ 
+-        Runner(Class<?> target) {
++        Interceptor(Class<?> target) {
+             super(target)
+         }
+ 
+@@ -304,15 +307,20 @@
+             }
+ 
+             @Override
+-            protected void before() {
+-                super.before()
++            String toString() {
++                return getDisplayName()
++            }
++
++            @Override
++            protected void before(IMethodInvocation invocation) {
++                super.before(invocation)
+                 BaseGradleRunnerIntegrationTest.debug = debug
+-                BaseGradleRunnerIntegrationTest.gradleVersion = testedGradleDistribution.gradleVersion
+-                BaseGradleRunnerIntegrationTest.gradleProvider = testedGradleDistribution.gradleProvider
++                gradleVersion = testedGradleDistribution.gradleVersion
++                gradleProvider = testedGradleDistribution.gradleProvider
+             }
+ 
+             @Override
+-            protected boolean isTestEnabled(AbstractMultiTestRunner.TestDetails testDetails) {
++            boolean isTestEnabled(AbstractMultiTestInterceptor.TestDetails testDetails) {
+                 def gradleVersion = testedGradleDistribution.gradleVersion
+ 
+                 if (testDetails.getAnnotation(InjectsPluginClasspath)) {
+@@ -327,7 +327,7 @@ abstract class BaseGradleRunnerIntegrationTest extends AbstractIntegrationSpec {
+ 
+         }
+ 
+-        private static class IgnoredGradleRunnerExecution extends AbstractMultiTestRunner.Execution {
++        private static class IgnoredGradleRunnerExecution extends AbstractMultiTestInterceptor.Execution {
+ 
+             private final TestedGradleDistribution testedGradleDistribution
+             private final String reason
+@@ -343,12 +343,17 @@ abstract class BaseGradleRunnerIntegrationTest extends AbstractIntegrationSpec {
+             }
+ 
+             @Override
+-            protected boolean isTestEnabled(AbstractMultiTestRunner.TestDetails testDetails) {
++            String toString() {
++                return getDisplayName()
++            }
++
++            @Override
++            boolean isTestEnabled(AbstractMultiTestInterceptor.TestDetails testDetails) {
+                 false
+             }
+         }
+ 
+-        private static class GradleRunnerExecution extends AbstractMultiTestRunner.Execution {
++        private static class GradleRunnerExecution extends AbstractMultiTestInterceptor.Execution {
+ 
+             protected final boolean debug
+             private final TestedGradleDistribution testedGradleDistribution
+diff --git a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerTest.java b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerTest.java
+new file mode 100644
+index 0000000000000..98ca5b4f3a3a7
+--- /dev/null
++++ b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerTest.java
+@@ -0,0 +1,32 @@
++/*
++ * Copyright 2020 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.gradle.testkit.runner;
++
++import org.spockframework.runtime.extension.ExtensionAnnotation;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Inherited;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.TYPE)
++@ExtensionAnnotation(GradleRunnerTestExtension.class)
++@Inherited
++public @interface GradleRunnerTest {
++}
+diff --git a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerTestExtension.java b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerTestExtension.java
+new file mode 100644
+index 0000000000000..f0c78b511cc28
+--- /dev/null
++++ b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerTestExtension.java
+@@ -0,0 +1,28 @@
++/*
++ * Copyright 2020 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.gradle.testkit.runner;
++
++import org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor;
++import org.gradle.integtests.fixtures.extensions.MultiTestExtension;
++
++public class GradleRunnerTestExtension extends MultiTestExtension<GradleRunnerTest> {
++
++    @Override
++    protected AbstractMultiTestInterceptor makeInterceptor(Class<?> testClass) {
++        return new BaseGradleRunnerIntegrationTest.Interceptor(testClass);
++    }
++}
+diff --git a/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/junit/JUnitFilteringIntegrationTest.groovy b/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/junit/JUnitFilteringIntegrationTest.groovy
+index 1b6fd380d4ef6..94b71d58baa1c 100644
+--- a/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/junit/JUnitFilteringIntegrationTest.groovy
++++ b/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/junit/JUnitFilteringIntegrationTest.groovy
+@@ -30,15 +30,25 @@ import static org.gradle.testing.fixture.JUnitMultiVersionIntegrationSpec.*
+ class JUnitFilteringIntegrationTest extends AbstractTestFilteringIntegrationTest {
+ 
+     void configureFramework() {
+-        if (version.toString().startsWith('Vintage')) {
+-            framework = "JUnitPlatform"
+-            dependency = "org.junit.vintage:junit-vintage-engine"
+-        } else {
+-            framework = "JUnit"
+-            dependency = "junit:junit"
+-        }
+         imports = "org.junit.*"
+     }
++
++    @Override
++    String getFramework() {
++        return version.toString().startsWith('Vintage') ? "JUnitPlatform" : "JUnit"
++    }
++
++    @Override
++    String getDependency() {
++        if (version.toString().startsWith('Vintage')) {
++            """
++                testCompileOnly 'junit:junit:4.13'
++                testRuntimeOnly 'org.junit.vintage:junit-vintage-engine:${dependencyVersion}'
++            """
++        } else {
++            "testImplementation 'junit:junit:${dependencyVersion}'"
++        }
++    }
+ 
+     void theParameterizedFiles() {
+         file("src/test/java/ParameterizedFoo.java") << """import $imports;
+diff --git a/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/testng/TestNGFilteringIntegrationTest.groovy b/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/testng/TestNGFilteringIntegrationTest.groovy
+index da4ac3298f2b9..dcc9a74d9238f 100644
+--- a/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/testng/TestNGFilteringIntegrationTest.groovy
++++ b/subprojects/testing-jvm/src/integTest/groovy/org/gradle/testing/testng/TestNGFilteringIntegrationTest.groovy
+@@ -26,13 +26,17 @@ import spock.lang.Issue
+ import spock.lang.Issue
+ 
+ @TargetCoverage({TestNGCoverage.STANDARD_COVERAGE})
+-public class TestNGFilteringIntegrationTest extends AbstractTestFilteringIntegrationTest {
++class TestNGFilteringIntegrationTest extends AbstractTestFilteringIntegrationTest {
+ 
+     void configureFramework() {
+         framework = "TestNG"
+-        dependency = "org.testng:testng"
+         imports = "org.testng.annotations.*"
+     }
++
++    @Override
++    String getDependency() {
++        return "testImplementation 'org.testng:testng:${dependencyVersion}'"
++    }
+ 
+     void theUsualFiles() {
+         buildFile << """
+diff --git a/subprojects/tooling-api/src/integTest/groovy/org/gradle/integtests/tooling/ToolingApiClasspathIntegrationTest.groovy b/subprojects/tooling-api/src/integTest/groovy/org/gradle/integtests/tooling/ToolingApiClasspathIntegrationTest.groovy
+index 5002704e08aef..68cb3c58a6808 100644
+--- a/subprojects/tooling-api/src/integTest/groovy/org/gradle/integtests/tooling/ToolingApiClasspathIntegrationTest.groovy
++++ b/subprojects/tooling-api/src/integTest/groovy/org/gradle/integtests/tooling/ToolingApiClasspathIntegrationTest.groovy
+@@ -31,8 +31,5 @@ class ToolingApiClasspathIntegrationTest extends AbstractIntegrationSpec {
+         resolve.classpath.size() == 2
+         resolve.classpath.any {it.name ==~ /slf4j-api-.*\.jar/}
+         resolve.classpath.find { it.name ==~ /gradle-tooling-api.*\.jar/ }.size() < 1.7 * 1024 * 1024
+-
+-        cleanup:
+-        resolver.stop()
+     }
+ }
+diff --git a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/CrossVersionTestEngine.java b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/CrossVersionTestEngine.java
+new file mode 100644
+index 0000000000000..717456faa4d4f
+--- /dev/null
++++ b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/CrossVersionTestEngine.java
+@@ -0,0 +1,234 @@
++/*
++ * Copyright 2021 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.gradle.integtests.tooling.fixture;
++
++import org.gradle.integtests.fixtures.compatibility.CoverageContext;
++import org.gradle.integtests.fixtures.executer.IntegrationTestBuildContext;
++import org.gradle.integtests.fixtures.versions.ReleasedVersionDistributions;
++import org.gradle.internal.Cast;
++import org.gradle.internal.Factory;
++import org.gradle.internal.SystemProperties;
++import org.gradle.testfixtures.internal.NativeServicesTestFixture;
++import org.gradle.util.GradleVersion;
++import org.junit.platform.engine.ConfigurationParameters;
++import org.junit.platform.engine.DiscoveryFilter;
++import org.junit.platform.engine.DiscoverySelector;
++import org.junit.platform.engine.EngineDiscoveryListener;
++import org.junit.platform.engine.EngineDiscoveryRequest;
++import org.junit.platform.engine.ExecutionRequest;
++import org.junit.platform.engine.TestDescriptor;
++import org.junit.platform.engine.TestEngine;
++import org.junit.platform.engine.UniqueId;
++import org.junit.platform.engine.discovery.ClassSelector;
++import org.junit.platform.engine.discovery.DiscoverySelectors;
++import org.junit.platform.engine.support.descriptor.EngineDescriptor;
++import org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine;
++import org.spockframework.runtime.RunContext;
++import org.spockframework.runtime.SpockEngine;
++import org.spockframework.runtime.SpockEngineDescriptor;
++import org.spockframework.runtime.SpockExecutionContext;
++
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++
++import static org.gradle.integtests.fixtures.compatibility.MultiVersionTestInterceptor.VERSIONS_SYSPROP_NAME;
++
++
++public class CrossVersionTestEngine extends HierarchicalTestEngine<SpockExecutionContext> {
++
++    private final TestEngine delegateEngine = new SpockEngine();
++    private final List<TestVariant> variants = new ArrayList<TestVariant>();
++
++    @Override
++    public String getId() {
++        return "cross-version-test-engine";
++    }
++
++    @Override
++    public TestDescriptor discover(EngineDiscoveryRequest discoveryRequest, UniqueId uniqueId) {
++        String crossVersionTest = System.getProperty("org.gradle.integtest.crossVersion");
++        if (crossVersionTest == null) {
++            return new EngineDescriptor(uniqueId, "skip");
++        }
++
++        buildTestVariants(uniqueId, discoveryRequest);
++        return discoverTests(uniqueId);
++    }
++
++    @Override
++    protected SpockExecutionContext createExecutionContext(ExecutionRequest request) {
++        return new SpockExecutionContext(request.getEngineExecutionListener());
++    }
++
++    private void buildTestVariants(UniqueId rootId, EngineDiscoveryRequest discoveryRequest) {
++        variants.add(TestVariant.tapiCurrent(rootId, discoveryRequest));
++        variants.add(TestVariant.selected(rootId, discoveryRequest));
++        variants.add(TestVariant.tapiTargetLoaded(rootId, discoveryRequest));
++    }
++
++    private TestDescriptor discoverTests(UniqueId uniqueId) {
++        EngineDescriptor rootDescriptor = new SpockEngineDescriptor(uniqueId, RunContext.get());
++        for (TestVariant testVariant : variants) {
++            for (TestDescriptor test : testVariant.discover(delegateEngine).getChildren()) {
++                rootDescriptor.addChild(test);
++            }
++        }
++        return rootDescriptor;
++    }
++}
++
++class TestVariant {
++    private final UniqueId id;
++    private final EngineDiscoveryRequest discoveryRequest;
++    private String systemPropertyKey = "unused"; private String systemPropertyValue = "unused";
++
++    static TestVariant tapiCurrent(UniqueId rootId, EngineDiscoveryRequest discoveryRequest) {
++        TestVariant testVariant = new TestVariant(rootId, "tapiCurrent", new ToolingApiCurrentDiscoveryRequest(discoveryRequest));
++        testVariant.systemPropertyKey = VERSIONS_SYSPROP_NAME; testVariant.systemPropertyValue = CoverageContext.DEFAULT.selector;
++        return testVariant;
++    }
++
++    static TestVariant selected(UniqueId rootId, EngineDiscoveryRequest discoveryRequest) {
++        return new TestVariant(rootId, "selected", discoveryRequest);
++    }
++
++    static TestVariant tapiTargetLoaded(UniqueId rootId, EngineDiscoveryRequest discoveryRequest) {
++        TestVariant testVariant = new TestVariant(rootId, "tapi", new ToolingApiClassloaderDiscoveryRequest(discoveryRequest));
++        testVariant.systemPropertyKey = "org.gradle.integtest.currentVersion"; testVariant.systemPropertyValue = GradleVersion.current().getVersion();
++        return testVariant;
++    }
++
++    private TestVariant(UniqueId rootId, String variant, EngineDiscoveryRequest request) {
++        this.id = rootId.append("variant", variant);
++        this.discoveryRequest = request;
++    }
++
++    TestDescriptor discover(final TestEngine discoveryEngine) {
++        return SystemProperties.getInstance().withSystemProperty(systemPropertyKey, systemPropertyValue, new Factory<TestDescriptor>() {
++            @Override
++            public TestDescriptor create() {
++                return discoveryEngine.discover(discoveryRequest, id);
++            }
++        });
++    }
++}
++
++class DelegatingDiscoveryRequest implements EngineDiscoveryRequest {
++    private final EngineDiscoveryRequest delegate;
++    private final List<ClassSelector> selectors = new ArrayList<ClassSelector>();
++
++    DelegatingDiscoveryRequest(EngineDiscoveryRequest delegate) {
++        this.delegate = delegate;
++    }
++
++    void addSelector(ClassSelector selector) {
++        selectors.add(selector);
++    }
++
++    @Override
++    public <T extends DiscoverySelector> List<T> getSelectorsByType(Class<T> selectorType) {
++        if (!selectorType.isAssignableFrom(ClassSelector.class)) {
++            return Collections.emptyList();
++        }
++        return Cast.uncheckedCast(selectors);
++    }
++
++    @Override
++    public <T extends DiscoveryFilter<?>> List<T> getFiltersByType(Class<T> filterType) {
++        return delegate.getFiltersByType(filterType);
++    }
++
++    @Override
++    public ConfigurationParameters getConfigurationParameters() {
++        return delegate.getConfigurationParameters();
++    }
++
++    public EngineDiscoveryListener getDiscoveryListener() {
++        return delegate.getDiscoveryListener();
++    }
++}
++
++class ToolingApiClassloaderDiscoveryRequest extends DelegatingDiscoveryRequest {
++
++    private static final GradleVersion MIN_LOADABLE_TAPI_VERSION = GradleVersion.version("2.6");
++
++    private ToolingApiDistribution toolingApi;
++
++    ToolingApiClassloaderDiscoveryRequest(EngineDiscoveryRequest delegate) {
++        super(delegate);
++        String toolingApiVersionToLoad = getToolingApiVersionToLoad();
++        if (toolingApiVersionToLoad == null) {
++            return;
++        }
++
++        // This is necessary because for the Tooling Api cross version tests, NativeServices
++        // can get initialized in a different classloader, which then makes it broken and unusable
++        // in the test class (because the native shared library is loaded from another classloader).
++        // By initializing it here, we ensure that it is loaded from the classloader the test engine
++        // also uses.
++        NativeServicesTestFixture.initialize();
++
++        for (ClassSelector selector : delegate.getSelectorsByType(ClassSelector.class)) {
++            if (ToolingApiSpecification.class.isAssignableFrom(selector.getJavaClass())) {
++                ClassLoader classLoader = ToolingApiClassLoaderProvider.getToolingApiClassLoader(getToolingApi(toolingApiVersionToLoad), selector.getJavaClass());
++                try {
++                    addSelector(DiscoverySelectors.selectClass(classLoader.loadClass(selector.getClassName())));
++                } catch (ClassNotFoundException e) {
++                    throw new RuntimeException(e);
++                }
++            }
++        }
++    }
++
++    private ToolingApiDistribution getToolingApi(String versionToTestAgainst) {
++        if (toolingApi == null) {
++            toolingApi = new ToolingApiDistributionResolver().withDefaultRepository().resolve(versionToTestAgainst);
++        }
++        return toolingApi;
++    }
++
++    private String getToolingApiVersionToLoad() {
++        String candidateTapiVersion = System.getProperty(VERSIONS_SYSPROP_NAME);
++        if (CoverageContext.LATEST.selector.equals(candidateTapiVersion)) {
++            ReleasedVersionDistributions releasedVersions = new ReleasedVersionDistributions(IntegrationTestBuildContext.INSTANCE);
++            return releasedVersions.getMostRecentRelease().getVersion().getVersion();
++        }
++        if (GradleVersion.version(candidateTapiVersion).compareTo(MIN_LOADABLE_TAPI_VERSION) >= 0) {
++            return candidateTapiVersion;
++        }
++        return null;
++    }
++}
++
++class ToolingApiCurrentDiscoveryRequest extends DelegatingDiscoveryRequest {
++
++    ToolingApiCurrentDiscoveryRequest(EngineDiscoveryRequest delegate) {
++        super(delegate);
++        String candidateTapiVersion = System.getProperty(VERSIONS_SYSPROP_NAME);
++        if (!CoverageContext.LATEST.selector.equals(candidateTapiVersion)) {
++            return;
++        }
++        for (ClassSelector selector : delegate.getSelectorsByType(ClassSelector.class)) {
++            if (ToolingApiSpecification.class.isAssignableFrom(selector.getJavaClass())) {
++                addSelector(DiscoverySelectors.selectClass(selector.getJavaClass()));
++            }
++        }
++    }
++}
+diff --git a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/GradleVersionSpec.java b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/GradleVersionSpec.java
+index 280d86fb8f598..d308eb79a9f39 100644
+--- a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/GradleVersionSpec.java
++++ b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/GradleVersionSpec.java
+@@ -16,8 +16,6 @@
+ 
+ package org.gradle.integtests.tooling.fixture;
+ 
+-import org.gradle.api.specs.Spec;
+-import org.gradle.api.specs.Specs;
+ import org.gradle.util.GradleVersion;
+ 
+ import java.util.ArrayList;
+diff --git a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/Specs.java b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/Specs.java
+new file mode 100644
+index 0000000000000..35e261fb1e3fa
+--- /dev/null
++++ b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/Specs.java
+@@ -0,0 +1,108 @@
++/*
++ * Copyright 2021 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package org.gradle.integtests.tooling.fixture;
++
++import org.gradle.internal.Cast;
++
++import java.util.ArrayList;
++import java.util.Collection;
++import java.util.List;
++
++/**
++ * This interface is copied and trimmed from org.gradle.api.specs.Spec because older versions of Tooling API have issues with
++ * the original due to different versions of classes loaded.
++ *
++ */
++interface Spec<T> {
++    boolean isSatisfiedBy(T element);
++}
++
++/**
++ * This class is copied and trimmed from org.gradle.api.specs.Specs because older versions of Tooling API have issues with
++ * the original due to different versions of classes loaded.
++ */
++class Specs {
++
++    public static final Spec<Object> SATISFIES_ALL = new Spec<Object>() {
++        @Override
++        public boolean isSatisfiedBy(Object element) {
++            return true;
++        }
++    };
++
++    public static <T> Spec<T> satisfyAll() {
++        return Cast.uncheckedCast(SATISFIES_ALL);
++    }
++
++    public static final Spec<Object> SATISFIES_NONE = new Spec<Object>() {
++        @Override
++        public boolean isSatisfiedBy(Object element) {
++            return false;
++        }
++    };
++
++    public static <T> Spec<T> satisfyNone() {
++        return Cast.uncheckedCast(SATISFIES_NONE);
++    }
++
++    /**
++     * Returns a spec that selects the intersection of those items selected by the given specs. Returns a spec that selects everything when no specs provided.
++     */
++    public static <T> Spec<T> intersect(Collection<? extends Spec<T>> specs) {
++        if (specs.size() == 0) {
++            return satisfyAll();
++        }
++        return doIntersect(specs);
++    }
++
++    private static <T> Spec<T> doIntersect(Collection<? extends Spec<T>> specs) {
++        List<Spec<T>> filtered = new ArrayList<Spec<T>>(specs.size());
++        for (Spec<T> spec : specs) {
++            if (spec == SATISFIES_NONE) {
++                return satisfyNone();
++            }
++            if (spec != SATISFIES_ALL) {
++                filtered.add(spec);
++            }
++        }
++        if (filtered.size() == 0) {
++            return satisfyAll();
++        }
++        if (filtered.size() == 1) {
++            return Cast.uncheckedCast(filtered.get(0));
++        }
++        return new AndSpec<T>(filtered);
++    }
++}
++
++class AndSpec<T> implements Spec<T> {
++
++    private final List<Spec<? super T>> specs;
++
++    public AndSpec(List<Spec<T>> specs) {
++        this.specs = new ArrayList<Spec<? super T>>(specs);
++    }
++
++    @Override
++    public boolean isSatisfiedBy(T object) {
++        for (Spec<? super T> spec : specs) {
++            if (!spec.isSatisfiedBy(object)) {
++                return false;
++            }
++        }
++        return true;
++    }
++}
+diff --git a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/TestClasspathToolingApiDistribution.groovy b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/TestClasspathToolingApiDistribution.groovy
+index 92cc0c468556f..5892cca4b6fa0 100644
+--- a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/TestClasspathToolingApiDistribution.groovy
++++ b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/TestClasspathToolingApiDistribution.groovy
+@@ -24,7 +24,7 @@ class TestClasspathToolingApiDistribution implements ToolingApiDistribution {
+     }
+ 
+     Collection<File> getClasspath() {
+-        null
++        Collections.emptyList()
+     }
+ 
+     ClassLoader getClassLoader() {
+diff --git a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApi.groovy b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApi.groovy
+index 07045903fbe00..2c69b4c8c824e 100644
+--- a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApi.groovy
++++ b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApi.groovy
+@@ -63,6 +63,10 @@ class ToolingApi implements TestRule {
+         this.testWorkDirProvider = testWorkDirProvider
+     }
+ 
++    void setDist(GradleDistribution dist) {
++        this.dist = dist
++    }
++
+     /**
+      * Specifies that the test use its own Gradle user home dir and daemon registry.
+      */
+diff --git a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiClasspathProvider.groovy b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiClassLoaderProvider.groovy
+similarity index 60%
+rename from subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiClasspathProvider.groovy
+rename to subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiClassLoaderProvider.groovy
+index 7427eaf25626a..ba6de7917212e 100644
+--- a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiClasspathProvider.groovy
++++ b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiClassLoaderProvider.groovy
+@@ -17,7 +17,10 @@
+ package org.gradle.integtests.tooling.fixture
+ 
+ import org.apache.commons.io.output.TeeOutputStream
+-import org.gradle.api.Action
++import org.gradle.integtests.fixtures.executer.GradleDistribution
++import org.gradle.integtests.fixtures.executer.IntegrationTestBuildContext
++import org.gradle.integtests.fixtures.executer.UnderDevelopmentGradleDistribution
++import org.gradle.internal.classloader.ClasspathUtil
+ import org.gradle.internal.classloader.DefaultClassLoaderFactory
+ import org.gradle.internal.classloader.FilteringClassLoader
+ import org.gradle.internal.classloader.MultiParentClassLoader
+@@ -28,23 +31,30 @@ import org.gradle.util.Requires
+ import org.gradle.util.SetSystemProperties
+ import org.gradle.util.TestPrecondition
+ 
+-trait ToolingApiClasspathProvider {
+-    ClassLoader getTestClassLoader(
+-        Map<String, ClassLoader> cache,
+-        ToolingApiDistribution toolingApi,
+-        List<File> testClasspath,
+-        Action<? super FilteringClassLoader.Spec> classpathConfigurer) {
+-        synchronized(ToolingApiClasspathProvider) {
+-            def classLoader = cache.get(toolingApi.version.version)
++class ToolingApiClassLoaderProvider {
++    private static final Map<String, ClassLoader> TEST_CLASS_LOADERS = [:]
++    private static final GradleDistribution CURRENT_GRADLE = new UnderDevelopmentGradleDistribution(IntegrationTestBuildContext.INSTANCE)
++
++    static ClassLoader getToolingApiClassLoader(ToolingApiDistribution toolingApi, Class<?> target) {
++        List<File> testClassPath = []
++        testClassPath << ClasspathUtil.getClasspathForClass(ToolingApiSpecification)
++        testClassPath << ClasspathUtil.getClasspathForClass(target)
++
++        getTestClassLoader(toolingApi, testClassPath)
++    }
++
++    private static ClassLoader getTestClassLoader(ToolingApiDistribution toolingApi, List<File> testClasspath) {
++        synchronized(ToolingApiClassLoaderProvider) {
++            def classLoader = TEST_CLASS_LOADERS.get(toolingApi.version.version)
+             if (!classLoader) {
+-                classLoader = createTestClassLoader(toolingApi, classpathConfigurer, testClasspath)
+-                cache.put(toolingApi.version.version, classLoader)
++                classLoader = createTestClassLoader(toolingApi, testClasspath)
++                TEST_CLASS_LOADERS.put(toolingApi.version.version, classLoader)
+             }
+             return classLoader
+         }
+     }
+ 
+-    private ClassLoader createTestClassLoader(ToolingApiDistribution toolingApi, Action<? super FilteringClassLoader.Spec> classpathConfigurer, List<File> testClassPath) {
++    private static ClassLoader createTestClassLoader(ToolingApiDistribution toolingApi, List<File> testClassPath) {
+         def classLoaderFactory = new DefaultClassLoaderFactory()
+ 
+         def sharedSpec = new FilteringClassLoader.Spec()
+@@ -65,6 +86,7 @@ trait ToolingApiClasspathProvider {
+         sharedSpec.allowPackage('org.gradle.language.fixtures')
+         sharedSpec.allowPackage('org.gradle.workers.fixtures')
+         sharedSpec.allowPackage('org.gradle.launcher.daemon.testing')
++        sharedSpec.allowPackage('org.gradle.tooling')
+         sharedSpec.allowClass(OperatingSystem)
+         sharedSpec.allowClass(Requires)
+         sharedSpec.allowClass(TestPrecondition)
+@@ -72,8 +94,7 @@ trait ToolingApiClasspathProvider {
+         sharedSpec.allowClass(ToolingApiVersion)
+         sharedSpec.allowClass(TeeOutputStream)
+         sharedSpec.allowClass(ClassLoaderFixture)
+-        classpathConfigurer.execute(sharedSpec)
+-        def sharedClassLoader = classLoaderFactory.createFilteringClassLoader(getClass().classLoader, sharedSpec)
++        def sharedClassLoader = classLoaderFactory.createFilteringClassLoader(Thread.currentThread().getContextClassLoader(), sharedSpec)
+ 
+         def parentClassLoader = new MultiParentClassLoader(toolingApi.classLoader, sharedClassLoader)
+ 
+diff --git a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiCompatibilitySuiteRunner.groovy b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiCompatibilityTestInterceptor.groovy
+rename from subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiCompatibilitySuiteRunner.groovy
+rename to subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiCompatibilityTestInterceptor.groovy
+--- a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiCompatibilitySuiteRunner.groovy
++++ b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiCompatibilityTestInterceptor.groovy
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2016 the original author or authors.
++ * Copyright 2020 the original author or authors.
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+@@ -13,13 +13,16 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
++
+ package org.gradle.integtests.tooling.fixture
++
+-import org.gradle.integtests.fixtures.AbstractCompatibilityTestRunner
++import org.gradle.integtests.fixtures.compatibility.AbstractCompatibilityTestInterceptor
++import org.gradle.integtests.fixtures.compatibility.CoverageContext
+ import org.gradle.integtests.fixtures.executer.GradleDistribution
+ import org.gradle.integtests.fixtures.versions.ReleasedVersionDistributions
+ 
+-class ToolingApiCompatibilitySuiteRunner extends AbstractCompatibilityTestRunner {
++class ToolingApiCompatibilityTestInterceptor extends AbstractCompatibilityTestInterceptor {
+-    ToolingApiCompatibilitySuiteRunner(Class<? extends ToolingApiSpecification> target) {
++    protected ToolingApiCompatibilityTestInterceptor(Class<?> target) {
+         super(target)
+     }
+ 
+@@ -23,18 +23,13 @@
+     @Override
+     protected void createExecutions() {
+-        def resolver = new ToolingApiDistributionResolver().withDefaultRepository()
+-        try {
+             if (implicitVersion) {
+-                add(new ToolingApiExecution(resolver.resolve(current.version.version), current))
++                add(new ToolingApiExecution(current, current))
+             }
+             previous.each {
+                 if (it.toolingApiSupported) {
+-                    add(new ToolingApiExecution(resolver.resolve(current.version.version), it))
+-                    add(new ToolingApiExecution(resolver.resolve(it.version.version), current))
++                    add(new ToolingApiExecution(current, it))
++                    add(new ToolingApiExecution(it, current))
+                 }
+             }
+-        } finally {
+-            resolver.stop()
+-        }
+     }
+ }
+diff --git a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiDistribution.groovy b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiDistribution.groovy
+index de13481db68ba..7fcf13150a51d 100644
+--- a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiDistribution.groovy
++++ b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiDistribution.groovy
+@@ -18,10 +18,8 @@ package org.gradle.integtests.tooling.fixture
+ 
+ import org.gradle.util.GradleVersion
+ 
+-import javax.annotation.Nullable
+-
+ interface ToolingApiDistribution {
+     GradleVersion getVersion()
+-    @Nullable Collection<File> getClasspath()
++    Collection<File> getClasspath()
+     ClassLoader getClassLoader()
+ }
+diff --git a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiExecution.groovy b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiExecution.groovy
+index e4836f08f8724..95456bfaf213f 100644
+--- a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiExecution.groovy
++++ b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiExecution.groovy
+@@ -16,29 +16,55 @@
+ 
+ package org.gradle.integtests.tooling.fixture
+ 
+-import org.gradle.api.specs.Spec
+-import org.gradle.api.specs.Specs
+-import org.gradle.integtests.fixtures.AbstractMultiTestRunner
+ import org.gradle.integtests.fixtures.executer.GradleDistribution
+-import org.gradle.internal.classloader.ClasspathUtil
++import org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor
+ import org.gradle.internal.os.OperatingSystem
+ import org.gradle.util.GradleVersion
+-import spock.lang.Unroll
++import org.spockframework.runtime.extension.IMethodInvocation
+ 
+-class ToolingApiExecution extends AbstractMultiTestRunner.Execution implements ToolingApiClasspathProvider {
+-    private static final Map<String, ClassLoader> TEST_CLASS_LOADERS = [:]
++class ToolingApiExecution extends AbstractMultiTestInterceptor.Execution {
+ 
+-    final ToolingApiDistribution toolingApi
++    private static final GradleVersion INSTALLATION_GRADLE_VERSION
++
++    static  {
++        // If we are testing a non-current tooling API version, we will have loaded the class using its classloader and thus
++        // GradleVersion.current() will report that version. In order to set up the testing infrastructure, we need to
++        // know the version of Gradle being built
++        def currentVersionOverride = System.getProperty("org.gradle.integtest.currentVersion")
++        if (currentVersionOverride != null) {
++            INSTALLATION_GRADLE_VERSION = GradleVersion.version(currentVersionOverride)
++        } else {
++            INSTALLATION_GRADLE_VERSION = GradleVersion.current()
++        }
++    }
++
++    final GradleDistribution toolingApi
+     final GradleDistribution gradle
+ 
+-    ToolingApiExecution(ToolingApiDistribution toolingApi, GradleDistribution gradle) {
+-        this.toolingApi = toolingApi
+-        this.gradle = gradle
++    private final GradleVersion toolingApiVersion
++    private final GradleVersion gradleVersion
++
++    ToolingApiExecution(GradleDistribution loadedDistribution, GradleDistribution packagedDistribution) {
++        if (isClassloadedVersionCurrent()) {
++            // Gradle current -> TAPI {source}
++            this.gradle = packagedDistribution
++            this.toolingApi = loadedDistribution
++        } else {
++            // TAPI {target} -> Gradle current
++            this.gradle = loadedDistribution
++            this.toolingApi = packagedDistribution
++        }
++        this.toolingApiVersion = GradleVersion.version(toolingApi.version.version)
++        this.gradleVersion = GradleVersion.version(gradle.version.version)
++    }
++
++    private static boolean isClassloadedVersionCurrent() {
++        return INSTALLATION_GRADLE_VERSION == GradleVersion.current()
+     }
+ 
+     @Override
+     protected String getDisplayName() {
+-        return "${displayName(toolingApi.version)} -> ${displayName(gradle.version)}"
++        return "${displayName(toolingApiVersion)} -> ${displayName(gradleVersion)}"
+     }
+ 
+     @Override
+@@ -46,22 +72,15 @@ class ToolingApiExecution extends AbstractMultiTestRunner.Execution implements T
+         return displayName
+     }
+ 
+-    protected String displayName(GradleVersion version) {
+-        if (version == GradleVersion.current()) {
++    private static String displayName(GradleVersion version) {
++        if (version == INSTALLATION_GRADLE_VERSION) {
+             return "current"
+         }
+         return version.version
+     }
+ 
+     @Override
+-    protected boolean isTestEnabled(AbstractMultiTestRunner.TestDetails testDetails) {
+-        // Trying to use @Unroll with a tooling api runner causes NPEs in the test fixtures
+-        // Fail early with a message until we can fix this properly.
+-        Unroll unroll = testDetails.getAnnotation(Unroll)
+-        if (unroll!=null) {
+-            throw new IllegalArgumentException("Cannot use @Unroll with Tooling Api tests")
+-        }
+-
++    boolean isTestEnabled(AbstractMultiTestInterceptor.TestDetails testDetails) {
+         if (!gradle.daemonIdleTimeoutConfigurable && OperatingSystem.current().isWindows()) {
+             //Older daemon don't have configurable ttl and they hung for 3 hours afterwards.
+             // This is a real problem on windows due to eager file locking and continuous CI failures.
+@@ -88,44 +107,32 @@
+             // So, for windows we'll only run tests against target gradle that supports ttl
+             return false
+         }
+-        ToolingApiVersion toolingApiVersion = testDetails.getAnnotation(ToolingApiVersion)
+-        if (!toVersionSpec(toolingApiVersion).isSatisfiedBy(toolingApi.version)) {
++        ToolingApiVersion toolingVersionAnnotation = testDetails.getAnnotation(ToolingApiVersion)
++        Spec<GradleVersion> toolingVersionSpec = toVersionSpec(toolingVersionAnnotation)
++        if (!toolingVersionSpec.isSatisfiedBy(this.toolingApiVersion)) {
+             return false
+         }
+-        TargetGradleVersion targetGradleVersion = testDetails.getAnnotation(TargetGradleVersion)
+-        if (!toVersionSpec(targetGradleVersion).isSatisfiedBy(gradle.version)) {
++        TargetGradleVersion gradleVersionAnnotation = testDetails.getAnnotation(TargetGradleVersion)
++        Spec<GradleVersion> gradleVersionSpec = toVersionSpec(gradleVersionAnnotation)
++        if (!gradleVersionSpec.isSatisfiedBy(this.gradleVersion)) {
+             return false
+         }
+ 
+         return true
+     }
+ 
+-    private Spec<GradleVersion> toVersionSpec(annotation) {
++    private static Spec<GradleVersion> toVersionSpec(annotation) {
+         if (annotation == null) {
+             return Specs.SATISFIES_ALL
+         }
+-        return GradleVersionSpec.toSpec(annotation.value())
+-    }
+-
+-    @Override
+-    protected List<? extends Class<?>> loadTargetClasses() {
+-        def testClassLoader = getTestClassLoader()
+-        return [testClassLoader.loadClass(target.name)]
+-    }
+-
+-    ClassLoader getTestClassLoader() {
+-        def testClassPath = []
+-        testClassPath << ClasspathUtil.getClasspathForClass(target)
+-        testClassPath << ClasspathUtil.getClasspathForClass(TestResultHandler)
+-
+-        getTestClassLoader(TEST_CLASS_LOADERS, toolingApi, testClassPath) {
+-            it.allowResources(target.name.replace('.', '/'))
+-        }
++        if (annotation.value() == "current") {
++            return GradleVersionSpec.toSpec("=${INSTALLATION_GRADLE_VERSION.baseVersion.version}")
++        }
++        return GradleVersionSpec.toSpec(annotation.value())
+     }
+ 
+     @Override
+-    protected void before() {
+-        def testClazz = testClassLoader.loadClass(ToolingApiSpecification.name)
+-        testClazz.selectTargetDist(gradle)
++    protected void before(IMethodInvocation invocation) {
++        ((ToolingApiSpecification)invocation.getInstance()).setTargetDist(gradle)
+     }
+ }
+diff --git a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiSpecification.groovy b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiSpecification.groovy
+index 890cfd9d64e5d..315f869be4251 100644
+--- a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiSpecification.groovy
++++ b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiSpecification.groovy
+@@ -38,7 +38,6 @@ import org.gradle.util.GradleVersion
+ import org.gradle.util.SetSystemProperties
+ import org.junit.Rule
+ import org.junit.rules.RuleChain
+-import org.junit.runner.RunWith
+ import spock.lang.Retry
+ import spock.lang.Specification
+ 
+@@ -56,10 +55,10 @@ import static spock.lang.Retry.Mode.SETUP_FEATURE_CLEANUP
+  *     <li>{@link TargetGradleVersion} - specifies the tooling API testDirectoryProvider versions that the test is compatible with.
+  * </ul>
+  */
++@ToolingApiTest
+ @CleanupTestDirectory
+ @ToolingApiVersion('>=2.0')
+ @TargetGradleVersion('>=1.2')
+-@RunWith(ToolingApiCompatibilitySuiteRunner)
+ @Retry(condition = { onIssueWithReleasedGradleVersion(instance, failure) }, mode = SETUP_FEATURE_CLEANUP, count = 2)
+ abstract class ToolingApiSpecification extends Specification {
+ 
+@@ -75,27 +74,33 @@ abstract class ToolingApiSpecification extends Specification {
+ 
+     GradleConnectionException caughtGradleConnectionException
+ 
+-    String getReleasedGradleVersion() {
+-        return targetDist.version.baseVersion.version
+-    }
+-
+     public final TestNameTestDirectoryProvider temporaryFolder = new TestNameTestDirectoryProvider()
+     final GradleDistribution dist = new UnderDevelopmentGradleDistribution()
+     final IntegrationTestBuildContext buildContext = new IntegrationTestBuildContext()
+-    private static final ThreadLocal<GradleDistribution> VERSION = new ThreadLocal<GradleDistribution>()
++    private GradleDistribution targetGradleDistribution
+ 
+     TestDistributionDirectoryProvider temporaryDistributionFolder = new TestDistributionDirectoryProvider();
+-    final ToolingApi toolingApi = new ToolingApi(targetDist, temporaryFolder)
++    final ToolingApi toolingApi = new ToolingApi(null, temporaryFolder)
+ 
+     @Rule
+-    public RuleChain chain = RuleChain.outerRule(temporaryFolder).around(temporaryDistributionFolder).around(toolingApi)
++    public RuleChain cleanupRule = RuleChain.outerRule(temporaryFolder).around(temporaryDistributionFolder).around(toolingApi)
+ 
+-    static void selectTargetDist(GradleDistribution version) {
+-        VERSION.set(version)
++    // used reflectively by retry rule
++    String getReleasedGradleVersion() {
++        return targetDist.version.baseVersion.version
++    }
++
++    // reflectively invoked by ToolingApiExecution
++    void setTargetDist(GradleDistribution targetDist) {
++        targetGradleDistribution = targetDist
++        toolingApi.setDist(targetGradleDistribution)
+     }
+ 
+-    static GradleDistribution getTargetDist() {
+-        VERSION.get()
++    GradleDistribution getTargetDist() {
++        if (targetGradleDistribution == null)  {
++            throw new IllegalStateException("targetDist is not yet set by the testing framework")
++        }
++        return targetGradleDistribution
+     }
+ 
+     DaemonsFixture getDaemonsFixture() {
+@@ -149,7 +153,7 @@ abstract class ToolingApiSpecification extends Specification {
+         new BuildTestFixture(projectDir).withBuildInRootDir().multiProjectBuild(projectName, subprojects, cl)
+     }
+ 
+-    public void withConnector(@DelegatesTo(GradleConnector) @ClosureParams(value = SimpleType, options = ["org.gradle.tooling.GradleConnector"]) Closure cl) {
++    void withConnector(@DelegatesTo(GradleConnector) @ClosureParams(value = SimpleType, options = ["org.gradle.tooling.GradleConnector"]) Closure cl) {
+         toolingApi.withConnector(cl)
+     }
+ 
+@@ -180,7 +184,7 @@ abstract class ToolingApiSpecification extends Specification {
+         }
+     }
+ 
+-    public ConfigurableOperation withModel(Class modelType, Closure cl = {}) {
++    ConfigurableOperation withModel(Class modelType, Closure cl = {}) {
+         withConnection {
+             def model = it.model(modelType)
+             cl(model)
+@@ -188,7 +192,7 @@ abstract class ToolingApiSpecification extends Specification {
+         }
+     }
+ 
+-    public ConfigurableOperation withBuild(Closure cl = {}) {
++    ConfigurableOperation withBuild(Closure cl = {}) {
+         withConnection {
+             def build = it.newBuild()
+             cl(build)
+@@ -307,7 +311,7 @@ abstract class ToolingApiSpecification extends Specification {
+         withConnection { connection -> connection.getModel(modelClass) }
+     }
+ 
+-    protected static GradleVersion getTargetVersion() {
++    protected GradleVersion getTargetVersion() {
+         GradleVersion.version(targetDist.version.baseVersion.version)
+     }
+ 
+diff --git a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiTest.java b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiTest.java
+new file mode 100644
+index 0000000000000..1b632d4f03e98
+--- /dev/null
++++ b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiTest.java
+@@ -0,0 +1,32 @@
++/*
++ * Copyright 2020 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.gradle.integtests.tooling.fixture;
++
++import org.spockframework.runtime.extension.ExtensionAnnotation;
++
++import java.lang.annotation.ElementType;
++import java.lang.annotation.Inherited;
++import java.lang.annotation.Retention;
++import java.lang.annotation.RetentionPolicy;
++import java.lang.annotation.Target;
++
++@Retention(RetentionPolicy.RUNTIME)
++@Target(ElementType.TYPE)
++@ExtensionAnnotation(ToolingApiTestExtension.class)
++@Inherited
++@interface ToolingApiTest {
++}
+diff --git a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiTestExtension.java b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiTestExtension.java
+new file mode 100644
+index 0000000000000..21ef677091271
+--- /dev/null
++++ b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiTestExtension.java
+@@ -0,0 +1,28 @@
++/*
++ * Copyright 2020 the original author or authors.
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package org.gradle.integtests.tooling.fixture;
++
++import org.gradle.integtests.fixtures.compatibility.AbstractMultiTestInterceptor;
++import org.gradle.integtests.fixtures.extensions.MultiTestExtension;
++
++public class ToolingApiTestExtension extends MultiTestExtension<ToolingApiTest> {
++
++    @Override
++    protected AbstractMultiTestInterceptor makeInterceptor(Class<?> testClass) {
++        return new ToolingApiCompatibilityTestInterceptor(testClass);
++    }
++}
+diff --git a/subprojects/tooling-api/src/testFixtures/resources/META-INF/services/org.junit.platform.engine.TestEngine b/subprojects/tooling-api/src/testFixtures/resources/META-INF/services/org.junit.platform.engine.TestEngine
+new file mode 100644
+index 0000000000000..e4a17ebc04e74
+--- /dev/null
++++ b/subprojects/tooling-api/src/testFixtures/resources/META-INF/services/org.junit.platform.engine.TestEngine
+@@ -0,0 +1 @@
++org.gradle.integtests.tooling.fixture.CrossVersionTestEngine

@@ -1,0 +1,107 @@
+Partially backported from takari/polyglot-maven (PR #51) but keeping minimal changes to tests files
+From 83d5f68240c339bc22f31af50c339b82e039a035 Mon Sep 17 00:00:00 2001
+From: Jason Dillon <jason@planet57.com>
+Date: Mon, 14 Sep 2015 13:52:16 -0700
+Subject: [PATCH] Normalize test resources, headers cause problems with these
+ primative tests doing source comparisons
+
+---
+ .../maven/polyglot/groovy/execute1.groovy       |  7 -------
+ .../sonatype/maven/polyglot/groovy/test1.groovy | 15 ++++-----------
+ .../sonatype/maven/polyglot/groovy/test1.xml    |  9 ---------
+ .../sonatype/maven/polyglot/groovy/test2.groovy | 17 +++++------------
+ .../sonatype/maven/polyglot/groovy/test4.groovy |  7 -------
+ 5 files changed, 9 insertions(+), 46 deletions(-)
+
+diff --git a/pmaven-groovy/src/test/resources/org/sonatype/maven/polyglot/groovy/test1.groovy b/pmaven-groovy/src/test/resources/org/sonatype/maven/polyglot/groovy/test1.groovy
+index 23e92311..f68dc154 100644
+--- a/pmaven-groovy/src/test/resources/org/sonatype/maven/polyglot/groovy/test1.groovy
++++ b/pmaven-groovy/src/test/resources/org/sonatype/maven/polyglot/groovy/test1.groovy
+@@ -1,7 +1,7 @@
+ project {
+     parent {
+-        groupId "a"
+-        artifactId "b"
++        artifactId "b"
++        groupId "a"
+         version("c")
+     }
+ }
+diff --git a/pmaven-groovy/src/test/resources/org/sonatype/maven/polyglot/groovy/test2.groovy b/pmaven-groovy/src/test/resources/org/sonatype/maven/polyglot/groovy/test2.groovy
+index 423501fb..80c7e4af 100644
+--- a/pmaven-groovy/src/test/resources/org/sonatype/maven/polyglot/groovy/test2.groovy
++++ b/pmaven-groovy/src/test/resources/org/sonatype/maven/polyglot/groovy/test2.groovy
+@@ -1,7 +1,7 @@
+ project {
+     parent {
+-        artifactId 'b'
+-        groupId 'a'
++        groupId 'a'
++        artifactId 'b'
+         version 'c'
+     }
+ }
+
+From afec41497d30e5226718373c3c5c4883ecfa0099 Mon Sep 17 00:00:00 2001
+From: Jason Dillon <jason@planet57.com>
+Date: Mon, 14 Sep 2015 13:56:52 -0700
+Subject: [PATCH] Add custom delegate to force use of invokeMethod instad of
+ calling java methods directly on ModelBuilder (which breaks use of
+ project.build elements).
+
+---
+ pmaven-groovy/pom.xml                       |  1 +
+ .../polyglot/groovy/builder/ModelBuilder.java | 21 ++++++++++++-------
+ 2 files changed, 15 insertions(+), 7 deletions(-)
+
+diff --git a/pmaven-groovy/src/main/java/org/sonatype/maven/polyglot/groovy/builder/ModelBuilder.java b/pmaven-groovy/src/main/java/org/sonatype/maven/polyglot/groovy/builder/ModelBuilder.java
+index 9ef5a8a0..1aa4ce30 100644
+--- a/pmaven-groovy/src/main/java/org/sonatype/maven/polyglot/groovy/builder/ModelBuilder.java
++++ b/pmaven-groovy/src/main/java/org/sonatype/maven/polyglot/groovy/builder/ModelBuilder.java
+@@ -8,6 +8,8 @@
+ package org.sonatype.maven.polyglot.groovy.builder;
+ 
+ import groovy.lang.Closure;
++import groovy.lang.GroovyObject;
++import groovy.lang.GroovyObjectSupport;
+ import groovy.util.Factory;
+ import groovy.util.FactoryBuilderSupport;
+ 
+@@ -39,7 +41,6 @@
+ import org.apache.maven.model.Reporting;
+ import org.apache.maven.model.Repository;
+ import org.apache.maven.model.Resource;
+-import org.codehaus.groovy.runtime.InvokerHelper;
+ import org.codehaus.plexus.component.annotations.Component;
+ import org.codehaus.plexus.component.annotations.Requirement;
+ import org.slf4j.Logger;
+@@ -101,17 +101,23 @@ public ModelBuilder() {
+         registerFactories();
+     }
+ 
++  /**
++   * Delegate to force use of invokeMethod when building the model.
++   */
++  private final GroovyObject invokeDelegate = new GroovyObjectSupport()
++  {
++    @Override
++    public Object invokeMethod(final String name, final Object args) {
++      return ModelBuilder.this.invokeMethod(name, args);
++    }
++  };
++
+     @Override
+     protected void setClosureDelegate(final Closure c, final Object o) {
+-        c.setDelegate(this);
++        c.setDelegate(invokeDelegate);
+         c.setResolveStrategy(Closure.DELEGATE_FIRST);
+     }
+ 
+-    @Override
+-    public void setVariable(final String name, final Object value) {
+-        InvokerHelper.setProperty(getCurrent(), name, value);
+-    }
+-
+     public ExecuteManager getExecuteManager() {
+         return executeManager;
+     }

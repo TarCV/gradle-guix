@@ -33,7 +33,7 @@ index 03b3af84061cb..2f7c98cf12da2 100755
  versions.gradle_kotlin_dsl = '0.14.2'
 -versions.commons_io = '2.2'
 +versions.commons_io = '2.5'
- versions.groovy = '2.4.12'
+ versions.groovy = groovyVersion
  versions.bouncycastle = '1.58'
  versions.maven = '3.0.4'
 @@ -37,7 +37,7 @@

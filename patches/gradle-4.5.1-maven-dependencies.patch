@@ -2,9 +2,9 @@ TODO: Remove all hunks here expect the first one?
 --- a/gradle/dependencies.gradle
 +++ b/gradle/dependencies.gradle
 @@ -24,7 +24,7 @@
- versions.commons_io = '2.5'
  versions.groovy = groovyVersion
  versions.bouncycastle = '1.58'
+ versions.jettyVersion = "9.4.31.v20200723"
 -versions.maven = '3.0.4'
 +versions.maven = '[3.0, 3.1)'
  versions.httpclient = '4.4.1'
@@ -64,12 +64,14 @@ TODO: Remove all hunks here expect the first one?
                  withVariant('default') {
                      withDependencies { it.removeAll { it.group == 'org.jsoup' || it.group == 'commons-logging' || it.group == 'org.apache.httpcomponents' }}
                  }
-@@ -373,6 +373,8 @@
+@@ -373,6 +373,10 @@
                  details.useTarget(libraries.asm_tree)
              } else if (details.requested.group == 'cglib') {
                  details.useTarget(libraries.cglib)
 +            } else if (details.requested.group == 'org.apache.maven') {
 +               details.useVersion(versions.maven)
++            } else if (details.requested.name == 'plexus-container-default') {
++               details.useVersion("[1.5,2)")
              } else if (details.requested.group == 'org.apache.ivy') {
                  details.useTarget(libraries.ivy)
              } else if (details.requested.group == 'org.testng') {

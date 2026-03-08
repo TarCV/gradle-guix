@@ -1,0 +1,315 @@
+Backported some changes from the PR #6692 that had originally been made by Stefan Oehme <stefan@gradle.com>
+TODO: Try removing this patch once Groovy package is fixed to be compatible with running on Java 7.
+
+diff --git a/subprojects/dependency-management/src/main/java/org/gradle/api/internal/artifacts/DefaultGlobalDependencyResolutionRules.java b/subprojects/dependency-management/src/main/java/org/gradle/api/internal/artifacts/DefaultGlobalDependencyResolutionRules.java
+index 2fd9efcb7ebae..62bd1487ce7dd 100644
+--- a/subprojects/dependency-management/src/main/java/org/gradle/api/internal/artifacts/DefaultGlobalDependencyResolutionRules.java
++++ b/subprojects/dependency-management/src/main/java/org/gradle/api/internal/artifacts/DefaultGlobalDependencyResolutionRules.java
+@@ -62,9 +62,9 @@ private CompositeDependencySubstitutionRules(List<DependencySubstitutionRules> r
+ 
+         @Override
+         public Action<DependencySubstitution> getRuleAction() {
+-            return Actions.composite(CollectionUtils.collect(ruleProviders, new Transformer<Action<? super DependencySubstitution>, DependencySubstitutionRules>() {
++            return Actions.composite(CollectionUtils.collect(ruleProviders, new Transformer<Action<DependencySubstitution>, DependencySubstitutionRules>() {
+                 @Override
+-                public Action<? super DependencySubstitution> transform(DependencySubstitutionRules rule) {
++                public Action<DependencySubstitution> transform(DependencySubstitutionRules rule) {
+                     return rule.getRuleAction();
+                 }
+             }));
+diff --git a/subprojects/dependency-management/src/test/groovy/org/gradle/api/internal/artifacts/configurations/DefaultConfigurationSpec.groovy b/subprojects/dependency-management/src/test/groovy/org/gradle/api/internal/artifacts/configurations/DefaultConfigurationSpec.groovy
+index c32bee467046f..78cd93c134f54 100644
+--- a/subprojects/dependency-management/src/test/groovy/org/gradle/api/internal/artifacts/configurations/DefaultConfigurationSpec.groovy
++++ b/subprojects/dependency-management/src/test/groovy/org/gradle/api/internal/artifacts/configurations/DefaultConfigurationSpec.groovy
+@@ -21,6 +21,7 @@ import org.gradle.api.InvalidUserDataException
+ import org.gradle.api.Named
+ import org.gradle.api.Project
+ import org.gradle.api.Task
++import org.gradle.api.artifacts.ConfigurablePublishArtifact
+ import org.gradle.api.artifacts.Configuration
+ import org.gradle.api.artifacts.ConfigurationContainer
+ import org.gradle.api.artifacts.Dependency
+@@ -61,6 +62,7 @@ import org.gradle.internal.operations.TestBuildOperationExecutor
+ import org.gradle.internal.reflect.DirectInstantiator
+ import org.gradle.internal.reflect.Instantiator
+ import org.gradle.internal.typeconversion.NotationParser
++import org.gradle.internal.typeconversion.NotationParserBuilder
+ import org.gradle.util.Path
+ import org.gradle.util.TestUtil
+ import spock.lang.Issue
+@@ -524,7 +526,7 @@ class DefaultConfigurationSpec extends Specification {
+         def artifact1 = artifact("name1")
+ 
+         when:
+-        configuration.outgoing.artifact(new File("f"))
++        configuration.outgoing.artifact(Stub(ConfigurablePublishArtifact))
+ 
+         then:
+         configuration.outgoing.artifacts.size() == 1
+@@ -1660,9 +1662,10 @@ All Artifacts:
+             }
+         }
+ 
++        def publishArtifactNotationParser = NotationParserBuilder.toType(ConfigurablePublishArtifact).toComposite()
+         new DefaultConfiguration(domainObjectContext, confName, configurationsProvider, resolver, listenerManager, metaDataProvider,
+             Factories.constant(resolutionStrategy), projectAccessListener, projectFinder, TestFiles.fileCollectionFactory(),
+-            new TestBuildOperationExecutor(), instantiator, Stub(NotationParser), immutableAttributesFactory, rootComponentMetadataBuilder)
++            new TestBuildOperationExecutor(), instantiator, publishArtifactNotationParser, immutableAttributesFactory, rootComponentMetadataBuilder)
+     }
+ 
+     private DefaultPublishArtifact artifact(String name) {
+diff --git a/subprojects/distributions/src/changes/accepted-public-api-changes.json b/subprojects/distributions/src/changes/accepted-public-api-changes.json
+index 3046f9edb21c4..d481193f62db9 100644
+--- a/subprojects/distributions/src/changes/accepted-public-api-changes.json
++++ b/subprojects/distributions/src/changes/accepted-public-api-changes.json
+@@ -1,4 +45,14 @@
+ {
+     [
++        {
++            "type": "org.gradle.language.cpp.CppBinary",
++            "member": "Method org.gradle.language.cpp.CppBinary.getTargetPlatform()",
++            "acceptation": "Upgrading to Java 8 seems to have changed the byte code slightly, probably introducing a bridge method."
++        },
++        {
++            "type": "org.gradle.language.swift.SwiftBinary",
++            "member": "Method org.gradle.language.swift.SwiftBinary.getTargetPlatform()",
++            "acceptation": "Upgrading to Java 8 seems to have changed the byte code slightly, probably introducing a bridge method."
++        }
+     ]
+ }
+diff --git a/subprojects/ide/src/crossVersionTest/groovy/org/gradle/plugins/ide/tooling/r31/ToolingApiIdeaModelCrossVersionSpec.groovy b/subprojects/ide/src/crossVersionTest/groovy/org/gradle/plugins/ide/tooling/r31/ToolingApiIdeaModelCrossVersionSpec.groovy
+index 2378cdb414ac6..b6b0315b223cd 100644
+--- a/subprojects/ide/src/crossVersionTest/groovy/org/gradle/plugins/ide/tooling/r31/ToolingApiIdeaModelCrossVersionSpec.groovy
++++ b/subprojects/ide/src/crossVersionTest/groovy/org/gradle/plugins/ide/tooling/r31/ToolingApiIdeaModelCrossVersionSpec.groovy
+@@ -58,7 +58,7 @@ project(':impl') {
+     }
+ 
+     @ToolingApiVersion(">=2.0 !3.0") // broken on 3.0
+-    @TargetGradleVersion(">=1.8")
++    @TargetGradleVersion(">=2.6")
+     def "can query dependencies for model produced from BuildAction"() {
+         def fakeRepo = new MavenFileRepository(file("repo"))
+         def dependency = fakeRepo.module("foo.bar", "coolLib", "1.0")
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AvailableJavaHomes.java b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AvailableJavaHomes.java
+index 79c6c62bac1ff..cec7e73d0509e 100755
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AvailableJavaHomes.java
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AvailableJavaHomes.java
+@@ -79,6 +79,11 @@ public static Jvm getJdk8() {
+         return getJdk(JavaVersion.VERSION_1_8);
+     }
+ 
++    @Nullable
++    public static Jvm getJdk9() {
++        return getJdk(JavaVersion.VERSION_1_9);
++    }
++
+     @Nullable
+     public static Jvm getJdk(final JavaVersion version) {
+         return Iterables.getFirst(getAvailableJdks(version), null);
+diff --git a/subprojects/language-java/src/integTest/groovy/org/gradle/api/tasks/compile/JavaCompileIntegrationTest.groovy b/subprojects/language-java/src/integTest/groovy/org/gradle/api/tasks/compile/JavaCompileIntegrationTest.groovy
+index 918e3c5414198..c657e43aaf629 100644
+--- a/subprojects/language-java/src/integTest/groovy/org/gradle/api/tasks/compile/JavaCompileIntegrationTest.groovy
++++ b/subprojects/language-java/src/integTest/groovy/org/gradle/api/tasks/compile/JavaCompileIntegrationTest.groovy
+@@ -844,6 +844,7 @@ class JavaCompileIntegrationTest extends AbstractPluginIntegrationTest {
+                 } else if (project.hasProperty("java8")) {
+                     options.bootstrapClasspath = files("$jdk8bootClasspath")
+                 } 
++                options.fork = true
+             }
+         """
+         file('src/main/java/Main.java') << """
+@@ -859,18 +860,11 @@ class JavaCompileIntegrationTest extends AbstractPluginIntegrationTest {
+         """
+ 
+         expect:
+-        executer.withJavaHome jdk8.javaHome
+         succeeds "clean", "compileJava"
+ 
+-        executer.withJavaHome jdk8.javaHome
+         executer.withStacktraceDisabled()
+         fails "-Pjava7", "clean", "compileJava"
+-        errorOutput.contains "Main.java:8: error: cannot find symbol"
+ 
+-        executer.withJavaHome jdk8.javaHome
+-        succeeds "-Pjava8", "clean", "compileJava"
+-
+-        executer.withJavaHome jdk7.javaHome
+         succeeds "-Pjava8", "clean", "compileJava"
+     }
+ 
+diff --git a/subprojects/language-java/src/integTest/groovy/org/gradle/api/tasks/compile/JavaCompileJavaVersionIntegrationTest.groovy b/subprojects/language-java/src/integTest/groovy/org/gradle/api/tasks/compile/JavaCompileJavaVersionIntegrationTest.groovy
+index 5571e9003bbca..24a24079c8531 100644
+--- a/subprojects/language-java/src/integTest/groovy/org/gradle/api/tasks/compile/JavaCompileJavaVersionIntegrationTest.groovy
++++ b/subprojects/language-java/src/integTest/groovy/org/gradle/api/tasks/compile/JavaCompileJavaVersionIntegrationTest.groovy
+@@ -22,10 +22,10 @@ import org.gradle.internal.jvm.Jvm
+ import org.gradle.util.Requires
+ import org.gradle.util.TextUtil
+ 
+-import static org.gradle.api.JavaVersion.VERSION_1_7
+ import static org.gradle.api.JavaVersion.VERSION_1_8
++import static org.gradle.api.JavaVersion.VERSION_1_9
+ 
+-@Requires(adhoc = { AvailableJavaHomes.getJdk(VERSION_1_7) && AvailableJavaHomes.getJdk(VERSION_1_8) })
++@Requires(adhoc = { AvailableJavaHomes.getJdk(VERSION_1_8) && AvailableJavaHomes.getJdk(VERSION_1_9) })
+ class JavaCompileJavaVersionIntegrationTest extends AbstractIntegrationSpec {
+ 
+     /**
+@@ -54,19 +54,19 @@ class JavaCompileJavaVersionIntegrationTest extends AbstractIntegrationSpec {
+         """
+ 
+         when:
+-        executer.withJavaHome AvailableJavaHomes.getJdk(VERSION_1_7).javaHome
++        executer.withJavaHome AvailableJavaHomes.getJdk(VERSION_1_8).javaHome
+         succeeds "compileJava"
+         then:
+         nonSkippedTasks.contains ":compileJava"
+ 
+         when:
+-        executer.withJavaHome AvailableJavaHomes.getJdk(VERSION_1_7).javaHome
++        executer.withJavaHome AvailableJavaHomes.getJdk(VERSION_1_8).javaHome
+         succeeds "compileJava"
+         then:
+         skippedTasks.contains ":compileJava"
+ 
+         when:
+-        executer.withJavaHome AvailableJavaHomes.getJdk(VERSION_1_8).javaHome
++        executer.withJavaHome AvailableJavaHomes.getJdk(VERSION_1_9).javaHome
+         succeeds "compileJava", "--info"
+         then:
+         nonSkippedTasks.contains ":compileJava"
+@@ -75,11 +75,11 @@ class JavaCompileJavaVersionIntegrationTest extends AbstractIntegrationSpec {
+ 
+     def "not up-to-date when java version for forking changes"() {
+         given:
+-        def jdk7 = AvailableJavaHomes.getJdk(VERSION_1_7)
+         def jdk8 = AvailableJavaHomes.getJdk(VERSION_1_8)
++        def jdk9 = AvailableJavaHomes.getJdk(VERSION_1_9)
+ 
+ 
+-        buildFile << forkedJavaCompilation(jdk7)
++        buildFile << forkedJavaCompilation(jdk8)
+ 
+         and:
+         file("src/main/java/org/gradle/Person.java") << """
+@@ -88,20 +88,20 @@ class JavaCompileJavaVersionIntegrationTest extends AbstractIntegrationSpec {
+         """
+ 
+         when:
+-        executer.withJavaHome jdk8.javaHome
++        executer.withJavaHome jdk9.javaHome
+         succeeds "compileJava"
+         then:
+         nonSkippedTasks.contains ":compileJava"
+ 
+         when:
+-        executer.withJavaHome jdk7.javaHome
++        executer.withJavaHome jdk8.javaHome
+         succeeds "compileJava"
+         then:
+         skippedTasks.contains ":compileJava"
+ 
+         when:
+-        executer.withJavaHome jdk7.javaHome
+-        buildFile.text = forkedJavaCompilation(jdk8)
++        executer.withJavaHome jdk8.javaHome
++        buildFile.text = forkedJavaCompilation(jdk9)
+         succeeds "compileJava", "--info"
+         then:
+         nonSkippedTasks.contains ":compileJava"
+diff --git a/subprojects/launcher/src/integTest/groovy/org/gradle/launcher/SupportedBuildJvmIntegrationTest.groovy b/subprojects/launcher/src/integTest/groovy/org/gradle/launcher/SupportedBuildJvmIntegrationTest.groovy
+index b564161c25b69..4a2d2b647aec9 100644
+--- a/subprojects/launcher/src/integTest/groovy/org/gradle/launcher/SupportedBuildJvmIntegrationTest.groovy
++++ b/subprojects/launcher/src/integTest/groovy/org/gradle/launcher/SupportedBuildJvmIntegrationTest.groovy
+@@ -22,7 +22,7 @@ import org.gradle.util.GradleVersion
+ import org.gradle.util.Requires
+ import spock.lang.Unroll
+ 
+-@Requires(adhoc = { AvailableJavaHomes.getJdks("1.5", "1.6") })
++@Requires(adhoc = { AvailableJavaHomes.getJdks("1.6", "1.7") })
+ class SupportedBuildJvmIntegrationTest extends AbstractIntegrationSpec {
+     @Unroll
+     def "provides reasonable failure message when attempting to run under java #jdk.javaVersion"() {
+@@ -31,10 +31,10 @@ class SupportedBuildJvmIntegrationTest extends AbstractIntegrationSpec {
+ 
+         expect:
+         fails("help")
+-        failure.assertHasDescription("Gradle ${GradleVersion.current().version} requires Java 7 or later to run. You are currently using Java ${jdk.javaVersion.majorVersion}.")
++        failure.assertHasDescription("Gradle ${GradleVersion.current().version} requires Java 8 or later to run. You are currently using Java ${jdk.javaVersion.majorVersion}.")
+ 
+         where:
+-        jdk << AvailableJavaHomes.getJdks("1.5", "1.6")
++        jdk << AvailableJavaHomes.getJdks("1.6", "1.7")
+     }
+ 
+     @Unroll
+@@ -44,9 +44,9 @@ class SupportedBuildJvmIntegrationTest extends AbstractIntegrationSpec {
+ 
+         expect:
+         fails("help")
+-        failure.assertHasDescription("Gradle ${GradleVersion.current().version} requires Java 7 or later to run. Your build is currently configured to use Java ${jdk.javaVersion.majorVersion}.")
++        failure.assertHasDescription("Gradle ${GradleVersion.current().version} requires Java 8 or later to run. Your build is currently configured to use Java ${jdk.javaVersion.majorVersion}.")
+ 
+         where:
+-        jdk << AvailableJavaHomes.getJdks("1.5", "1.6")
++        jdk << AvailableJavaHomes.getJdks("1.6", "1.7")
+     }
+ }
+diff --git a/subprojects/scala/src/integTest/groovy/org/gradle/scala/compile/UpToDateScalaCompileIntegrationTest.groovy b/subprojects/scala/src/integTest/groovy/org/gradle/scala/compile/UpToDateScalaCompileIntegrationTest.groovy
+index ec1ff679b3b81..b6dcc00431823 100644
+--- a/subprojects/scala/src/integTest/groovy/org/gradle/scala/compile/UpToDateScalaCompileIntegrationTest.groovy
++++ b/subprojects/scala/src/integTest/groovy/org/gradle/scala/compile/UpToDateScalaCompileIntegrationTest.groovy
+@@ -22,8 +22,8 @@ import org.gradle.util.Requires
+ import org.gradle.util.TestPrecondition
+ import spock.lang.Unroll
+ 
+-import static org.gradle.api.JavaVersion.VERSION_1_7
+ import static org.gradle.api.JavaVersion.VERSION_1_8
++import static org.gradle.api.JavaVersion.VERSION_1_9
+ 
+ @Unroll
+ class UpToDateScalaCompileIntegrationTest extends AbstractIntegrationSpec {
+@@ -57,34 +57,34 @@ class UpToDateScalaCompileIntegrationTest extends AbstractIntegrationSpec {
+ 
+         where:
+         newScalaVersion | newZincVersion
+-        '2.11.8'       | '0.3.12'
+-        '2.11.9'        | '0.3.13'
+-        defaultScalaVersion = '2.11.8'
+-        defaultZincVersion = '0.3.13'
++        '2.11.12'       | '0.3.13'
++        '2.12.6'        | '0.3.15'
++        defaultScalaVersion = '2.11.12'
++        defaultZincVersion = '0.3.15'
+         changedVersion = defaultScalaVersion != newScalaVersion ? 'scala' : 'zinc'
+     }
+ 
+-    @Requires(adhoc = { AvailableJavaHomes.getJdk(VERSION_1_7) && AvailableJavaHomes.getJdk(VERSION_1_8) })
++    @Requires(adhoc = { AvailableJavaHomes.getJdk(VERSION_1_8) && AvailableJavaHomes.getJdk(VERSION_1_9) })
+     def "compile is out of date when changing the java version"() {
+-        def jdk7 = AvailableJavaHomes.getJdk(VERSION_1_7)
+         def jdk8 = AvailableJavaHomes.getJdk(VERSION_1_8)
++        def jdk9 = AvailableJavaHomes.getJdk(VERSION_1_9)
+ 
+-        buildScript(scalaProjectBuildScript('0.3.13', '2.11.8'))
++        buildScript(scalaProjectBuildScript('0.3.15', '2.12.6'))
+         when:
+-        executer.withJavaHome(jdk7.javaHome)
++        executer.withJavaHome(jdk8.javaHome)
+         run 'compileScala'
+ 
+         then:
+         executedAndNotSkipped(':compileScala')
+ 
+         when:
+-        executer.withJavaHome(jdk7.javaHome)
++        executer.withJavaHome(jdk8.javaHome)
+         run 'compileScala'
+         then:
+         skipped ':compileScala'
+ 
+         when:
+-        executer.withJavaHome(jdk8.javaHome)
++        executer.withJavaHome(jdk9.javaHome)
+         run 'compileScala', '--info'
+         then:
+         executedAndNotSkipped(':compileScala')

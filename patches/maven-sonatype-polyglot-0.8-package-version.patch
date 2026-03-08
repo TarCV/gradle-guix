@@ -103,3 +103,14 @@
      </parent>
  
      <artifactId>pmaven-groovy</artifactId>
+--- a/pmaven-common/src/main/java/org/sonatype/maven/polyglot/execute/ExecuteManagerImpl.java
++++ b/pmaven-common/src/main/java/org/sonatype/maven/polyglot/execute/ExecuteManagerImpl.java
+@@ -92,7 +92,7 @@
+         Plugin plugin = new Plugin();
+         plugin.setGroupId("org.sonatype.pmaven");
+         plugin.setArtifactId("pmaven-maven-plugin");
+-        plugin.setVersion("0.8-SNAPSHOT");
++        plugin.setVersion("${GUIX_PACKAGE_VERSION}");
+         model.getBuild().addPlugin(plugin);
+ 
+         List<String> goals = Collections.singletonList("execute");

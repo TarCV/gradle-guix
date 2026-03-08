@@ -22,10 +22,10 @@ diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
 index 244e6eeaa4f6a..922bcda3abb5a 100644
 --- a/gradle/dependencies.gradle
 +++ b/gradle/dependencies.gradle
-@@ -17,7 +17,7 @@
- ext {
+@@ -18,7 +18,7 @@
      versions = [:]
      libraries = [:]
+     cglibWithoutAntRule = CglibWithoutAntRule
 -    groovyVersion = '2.5.2'
 +    groovyVersion = '2.5.10'
  }

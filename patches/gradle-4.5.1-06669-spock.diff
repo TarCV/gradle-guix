@@ -1,0 +1,1810 @@
+These changes were backported from PR #6669 that had originally been made by Marc Philipp <marc@gradle.com>
+
+diff --git a/gradle/dependencies.gradle b/gradle/dependencies.gradle
+index 36683feed3b29..c96b1f6e62a2a 100755
+--- a/gradle/dependencies.gradle
++++ b/gradle/dependencies.gradle
+@@ -17,9 +17,18 @@
+  * limitations under the License.
+  */
+ 
++def CglibWithoutAntRule = { ComponentMetadataDetails details ->
++    details.allVariants {
++        withDependencies {
++            // because we require a different Ant version
++            removeAll { it.name == "ant" }
++        }
++    }
++}
+ ext {
+     versions = [:]
+     libraries = [:]
++    cglibWithoutAntRule = CglibWithoutAntRule
+ }
+ 
+ versions.gradle_kotlin_dsl = '0.14.2'
+@@ -81,7 +81,7 @@
+     nativePlatform: 'net.rubygrapefruit:native-platform:0.14',
+     jansi: 'org.fusesource.jansi:jansi:1.17.1',
+     xerces: "xerces:xercesImpl:2.11.0",
+-    objenesis: 'org.objenesis:objenesis:1.2',
++    objenesis: 'org.objenesis:objenesis:2.6',
+     jsoup: 'org.jsoup:jsoup:1.6.3',
+     xmlApis: 'xml-apis:xml-apis:1.4.01',
+     jgit: [
+@@ -155,6 +155,7 @@ class UnitTestAndCompilePlugin : 
+ allprojects { currentProject ->
+     dependencies {
+         components {
++            withModule("cglib:cglib", cglibWithoutAntRule)
+             withModule('org.apache.ivy:ivy') {
+                 withVariant('default') {
+                     withDependencies {
+diff --git a/subprojects/core/src/test/groovy/org/gradle/api/internal/project/taskfactory/AnnotationProcessingTaskFactoryTest.groovy b/subprojects/core/src/test/groovy/org/gradle/api/internal/project/taskfactory/AnnotationProcessingTaskFactoryTest.groovy
+index 79b8346de3943..612c8421a3ec8 100644
+--- a/subprojects/core/src/test/groovy/org/gradle/api/internal/project/taskfactory/AnnotationProcessingTaskFactoryTest.groovy
++++ b/subprojects/core/src/test/groovy/org/gradle/api/internal/project/taskfactory/AnnotationProcessingTaskFactoryTest.groovy
+@@ -800,7 +800,8 @@ class AnnotationProcessingTaskFactoryTest extends AbstractProjectBuilderSpec {
+     private TaskInternal expectTaskCreated(final TaskInternal task) {
+         // We cannot just stub here as we want to return a different task each time.
+         1 * delegate.createTask(args) >> task
+-        assert factory.createTask(args).is(task)
++        def createdTask = factory.createTask(args)
++        assert createdTask.is(task)
+         return task
+     }
+ 
+diff --git a/subprojects/core/src/test/groovy/org/gradle/api/internal/tasks/execution/ExecuteActionsTaskExecutorTest.groovy b/subprojects/core/src/test/groovy/org/gradle/api/internal/tasks/execution/ExecuteActionsTaskExecutorTest.groovy
+index 6a351045a2264..845dd5f6ed2b3 100644
+--- a/subprojects/core/src/test/groovy/org/gradle/api/internal/tasks/execution/ExecuteActionsTaskExecutorTest.groovy
++++ b/subprojects/core/src/test/groovy/org/gradle/api/internal/tasks/execution/ExecuteActionsTaskExecutorTest.groovy
+@@ -123,6 +123,8 @@ class ExecuteActionsTaskExecutorTest extends Specification {
+         then:
+         1 * action1.contextualise(executionContext)
+         then:
++        1 * buildOperationExecutor.run(_ as RunnableBuildOperation) >> { args -> args[0].run(Stub(BuildOperationContext)) }
++        then:
+         1 * action1.execute(task) >> {
+             assert state.executing
+         }
+@@ -131,22 +133,20 @@ class ExecuteActionsTaskExecutorTest extends Specification {
+         then:
+         1 * asyncWorkTracker.waitForCompletion(_, true)
+         then:
+-        1 * buildOperationExecutor.run(_ as RunnableBuildOperation) >> { args -> args[0].run(Stub(BuildOperationContext)) }
+-        then:
+         1 * standardOutputCapture.stop()
+         then:
+         1 * standardOutputCapture.start()
+         then:
+         1 * action2.contextualise(executionContext)
+         then:
++        1 * buildOperationExecutor.run(_ as RunnableBuildOperation) >> { args -> args[0].run(Stub(BuildOperationContext)) }
++        then:
+         1 * action2.execute(task)
+         then:
+         1 * action2.releaseContext()
+         then:
+         1 * asyncWorkTracker.waitForCompletion(_, true)
+         then:
+-        1 * buildOperationExecutor.run(_ as RunnableBuildOperation) >> { args -> args[0].run(Stub(BuildOperationContext)) }
+-        then:
+         1 * standardOutputCapture.stop()
+         then:
+         1 * taskArtifactState.snapshotAfterTaskExecution(null, buildInvocationId, executionContext)
+@@ -182,6 +182,8 @@ class ExecuteActionsTaskExecutorTest extends Specification {
+         then:
+         1 * action1.contextualise(executionContext)
+         then:
++        1 * buildOperationExecutor.run(_ as RunnableBuildOperation) >> { args -> args[0].run(Stub(BuildOperationContext)) }
++        then:
+         1 * action1.execute(task) >> {
+             task.getActions().add(action2)
+         }
+@@ -190,8 +192,6 @@ class ExecuteActionsTaskExecutorTest extends Specification {
+         then:
+         1 * asyncWorkTracker.waitForCompletion(_, true)
+         then:
+-        1 * buildOperationExecutor.run(_ as RunnableBuildOperation) >> { args -> args[0].run(Stub(BuildOperationContext)) }
+-        then:
+         1 * standardOutputCapture.stop()
+         then:
+         1 * taskArtifactState.snapshotAfterTaskExecution(null, buildInvocationId, executionContext)
+@@ -221,12 +221,12 @@ class ExecuteActionsTaskExecutorTest extends Specification {
+         then:
+         1 * action1.contextualise(executionContext)
+         then:
++        1 * buildOperationExecutor.run(_ as RunnableBuildOperation) >> { args -> args[0].run(Stub(BuildOperationContext)) }
++        then:
+         1 * action1.releaseContext()
+         then:
+         1 * asyncWorkTracker.waitForCompletion(_, true)
+         then:
+-        1 * buildOperationExecutor.run(_ as RunnableBuildOperation) >> { args -> args[0].run(Stub(BuildOperationContext)) }
+-        then:
+         1 * standardOutputCapture.stop()
+         then:
+         1 * taskArtifactState.snapshotAfterTaskExecution({ it instanceof TaskExecutionException }, buildInvocationId, executionContext)
+@@ -301,6 +301,8 @@ class ExecuteActionsTaskExecutorTest extends Specification {
+         then:
+         1 * action1.contextualise(executionContext)
+         then:
++        1 * buildOperationExecutor.run(_ as RunnableBuildOperation) >> { args -> args[0].run(Stub(BuildOperationContext)) }
++        then:
+         1 * action1.execute(task) >> {
+             throw new StopActionException('stop')
+         }
+@@ -309,22 +311,20 @@ class ExecuteActionsTaskExecutorTest extends Specification {
+         then:
+         1 * asyncWorkTracker.waitForCompletion(_, true)
+         then:
+-        1 * buildOperationExecutor.run(_ as RunnableBuildOperation) >> { args -> args[0].run(Stub(BuildOperationContext)) }
+-        then:
+         1 * standardOutputCapture.stop()
+         then:
+         1 * standardOutputCapture.start()
+         then:
+         1 * action2.contextualise(executionContext)
+         then:
++        1 * buildOperationExecutor.run(_ as RunnableBuildOperation) >> { args -> args[0].run(Stub(BuildOperationContext)) }
++        then:
+         1 * action2.execute(task)
+         then:
+         1 * action2.releaseContext()
+         then:
+         1 * asyncWorkTracker.waitForCompletion(_, true)
+         then:
+-        1 * buildOperationExecutor.run(_ as RunnableBuildOperation) >> { args -> args[0].run(Stub(BuildOperationContext)) }
+-        then:
+         1 * standardOutputCapture.stop()
+         then:
+         1 * taskArtifactState.snapshotAfterTaskExecution(null, buildInvocationId, executionContext)
+@@ -357,14 +357,14 @@ class ExecuteActionsTaskExecutorTest extends Specification {
+         then:
+         1 * action1.contextualise(executionContext)
+         then:
++        1 * buildOperationExecutor.run(_ as RunnableBuildOperation) >> { args -> args[0].run(Stub(BuildOperationContext)) }
++        then:
+         1 * action1.releaseContext()
+         then:
+         1 * asyncWorkTracker.waitForCompletion(_, true) >> {
+             throw new DefaultMultiCauseException("mock failures", new RuntimeException("failure 1"), new RuntimeException("failure 2"))
+         }
+         then:
+-        1 * buildOperationExecutor.run(_ as RunnableBuildOperation) >> { args -> args[0].run(Stub(BuildOperationContext)) }
+-        then:
+         1 * standardOutputCapture.stop()
+         then:
+         1 * taskArtifactState.snapshotAfterTaskExecution({ it instanceof TaskExecutionException }, buildInvocationId, executionContext)
+@@ -405,14 +405,14 @@ class ExecuteActionsTaskExecutorTest extends Specification {
+         then:
+         1 * action1.contextualise(executionContext)
+         then:
++        1 * buildOperationExecutor.run(_ as RunnableBuildOperation) >> { args -> args[0].run(Stub(BuildOperationContext)) }
++        then:
+         1 * action1.releaseContext()
+         then:
+         1 * asyncWorkTracker.waitForCompletion(_, true) >> {
+             throw new DefaultMultiCauseException("mock failures", new RuntimeException("failure 1"), new RuntimeException("failure 2"))
+         }
+         then:
+-        1 * buildOperationExecutor.run(_ as RunnableBuildOperation) >> { args -> args[0].run(Stub(BuildOperationContext)) }
+-        then:
+         1 * standardOutputCapture.stop()
+         then:
+         1 * taskArtifactState.snapshotAfterTaskExecution({ it instanceof TaskExecutionException }, buildInvocationId, executionContext)
+@@ -452,14 +452,14 @@ class ExecuteActionsTaskExecutorTest extends Specification {
+         then:
+         1 * action1.contextualise(executionContext)
+         then:
++        1 * buildOperationExecutor.run(_ as RunnableBuildOperation) >> { args -> args[0].run(Stub(BuildOperationContext)) }
++        then:
+         1 * action1.releaseContext()
+         then:
+         1 * asyncWorkTracker.waitForCompletion(_, true) >> {
+             throw new DefaultMultiCauseException("mock failures", failure)
+         }
+         then:
+-        1 * buildOperationExecutor.run(_ as RunnableBuildOperation) >> { args -> args[0].run(Stub(BuildOperationContext)) }
+-        then:
+         1 * standardOutputCapture.stop()
+         then:
+         1 * taskArtifactState.snapshotAfterTaskExecution({ it instanceof TaskExecutionException }, buildInvocationId, executionContext)
+diff --git a/subprojects/docs/docs.gradle b/subprojects/docs/docs.gradle
+index bcc1cad825b2f..dd45bf4d8b914 100755
+--- a/subprojects/docs/docs.gradle
++++ b/subprojects/docs/docs.gradle
+@@ -72,7 +72,7 @@ dependencies {
+ 
+     testCompile "org.pegdown:pegdown:1.1.0"
+     testCompile libraries.jsoup
+-    testCompile "org.gebish:geb-spock:0.9.3"
++    testCompile "org.gebish:geb-spock:2.2"
+     testCompile('org.seleniumhq.selenium:selenium-htmlunit-driver:2.42.2') {
+         exclude group: 'org.apache.httpcomponents'
+     }
+diff --git a/subprojects/integ-test/src/integTest/groovy/org/gradle/integtests/fixtures/SampleSpec.groovy b/subprojects/integ-test/src/integTest/groovy/org/gradle/integtests/fixtures/SampleSpec.groovy
+index f4c77a8ed6108..68552e75187c4 100644
+--- a/subprojects/integ-test/src/integTest/groovy/org/gradle/integtests/fixtures/SampleSpec.groovy
++++ b/subprojects/integ-test/src/integTest/groovy/org/gradle/integtests/fixtures/SampleSpec.groovy
+@@ -18,15 +18,15 @@ package org.gradle.integtests.fixtures
+ 
+ import org.gradle.test.fixtures.file.TestNameTestDirectoryProvider
+ import org.junit.Rule
++import org.junit.rules.RuleChain
++import org.junit.rules.TestRule
+ import spock.lang.Specification
+ 
+ class SampleSpec extends Specification {
+ 
+-    @Rule
+     TestNameTestDirectoryProvider testDirectoryProvider = new TestNameTestDirectoryProvider()
+-
+-    @Rule
+     Sample sample = new Sample(testDirectoryProvider, 'java/multiproject')
++    @Rule TestRule rule = RuleChain.outerRule(testDirectoryProvider).around(sample)
+ 
+     def 'sample dir'() {
+         // Sample.dir is named after sample, test method and test class
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AbstractContinuousIntegrationTest.groovy b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AbstractContinuousIntegrationTest.groovy
+index dafb471162890..f29ea54f8e9e1 100644
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AbstractContinuousIntegrationTest.groovy
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/AbstractContinuousIntegrationTest.groovy
+@@ -25,13 +25,15 @@ import org.gradle.integtests.fixtures.executer.OutputScrapingExecutionResult
+ import org.gradle.integtests.fixtures.executer.UnexpectedBuildFailure
+ import org.gradle.internal.os.OperatingSystem
+ import org.gradle.test.fixtures.ConcurrentTestUtil
+-import org.gradle.testing.internal.util.RetryRule
+-import org.junit.Rule
++import spock.lang.Retry
+ 
+ import java.util.concurrent.TimeUnit
+ 
++import static org.gradle.integtests.fixtures.RetryConditions.onBuildTimeout
+ import static org.gradle.util.TestPrecondition.PULL_REQUEST_BUILD
++import static spock.lang.Retry.Mode.SETUP_FEATURE_CLEANUP
+ 
++@Retry(condition = { onBuildTimeout(instance, failure) }, mode = SETUP_FEATURE_CLEANUP, count = 2)
+ abstract class AbstractContinuousIntegrationTest extends AbstractIntegrationSpec {
+ 
+     private static final int WAIT_FOR_WATCHING_TIMEOUT_SECONDS = PULL_REQUEST_BUILD.fulfilled ? 60 : 30
+@@ -40,9 +42,6 @@ abstract class AbstractContinuousIntegrationTest extends AbstractIntegrationSpec
+     private static final String CHANGE_DETECTED_OUTPUT = "Change detected, executing build..."
+     private static final String WAITING_FOR_CHANGES_OUTPUT = "Waiting for changes to input files of tasks..."
+ 
+-    @Rule
+-    RetryRule timeoutRetryRule = RetryRuleUtil.retryContinuousBuildSpecificationOnTimeout(this)
+-
+     GradleHandle gradle
+ 
+     private int standardOutputBuildMarker = 0
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/CrossVersionIntegrationSpec.groovy b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/CrossVersionIntegrationSpec.groovy
+index b1c0fc6c8443f..c2af41066727c 100755
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/CrossVersionIntegrationSpec.groovy
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/CrossVersionIntegrationSpec.groovy
+@@ -22,12 +22,15 @@ import org.gradle.integtests.fixtures.executer.UnderDevelopmentGradleDistributio
+ import org.gradle.test.fixtures.file.TestFile
+ import org.gradle.test.fixtures.file.TestNameTestDirectoryProvider
+ import org.gradle.test.fixtures.maven.MavenFileRepository
+-import org.gradle.testing.internal.util.RetryRule
+ import org.junit.Rule
+ import org.junit.runner.RunWith
++import spock.lang.Retry
+ import spock.lang.Specification
+ 
++import static spock.lang.Retry.Mode.SETUP_FEATURE_CLEANUP
++
+ @RunWith(CrossVersionTestRunner)
++@Retry(condition = { RetryConditions.onIssueWithReleasedGradleVersion(instance, failure) }, mode = SETUP_FEATURE_CLEANUP, count = 2)
+ abstract class CrossVersionIntegrationSpec extends Specification {
+     @Rule TestNameTestDirectoryProvider temporaryFolder = new TestNameTestDirectoryProvider()
+     private final List<GradleExecuter> executers = []
+@@ -36,9 +39,6 @@ abstract class CrossVersionIntegrationSpec extends Specification {
+     private MavenFileRepository mavenRepo
+     private TestFile gradleUserHomeDir
+ 
+-    @Rule
+-    RetryRule retryRule = RetryRuleUtil.retryCrossVersionTestOnIssueWithReleasedGradleVersion(this)
+-
+     boolean retryWithCleanProjectDir() {
+         temporaryFolder.testDirectory.listFiles().each {
+             it.deleteDir()
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/CrossVersionRetryRuleTest.groovy b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/CrossVersionRetryTest.groovy
+similarity index 95%
+rename from subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/CrossVersionRetryRuleTest.groovy
+rename to subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/CrossVersionRetryTest.groovy
+index 8d9779e01536d..948b675c207b3 100644
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/CrossVersionRetryRuleTest.groovy
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/CrossVersionRetryTest.groovy
+@@ -20,7 +20,7 @@ import org.gradle.api.UncheckedIOException
+ import org.gradle.internal.service.ServiceCreationException
+ 
+ @TargetVersions(["1.9", "1.10"])
+-class CrossVersionRetryRuleTest extends CrossVersionIntegrationSpec {
++class CrossVersionRetryTest extends CrossVersionIntegrationSpec {
+ 
+     def iteration = 0
+ 
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/RetryRuleUtil.groovy b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/RetryConditions.groovy
+similarity index 76%
+rename from subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/RetryRuleUtil.groovy
+rename to subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/RetryConditions.groovy
+index 1fbaac3e6ee1b..d54818091699d 100644
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/RetryRuleUtil.groovy
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/RetryConditions.groovy
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2017 the original author or authors.
++ * Copyright 2018 the original author or authors.
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+@@ -17,25 +17,56 @@
+ package org.gradle.integtests.fixtures
+ 
+ import org.gradle.api.JavaVersion
+-import org.gradle.testing.internal.util.RetryRule
+ import org.gradle.util.GradleVersion
+ import org.gradle.util.TestPrecondition
+-import spock.lang.Specification
+ 
+-class RetryRuleUtil {
++class RetryConditions {
+ 
+     static private final String[] FILES_TO_PRESERVE = ['reproducible-archives-init.gradle']
+ 
+-    static RetryRule retryCrossVersionTestOnIssueWithReleasedGradleVersion(Specification specification) {
+-        RetryRule.retryIf(specification) { t ->
+-            def daemonsFixture = specification.hasProperty("daemonsFixture") ? specification.daemonsFixture : null
+-            Throwable failure = t
++    static boolean onBuildTimeout(Object specification, Throwable t) {
++        if (t?.message?.startsWith('Timeout waiting for build to complete.')) {
++            println "Retrying continuous build test because of timeout"
++            return cleanProjectDir(specification)
++        }
++        false
++    }
+ 
+-            return shouldRetry(specification, failure, daemonsFixture)
++    static boolean cleanProjectDir(Object specification) {
++        if (specification.hasProperty("toolingApi")) {
++            specification.toolingApi.cleanUpIsolatedDaemonsAndServices()
+         }
++        if (specification.hasProperty("caughtGradleConnectionException")) {
++            specification.caughtGradleConnectionException = null
++        }
++        if (specification.hasProperty("projectDir")) {
++            specification.projectDir.listFiles().each {
++                if (!FILES_TO_PRESERVE.contains(it.name)) {
++                    it.deleteDir()
++                }
++            }
++        } else if (specification.hasProperty("testDirectory")) {
++            specification.testDirectory.listFiles().each {
++                if (!FILES_TO_PRESERVE.contains(it.name)) {
++                    it.deleteDir()
++                }
++            }
++        } else if (specification.hasProperty("temporaryFolder")) {
++            specification.temporaryFolder.testDirectory.listFiles().each {
++                if (!FILES_TO_PRESERVE.contains(it.name)) {
++                    it.deleteDir()
++                }
++            }
++        }
++        true
++    }
++
++    static boolean onIssueWithReleasedGradleVersion(Object specification, Throwable failure) {
++        def daemonsFixture = specification.hasProperty("daemonsFixture") ? specification.daemonsFixture : null
++        return shouldRetry(specification, failure, daemonsFixture)
+     }
+ 
+-    private static boolean shouldRetry(Specification specification, Throwable failure, daemonsFixture) {
++    private static boolean shouldRetry(Object specification, Throwable failure, daemonsFixture) {
+         String releasedGradleVersion = specification.hasProperty("releasedGradleVersion") ? specification.releasedGradleVersion : null
+         def caughtGradleConnectionException = specification.hasProperty("caughtGradleConnectionException") ? specification.caughtGradleConnectionException : null
+ 
+@@ -64,19 +95,19 @@ class RetryRuleUtil {
+                 || failure.cause?.message == "Gradle build daemon disappeared unexpectedly (it may have been stopped, killed or may have crashed)"
+                 || failure.message == "Gradle build daemon disappeared unexpectedly (it may have been stopped, killed or may have crashed)")) {
+             println "Retrying cross version test because of <1.3 daemon connection issue"
+-            return retryWithCleanProjectDir(specification)
++            return cleanProjectDir(specification)
+         }
+ 
+         // this is cause by a bug in Gradle <1.8, where a NPE is thrown when DaemonInfo is removed from the daemon registry by another process
+         if (targetDistVersion < GradleVersion.version("1.8") &&
+             failure.getClass().getSimpleName() == 'GradleConnectionException' && failure.cause.getClass().getSimpleName() == 'NullPointerException') {
+-            return retryWithCleanProjectDir(specification)
++            return cleanProjectDir(specification)
+         }
+ 
+         if (targetDistVersion < GradleVersion.version('2.10')) {
+             if (getRootCauseMessage(failure) ==~ /Unable to calculate percentage: .* of .*\. All inputs must be >= 0/) {
+                 println "Retrying cross version test because of timing issue in Gradle versions <2.10"
+-                return retryWithCleanProjectDir(specification)
++                return cleanProjectDir(specification)
+             }
+         }
+ 
+@@ -86,7 +117,7 @@ class RetryRuleUtil {
+                 && failure.cause?.message == "Unable to create directory 'metadata-2.1'") {
+ 
+                 println "Retrying cross version test for " + targetDistVersion.version + " because failure was caused by directory creation race condition"
+-                return retryWithCleanProjectDir(specification)
++                return cleanProjectDir(specification)
+             }
+         }
+ 
+@@ -95,34 +126,19 @@ class RetryRuleUtil {
+             failure.cause?.message ==~ /(?s)Timeout waiting to connect to (the )?Gradle daemon\..*/) {
+ 
+             println "Retrying cross version test because daemon connection is broken."
+-            return retryWithCleanProjectDir(specification)
++            return cleanProjectDir(specification)
+         }
+ 
+         // sometime sockets are unexpectedly disappearing on daemon side (running on windows): https://github.com/gradle/gradle/issues/1111
+         didSocketDisappearOnWindows(failure, specification, daemonsFixture, targetDistVersion >= GradleVersion.version('3.0'))
+     }
+ 
+-    static RetryRule retryToolingAPIOnWindowsSocketDisappearance(Specification specification) {
+-        RetryRule.retryIf(specification) { t ->
+-            Throwable failure = t
+-
+-            def daemonFixture = specification.hasProperty("daemonsFixture") ? specification.daemonsFixture : null
+-
+-            didSocketDisappearOnWindows(failure, specification, daemonFixture)
+-        }
++    static void onWindowsSocketDisappearance(Object specification, Throwable failure) {
++        def daemonFixture = specification.hasProperty("daemonsFixture") ? specification.daemonsFixture : null
++        didSocketDisappearOnWindows(failure, specification, daemonFixture)
+     }
+ 
+-    static RetryRule retryContinuousBuildSpecificationOnTimeout(Specification specification) {
+-        RetryRule.retryIf(specification) { t ->
+-            if (t?.message?.startsWith('Timeout waiting for build to complete.')) {
+-                println "Retrying continuous build test because of timeout"
+-                return retryWithCleanProjectDir(specification)
+-            }
+-            false
+-        }
+-    }
+-
+-    static private boolean didSocketDisappearOnWindows(Throwable failure, Specification specification, daemonsFixture, checkDaemonLogs = true) {
++    static private boolean didSocketDisappearOnWindows(Throwable failure, Object specification, daemonsFixture, checkDaemonLogs = true) {
+         // sometime sockets are unexpectedly disappearing on daemon side (running on windows): gradle/gradle#1111
+         if (runsOnWindowsAndJava7or8() && daemonsFixture != null) {
+             if (getRootCauseMessage(failure) == "An existing connection was forcibly closed by the remote host" ||
+@@ -131,13 +147,13 @@ class RetryRuleUtil {
+ 
+                 if (!checkDaemonLogs) {
+                     println "Retrying test because socket disappeared."
+-                    return retryWithCleanProjectDir(specification)
++                    return cleanProjectDir(specification)
+                 }
+ 
+                 for (def daemon : daemonsFixture.allDaemons) {
+                     if (daemonStoppedWithSocketExceptionOnWindows(daemon)) {
+                         println "Retrying test because socket disappeared. Check log of daemon with PID ${daemon.context.pid}."
+-                        return retryWithCleanProjectDir(specification)
++                        return cleanProjectDir(specification)
+                     }
+                 }
+             }
+@@ -147,8 +163,8 @@ class RetryRuleUtil {
+ 
+     static daemonStoppedWithSocketExceptionOnWindows(daemon) {
+         runsOnWindowsAndJava7or8() && (daemon.log.contains("java.net.SocketException: Socket operation on nonsocket:")
+-        || daemon.log.contains("java.io.IOException: An operation was attempted on something that is not a socket")
+-        || daemon.log.contains("java.io.IOException: An existing connection was forcibly closed by the remote host"))
++            || daemon.log.contains("java.io.IOException: An operation was attempted on something that is not a socket")
++            || daemon.log.contains("java.io.IOException: An existing connection was forcibly closed by the remote host"))
+     }
+ 
+     static String getRootCauseMessage(Throwable throwable) {
+@@ -168,33 +184,4 @@ class RetryRuleUtil {
+     static boolean runsOnWindowsAndJava7or8() {
+         return TestPrecondition.WINDOWS.fulfilled && [JavaVersion.VERSION_1_7, JavaVersion.VERSION_1_8].contains(JavaVersion.current())
+     }
+-
+-    static boolean retryWithCleanProjectDir(Specification specification) {
+-        if (specification.hasProperty("toolingApi")) {
+-            specification.toolingApi.cleanUpIsolatedDaemonsAndServices()
+-        }
+-        if (specification.hasProperty("caughtGradleConnectionException")) {
+-            specification.caughtGradleConnectionException = null
+-        }
+-        if (specification.hasProperty("projectDir")) {
+-            specification.projectDir.listFiles().each {
+-                if (!FILES_TO_PRESERVE.contains(it.name)) {
+-                    it.deleteDir()
+-                }
+-            }
+-        } else if (specification.hasProperty("testDirectory")) {
+-            specification.testDirectory.listFiles().each {
+-                if (!FILES_TO_PRESERVE.contains(it.name)) {
+-                    it.deleteDir()
+-                }
+-            }
+-        } else if (specification.hasProperty("temporaryFolder")) {
+-            specification.temporaryFolder.testDirectory.listFiles().each {
+-                if (!FILES_TO_PRESERVE.contains(it.name)) {
+-                    it.deleteDir()
+-                }
+-            }
+-        }
+-        true
+-    }
+ }
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/Sample.java b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/Sample.java
+index 5f4c8f7bd9db4..2d5c4b73ec8f4 100644
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/Sample.java
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/Sample.java
+@@ -19,8 +19,8 @@
+ import org.gradle.integtests.fixtures.executer.IntegrationTestBuildContext;
+ import org.gradle.test.fixtures.file.TestDirectoryProvider;
+ import org.gradle.test.fixtures.file.TestFile;
+-import org.junit.rules.MethodRule;
+-import org.junit.runners.model.FrameworkMethod;
++import org.junit.rules.TestRule;
++import org.junit.runner.Description;
+ import org.junit.runners.model.Statement;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+@@ -32,7 +32,7 @@
+  * {@link org.gradle.integtests.fixtures.UsesSample} annotation on the test method to determine which sample the
+  * test requires. If not found, uses the default sample provided in the constructor.
+  */
+-public class Sample implements MethodRule {
++public class Sample implements TestRule {
+     private final Logger logger = LoggerFactory.getLogger(Sample.class);
+     private final String defaultSampleName;
+     private final String testSampleDirName;
+@@ -55,8 +55,9 @@ public Sample(TestDirectoryProvider testDirectoryProvider, String defaultSampleN
+         this.testSampleDirName = testSampleDirName;
+     }
+ 
+-    public Statement apply(final Statement base, FrameworkMethod method, Object target) {
+-        sampleName = getSampleName(method);
++    @Override
++    public Statement apply(final Statement base, Description description) {
++        sampleName = getSampleName(description);
+         return new Statement() {
+             @Override
+             public void evaluate() throws Throwable {
+@@ -73,8 +74,8 @@ public void evaluate() throws Throwable {
+         };
+     }
+ 
+-    private String getSampleName(FrameworkMethod method) {
+-        UsesSample annotation = method.getAnnotation(UsesSample.class);
++    private String getSampleName(Description description) {
++        UsesSample annotation = description.getAnnotation(UsesSample.class);
+         return annotation != null
+             ? annotation.value()
+             : defaultSampleName;
+diff --git a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/daemon/DaemonLogsAnalyzer.groovy b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/daemon/DaemonLogsAnalyzer.groovy
+index d2828a62728d0..97646c2c92844 100644
+--- a/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/daemon/DaemonLogsAnalyzer.groovy
++++ b/subprojects/internal-integ-testing/src/main/groovy/org/gradle/integtests/fixtures/daemon/DaemonLogsAnalyzer.groovy
+@@ -25,7 +25,7 @@ import org.gradle.launcher.daemon.registry.DaemonRegistryServices
+ import org.gradle.testfixtures.internal.NativeServicesTestFixture
+ import org.gradle.util.GradleVersion
+ 
+-import static org.gradle.integtests.fixtures.RetryRuleUtil.daemonStoppedWithSocketExceptionOnWindows
++import static org.gradle.integtests.fixtures.RetryConditions.daemonStoppedWithSocketExceptionOnWindows
+ 
+ class DaemonLogsAnalyzer implements DaemonsFixture {
+     private final File daemonLogsDir
+diff --git a/subprojects/internal-performance-testing/src/main/groovy/org/gradle/performance/AbstractCrossVersionPerformanceTest.groovy b/subprojects/internal-performance-testing/src/main/groovy/org/gradle/performance/AbstractCrossVersionPerformanceTest.groovy
+index 822d242cffff0..86d86abc73f4c 100644
+--- a/subprojects/internal-performance-testing/src/main/groovy/org/gradle/performance/AbstractCrossVersionPerformanceTest.groovy
++++ b/subprojects/internal-performance-testing/src/main/groovy/org/gradle/performance/AbstractCrossVersionPerformanceTest.groovy
+@@ -23,20 +23,23 @@ import org.gradle.performance.categories.PerformanceRegressionTest
+ import org.gradle.performance.fixture.BuildExperimentRunner
+ import org.gradle.performance.fixture.CrossVersionPerformanceTestRunner
+ import org.gradle.performance.fixture.GradleSessionProvider
++import org.gradle.performance.fixture.PerformanceTestConditions
+ import org.gradle.performance.fixture.PerformanceTestDirectoryProvider
+ import org.gradle.performance.fixture.PerformanceTestIdProvider
+-import org.gradle.performance.fixture.PerformanceTestRetryRule
+ import org.gradle.performance.results.CrossVersionResultsStore
+ import org.gradle.performance.results.SlackReporter
+ import org.gradle.test.fixtures.file.CleanupTestDirectory
+ import org.gradle.test.fixtures.file.TestNameTestDirectoryProvider
+-import org.gradle.testing.internal.util.RetryRule
+ import org.junit.Rule
+ import org.junit.experimental.categories.Category
++import spock.lang.Retry
+ import spock.lang.Specification
+ 
++import static spock.lang.Retry.Mode.SETUP_FEATURE_CLEANUP
++
+ @Category(PerformanceRegressionTest)
+ @CleanupTestDirectory
++@Retry(condition = { PerformanceTestConditions.whenSlowerButNotAdhoc(failure) }, mode = SETUP_FEATURE_CLEANUP, count = 2)
+ class AbstractCrossVersionPerformanceTest extends Specification {
+ 
+     private static def resultStore = new CrossVersionResultsStore()
+@@ -45,9 +48,6 @@ class AbstractCrossVersionPerformanceTest extends Specification {
+     @Rule
+     TestNameTestDirectoryProvider temporaryFolder = new PerformanceTestDirectoryProvider()
+ 
+-    @Rule
+-    RetryRule retry = new PerformanceTestRetryRule()
+-
+     private final IntegrationTestBuildContext buildContext = new IntegrationTestBuildContext()
+ 
+     private CrossVersionPerformanceTestRunner runner
+diff --git a/subprojects/internal-performance-testing/src/main/groovy/org/gradle/performance/AbstractToolingApiCrossVersionPerformanceTest.groovy b/subprojects/internal-performance-testing/src/main/groovy/org/gradle/performance/AbstractToolingApiCrossVersionPerformanceTest.groovy
+index 353bc82245f47..0c76af5e68c15 100644
+--- a/subprojects/internal-performance-testing/src/main/groovy/org/gradle/performance/AbstractToolingApiCrossVersionPerformanceTest.groovy
++++ b/subprojects/internal-performance-testing/src/main/groovy/org/gradle/performance/AbstractToolingApiCrossVersionPerformanceTest.groovy
+@@ -40,11 +40,11 @@
+ import org.gradle.performance.fixture.DefaultBuildExperimentInvocationInfo
+ import org.gradle.performance.fixture.InvocationSpec
+ import org.gradle.performance.fixture.OperationTimer
++import org.gradle.performance.fixture.PerformanceTestConditions
+ import org.gradle.performance.fixture.PerformanceTestDirectoryProvider
+ import org.gradle.performance.fixture.PerformanceTestGradleDistribution
+ import org.gradle.performance.fixture.PerformanceTestIdProvider
+ import org.gradle.performance.fixture.PerformanceTestJvmOptions
+-import org.gradle.performance.fixture.PerformanceTestRetryRule
+ import org.gradle.performance.fixture.TestProjectLocator
+ import org.gradle.performance.fixture.TestScenarioSelector
+ import org.gradle.performance.results.BuildDisplayInfo
+@@ -56,7 +56,6 @@ import org.gradle.test.fixtures.file.CleanupTestDirectory
+ import org.gradle.test.fixtures.file.TestDirectoryProvider
+ import org.gradle.test.fixtures.file.TestFile
+ import org.gradle.test.fixtures.file.TestNameTestDirectoryProvider
+-import org.gradle.testing.internal.util.RetryRule
+ import org.gradle.tooling.ProjectConnection
+ import org.gradle.util.GFileUtils
+ import org.gradle.util.GradleVersion
+@@ -65,11 +64,15 @@ import org.junit.Rule
+ import org.junit.experimental.categories.Category
+ import org.slf4j.Logger
+ import org.slf4j.LoggerFactory
++import spock.lang.Retry
+ import spock.lang.Shared
+ import spock.lang.Specification
+ 
++import static spock.lang.Retry.Mode.SETUP_FEATURE_CLEANUP
++
+ @Category(PerformanceRegressionTest)
+ @CleanupTestDirectory
++@Retry(condition = { PerformanceTestConditions.whenSlowerButNotAdhoc(failure) }, mode = SETUP_FEATURE_CLEANUP, count = 2)
+ abstract class AbstractToolingApiCrossVersionPerformanceTest extends Specification {
+     protected final static ReleasedVersionDistributions RELEASES = new ReleasedVersionDistributions()
+     protected final static GradleDistribution CURRENT = new UnderDevelopmentGradleDistribution()
+@@ -94,9 +97,6 @@ abstract class AbstractToolingApiCrossVersionPerformanceTest extends Specificati
+     @Rule
+     PerformanceTestIdProvider performanceTestIdProvider = new PerformanceTestIdProvider()
+ 
+-    @Rule
+-    RetryRule retry = new PerformanceTestRetryRule()
+-
+     public <T> Class<T> tapiClass(Class<T> clazz) {
+         tapiClassLoader.loadClass(clazz.name)
+     }
+diff --git a/subprojects/internal-performance-testing/src/main/groovy/org/gradle/performance/fixture/PerformanceTestRetryRule.groovy b/subprojects/internal-performance-testing/src/main/groovy/org/gradle/performance/fixture/PerformanceTestConditions.groovy
+similarity index 63%
+rename from subprojects/internal-performance-testing/src/main/groovy/org/gradle/performance/fixture/PerformanceTestRetryRule.groovy
+rename to subprojects/internal-performance-testing/src/main/groovy/org/gradle/performance/fixture/PerformanceTestConditions.groovy
+index fdb372df44a07..63f1fb6a12228 100644
+--- a/subprojects/internal-performance-testing/src/main/groovy/org/gradle/performance/fixture/PerformanceTestRetryRule.groovy
++++ b/subprojects/internal-performance-testing/src/main/groovy/org/gradle/performance/fixture/PerformanceTestConditions.groovy
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2017 the original author or authors.
++ * Copyright 2018 the original author or authors.
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+@@ -16,15 +16,10 @@
+ 
+ package org.gradle.performance.fixture
+ 
+-import groovy.transform.CompileStatic
+ import org.gradle.performance.results.ResultsStoreHelper
+-import org.gradle.testing.internal.util.RetryRule
+ 
+-@CompileStatic
+-class PerformanceTestRetryRule extends RetryRule {
+-    PerformanceTestRetryRule() {
+-        super(null, { Throwable failure ->
+-            failure.message?.contains("slower") && !ResultsStoreHelper.isAdhocPerformanceTest()
+-        })
++class PerformanceTestConditions {
++    static boolean whenSlowerButNotAdhoc(Throwable failure) {
++        failure.message?.contains("slower") && !ResultsStoreHelper.isAdhocPerformanceTest()
+     }
+ }
+diff --git a/subprojects/internal-testing/internal-testing.gradle b/subprojects/internal-testing/internal-testing.gradle
+index 65de939a81b2d..5c0aee0f86fb4 100644
+--- a/subprojects/internal-testing/internal-testing.gradle
++++ b/subprojects/internal-testing/internal-testing.gradle
+@@ -39,6 +39,10 @@ dependencies {
+     compile libraries.jmock
+     compile libraries.spock
+     compile libraries.jsoup
++
++    components {
++        withModule("cglib:cglib", cglibWithoutAntRule)
++    }
+ }
+ 
+ useClassycle()
+diff --git a/subprojects/internal-testing/src/main/groovy/org/gradle/test/fixtures/file/AbstractTestDirectoryProvider.java b/subprojects/internal-testing/src/main/groovy/org/gradle/test/fixtures/file/AbstractTestDirectoryProvider.java
+index a55e4f078e019..74047256e8ff4 100644
+--- a/subprojects/internal-testing/src/main/groovy/org/gradle/test/fixtures/file/AbstractTestDirectoryProvider.java
++++ b/subprojects/internal-testing/src/main/groovy/org/gradle/test/fixtures/file/AbstractTestDirectoryProvider.java
+@@ -18,7 +18,6 @@
+ 
+ import groovy.lang.Closure;
+ import org.apache.commons.io.FileUtils;
+-import org.apache.commons.lang.StringUtils;
+ import org.gradle.api.GradleException;
+ import org.gradle.test.fixtures.ConcurrentTestUtil;
+ import org.junit.rules.TestRule;
+@@ -46,16 +45,6 @@ abstract class AbstractTestDirectoryProvider implements TestRule, TestDirectoryP
+     private boolean cleanup = true;
+     private boolean suppressCleanupErrors = false;
+ 
+-    private String determinePrefix() {
+-        StackTraceElement[] stackTrace = new RuntimeException().getStackTrace();
+-        for (StackTraceElement element : stackTrace) {
+-            if (element.getClassName().endsWith("Test") || element.getClassName().endsWith("Spec")) {
+-                return StringUtils.substringAfterLast(element.getClassName(), ".") + "/unknown-test";
+-            }
+-        }
+-        return "unknown-test-class";
+-    }
+-
+     @Override
+     public void suppressCleanup() {
+         cleanup = false;
+@@ -171,7 +160,7 @@ private String getPrefix() {
+         if (prefix == null) {
+             // This can happen if this is used in a constructor or a @Before method. It also happens when using
+             // @RunWith(SomeRunner) when the runner does not support rules.
+-            prefix = determinePrefix();
++            prefix = "unknown-test-class";
+         }
+         return prefix;
+     }
+diff --git a/subprojects/internal-testing/src/main/groovy/org/gradle/testing/internal/util/RetryRule.groovy b/subprojects/internal-testing/src/main/groovy/org/gradle/testing/internal/util/RetryRule.groovy
+deleted file mode 100644
+index dd4e5aa247139..0000000000000
+--- a/subprojects/internal-testing/src/main/groovy/org/gradle/testing/internal/util/RetryRule.groovy
++++ /dev/null
+@@ -1,120 +0,0 @@
+-/*
+- * Copyright 2015 the original author or authors.
+- *
+- * Licensed under the Apache License, Version 2.0 (the "License");
+- * you may not use this file except in compliance with the License.
+- * You may obtain a copy of the License at
+- *
+- *      http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS,
+- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+- */
+-
+-package org.gradle.testing.internal.util
+-
+-import groovy.transform.CompileStatic
+-import org.junit.rules.MethodRule
+-import org.junit.runners.model.FrameworkMethod
+-import org.junit.runners.model.Statement
+-import org.spockframework.runtime.UnallowedExceptionThrownError
+-import org.spockframework.runtime.WrongExceptionThrownError
+-import org.spockframework.runtime.model.MethodInfo
+-import org.spockframework.runtime.model.SpecInfo
+-import spock.lang.Specification
+-
+-/*
+-  Use this rule judiciously. This is not intended as a generic solution for flaky tests.
+-  There are few valid use cases for it like known issues in old versions of Gradle impacting cross-version tests.
+-
+-  Implements MethodRule, not TestRule because of a limitation of Spock.
+-  Note that setup or cleanup methods won't be called between retrying and the same test instance is used for retrying.
+-  If the test method depends on state held in the test instance, then retrying might not behave as expected.
+-  See this thread for more details: https://groups.google.com/forum/#!msg/spockframework/95ACCVg-aCQ/0SIvxoLhX7UJ:
+- */
+-@CompileStatic
+-class RetryRule implements MethodRule {
+-
+-    private Closure<Boolean> shouldRetry
+-    private Specification specification
+-
+-    protected RetryRule(Specification specification, Closure<Boolean> shouldRetry) {
+-        this.specification = specification
+-        this.shouldRetry = shouldRetry
+-    }
+-
+-    static RetryRule retryIf(Specification specification, Closure<Boolean> shouldRetry) {
+-        return new RetryRule(specification, shouldRetry)
+-    }
+-
+-    static RetryRule retryIf(Closure<Boolean> shouldRetry) {
+-        return new RetryRule(null, shouldRetry)
+-    }
+-
+-    @Override
+-    Statement apply(Statement base, FrameworkMethod method, Object target) {
+-        if (specification == null) {
+-            specification = target as Specification
+-        }
+-        return {
+-            try {
+-                base.evaluate()
+-            } catch (Throwable t1) {
+-                if (shouldReallyRetry(t1)) {
+-                    try {
+-                        println "Retrying (2nd attempt) " + method
+-                        runCleanup(specification?.specificationContext?.currentSpec)
+-                        reRunSetup(specification?.specificationContext?.currentSpec)
+-                        base.evaluate()
+-                    } catch (Throwable t2) {
+-                        if (shouldReallyRetry(t2)) {
+-                            try {
+-                                println "Retrying (3rd attempt) " + method
+-                                runCleanup(specification?.specificationContext?.currentSpec)
+-                                reRunSetup(specification?.specificationContext?.currentSpec)
+-                                base.evaluate()
+-                            } catch (Throwable t3) {
+-                                throw new RetryFailure(t3)
+-                            }
+-                        } else {
+-                            throw t2
+-                        }
+-                    }
+-                } else {
+-                    throw t1
+-                }
+-            }
+-        } as Statement
+-    }
+-
+-    private void runCleanup(SpecInfo spec) {
+-        if (spec != null) {
+-            runCleanup(spec.getSuperSpec())
+-            for (MethodInfo method : spec.getCleanupMethods()) {
+-                method.invoke(specification)
+-            }
+-        }
+-    }
+-
+-    private void reRunSetup(SpecInfo spec) {
+-        if (spec != null) {
+-            reRunSetup(spec.getSuperSpec())
+-            for (MethodInfo method : spec.getSetupMethods()) {
+-                method.invoke(specification)
+-            }
+-        }
+-    }
+-
+-    private boolean shouldReallyRetry(Throwable t) {
+-        if (t instanceof WrongExceptionThrownError && t.getCause() != null) {
+-            return shouldRetry(t.getCause())
+-        }
+-        if (t instanceof UnallowedExceptionThrownError && t.getCause() != null) {
+-            return shouldRetry(t.getCause())
+-        }
+-        shouldRetry(t)
+-    }
+-}
+diff --git a/subprojects/internal-testing/src/main/groovy/org/gradle/testing/internal/util/Specification.groovy b/subprojects/internal-testing/src/main/groovy/org/gradle/testing/internal/util/Specification.groovy
+index 43287df609116..08316fd79dd18 100644
+--- a/subprojects/internal-testing/src/main/groovy/org/gradle/testing/internal/util/Specification.groovy
++++ b/subprojects/internal-testing/src/main/groovy/org/gradle/testing/internal/util/Specification.groovy
+@@ -18,36 +18,16 @@ package org.gradle.testing.internal.util
+ 
+ import groovy.transform.CompileStatic
+ import groovy.transform.stc.ClosureParams
+-import groovy.transform.stc.FirstParam
+ import groovy.transform.stc.SecondParam
+ 
+ /**
+- * This fixes Spock's with() methods to be understandable by IDEA.
+- * By using this subclass, IDEA knows the closure delegate type when using with().
+- * This means that you get editing assistance in said blocks WRT the object under assertion.
++ * This fixes Spock's Mock() and Stub() methods to be understandable by IDEA.
++ * By using this subclass, IDEA knows the closure delegate type when using Mock() or Stub().
++ * This means that you get editing assistance in said blocks WRT the type being mocked/stubbed.
+  */
+ @CompileStatic
+ class Specification extends spock.lang.Specification {
+ 
+-    @Override
+-    void with(
+-        @DelegatesTo.Target Object t,
+-        @DelegatesTo(strategy = Closure.DELEGATE_FIRST)
+-        @ClosureParams(FirstParam.class) Closure<?> closure
+-    ) {
+-        super.with(t, closure)
+-    }
+-
+-    @Override
+-    void with(
+-        Object t,
+-        @DelegatesTo.Target Class<?> type,
+-        @DelegatesTo(strategy = Closure.DELEGATE_FIRST, genericTypeIndex = 0)
+-        @ClosureParams(SecondParam.FirstGenericType.class) Closure closure
+-    ) {
+-        super.with(t, type, closure)
+-    }
+-
+     @SuppressWarnings(['MethodName', 'UnnecessaryOverridingMethod', 'GrUnnecessaryPublicModifier'])
+     @Override
+     public <T> T Mock(
+diff --git a/subprojects/internal-testing/src/main/groovy/org/gradle/util/FailsWithMessageExtension.java b/subprojects/internal-testing/src/main/groovy/org/gradle/util/FailsWithMessageExtension.java
+index 679ce1218723c..1b3e9e46786ae 100644
+--- a/subprojects/internal-testing/src/main/groovy/org/gradle/util/FailsWithMessageExtension.java
++++ b/subprojects/internal-testing/src/main/groovy/org/gradle/util/FailsWithMessageExtension.java
+@@ -16,6 +16,7 @@
+ package org.gradle.util;
+ 
+ import junit.framework.ComparisonFailure;
++import org.spockframework.runtime.ConditionFailedWithExceptionError;
+ import org.spockframework.runtime.WrongExceptionThrownError;
+ import org.spockframework.runtime.extension.AbstractAnnotationDrivenExtension;
+ import org.spockframework.runtime.extension.IMethodInterceptor;
+@@ -38,17 +39,21 @@ public FailsWithMessageInterceptor(FailsWithMessage annotation) {
+         public void intercept(IMethodInvocation invocation) throws Throwable {
+             try {
+                 invocation.proceed();
++                throw new WrongExceptionThrownError(annotation.type(), null);
++            } catch (ConditionFailedWithExceptionError error) {
++                handleFailure(error.getCause());
+             } catch (Throwable t) {
+-                if (!annotation.type().isInstance(t)) {
+-                    throw new WrongExceptionThrownError(annotation.type(), t);
+-                }
+-                if (!annotation.message().equals(t.getMessage())) {
+-                    throw new ComparisonFailure("Unexpected message for exception.", annotation.message(), t.getMessage());
+-                }
+-                return;
++                handleFailure(t);
+             }
++        }
+ 
+-            throw new WrongExceptionThrownError(annotation.type(), null);
++        private void handleFailure(Throwable t) {
++            if (!annotation.type().isInstance(t)) {
++                throw new WrongExceptionThrownError(annotation.type(), t);
++            }
++            if (!annotation.message().equals(t.getMessage())) {
++                throw new ComparisonFailure("Unexpected message for exception.", annotation.message(), t.getMessage());
++            }
+         }
+     }
+ }
+diff --git a/subprojects/internal-testing/src/test/groovy/org/gradle/testing/internal/util/RetryRuleTest.groovy b/subprojects/internal-testing/src/test/groovy/org/gradle/testing/internal/util/RetryRuleTest.groovy
+deleted file mode 100644
+index 47272612b582e..0000000000000
+--- a/subprojects/internal-testing/src/test/groovy/org/gradle/testing/internal/util/RetryRuleTest.groovy
++++ /dev/null
+@@ -1,121 +0,0 @@
+-/*
+- * Copyright 2015 the original author or authors.
+- *
+- * Licensed under the Apache License, Version 2.0 (the "License");
+- * you may not use this file except in compliance with the License.
+- * You may obtain a copy of the License at
+- *
+- *      http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS,
+- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+- */
+-
+-package org.gradle.testing.internal.util
+-
+-import org.junit.Rule
+-import spock.lang.Specification
+-
+-import static org.gradle.testing.internal.util.RetryRule.retryIf
+-
+-@SuppressWarnings("GroovyUnreachableStatement")
+-class RetryRuleTest extends Specification {
+-
+-    @Rule
+-    RetryRule retryRule = retryIf({ t -> t instanceof IOException })
+-
+-    @Rule
+-    ExpectedFailureRule expectedFailureRule = new ExpectedFailureRule()
+-
+-    int iteration = 0
+-
+-    def "should pass when expected exception happens once"() {
+-        given:
+-        iteration++
+-
+-        when:
+-        throwWhen(new IOException(), iteration == 1)
+-
+-        then:
+-        true
+-    }
+-
+-    def "should pass when expected exception happens twice"() {
+-        given:
+-        iteration++
+-
+-        when:
+-        throwWhen(new IOException(), iteration <= 2)
+-
+-        then:
+-        true
+-    }
+-
+-    def "should retry and pass when spock expects a specific exception"() {
+-        given:
+-        iteration++
+-
+-        when:
+-        throwWhen(new IOException(), iteration == 1)
+-        throwWhen(new RuntimeException("test"), iteration == 2)
+-
+-        then:
+-        RuntimeException ex = thrown()
+-        ex.message.contains("test")
+-    }
+-
+-    @ExpectedFailure(expected = RetryFailure.class)
+-    def "should fail when expected exception happens three times"() {
+-        given:
+-        iteration++
+-
+-        when:
+-        throwWhen(new IOException(), iteration <= 3)
+-
+-        then:
+-        true
+-    }
+-
+-    @ExpectedFailure(expected = RuntimeException.class)
+-    def "should fail when expected exception happens once and another exception happens on next execution"() {
+-        given:
+-        iteration++
+-
+-        when:
+-        throwWhen(new IOException(), iteration == 1)
+-        throwWhen(new RuntimeException(), iteration == 2)
+-
+-        then:
+-        true
+-    }
+-
+-    @ExpectedFailure(expected = RetryFailure.class)
+-    def "should fail when expected exception happens consistently"() {
+-        when:
+-        throw new IOException()
+-
+-        then:
+-        true
+-    }
+-
+-    @ExpectedFailure(expected = RuntimeException.class)
+-    def "should fail when unexpected exception happens once"() {
+-        given:
+-        iteration++
+-
+-        when:
+-        throwWhen(new RuntimeException(), iteration == 1)
+-
+-        then:
+-        true
+-    }
+-
+-    private static void throwWhen(Throwable throwable, boolean condition) {
+-        if (condition) {
+-            throw throwable
+-        }
+-    }
+-}
+diff --git a/subprojects/internal-testing/src/test/groovy/org/gradle/testing/internal/util/RetryRuleWithSetupRerunTest.groovy b/subprojects/internal-testing/src/test/groovy/org/gradle/testing/internal/util/RetryRuleWithSetupRerunTest.groovy
+deleted file mode 100644
+index 5a75d91af6139..0000000000000
+--- a/subprojects/internal-testing/src/test/groovy/org/gradle/testing/internal/util/RetryRuleWithSetupRerunTest.groovy
++++ /dev/null
+@@ -1,75 +0,0 @@
+-/*
+- * Copyright 2017 the original author or authors.
+- *
+- * Licensed under the Apache License, Version 2.0 (the "License");
+- * you may not use this file except in compliance with the License.
+- * You may obtain a copy of the License at
+- *
+- *      http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS,
+- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+- */
+-
+-package org.gradle.testing.internal.util
+-
+-import org.junit.Rule
+-import spock.lang.Specification
+-
+-import static org.gradle.testing.internal.util.RetryRule.retryIf
+-
+-class RetryRuleWithSetupRerunTest extends SuperSpecification {
+-
+-    @Rule
+-    RetryRule retryRule = retryIf({ t -> t instanceof IOException })
+-
+-    int iteration = 0
+-
+-    int setupCallCount = 0
+-
+-    def setup() {
+-        setupCallCount++
+-    }
+-
+-    def "reruns all setup methods if specification is passed to rule"() {
+-        given:
+-        iteration++
+-
+-        when:
+-        throwWhen(new IOException(), iteration < 2)
+-
+-        then:
+-        setupCallCount == 2
+-        superSetupCallCount == 2
+-    }
+-
+-    def "reruns all setup methods if specification is passed to rule for both retries"() {
+-        given:
+-        iteration++
+-
+-        when:
+-        throwWhen(new IOException(), iteration < 3)
+-
+-        then:
+-        setupCallCount == 3
+-        superSetupCallCount == 3
+-    }
+-
+-    private static void throwWhen(Throwable throwable, boolean condition) {
+-        if (condition) {
+-            throw throwable;
+-        }
+-    }
+-}
+-
+-class SuperSpecification extends Specification {
+-    int superSetupCallCount = 0
+-
+-    def setup() {
+-        superSetupCallCount++
+-    }
+-}
+-
+diff --git a/subprojects/launcher/src/integTest/groovy/org/gradle/launcher/continuous/ChangesDuringBuildContinuousIntegrationTest.groovy b/subprojects/launcher/src/integTest/groovy/org/gradle/launcher/continuous/ChangesDuringBuildContinuousIntegrationTest.groovy
+index 31463c3157df5..247ad4cb30c47 100644
+--- a/subprojects/launcher/src/integTest/groovy/org/gradle/launcher/continuous/ChangesDuringBuildContinuousIntegrationTest.groovy
++++ b/subprojects/launcher/src/integTest/groovy/org/gradle/launcher/continuous/ChangesDuringBuildContinuousIntegrationTest.groovy
+@@ -16,27 +16,19 @@
+ 
+ package org.gradle.launcher.continuous
+ 
+-import org.gradle.integtests.fixtures.RetryRuleUtil
+ import org.gradle.integtests.fixtures.archives.TestReproducibleArchives
+ import org.gradle.internal.os.OperatingSystem
+-import org.gradle.testing.internal.util.RetryRule
+ import org.gradle.util.TestPrecondition
+-import org.junit.Rule
++import spock.lang.Retry
+ import spock.lang.Unroll
+ 
++import static org.gradle.integtests.fixtures.RetryConditions.cleanProjectDir
++import static spock.lang.Retry.Mode.SETUP_FEATURE_CLEANUP
+ // Continuous build will trigger a rebuild when an input file is changed during build execution
+ @TestReproducibleArchives
++@Retry(condition = { TestPrecondition.LINUX && TestPrecondition.JDK8_OR_EARLIER && cleanProjectDir(instance) }, mode = SETUP_FEATURE_CLEANUP, count = 2)
+ class ChangesDuringBuildContinuousIntegrationTest extends Java7RequiringContinuousIntegrationTest {
+ 
+-    @Rule
+-    RetryRule retryRule = RetryRule.retryIf(this) {
+-        if (TestPrecondition.LINUX && TestPrecondition.JDK8_OR_EARLIER) {
+-            // possibly hit JDK-8145981
+-            return RetryRuleUtil.retryWithCleanProjectDir(this)
+-        }
+-        false
+-    }
+-
+     def setup() {
+         def quietPeriod = OperatingSystem.current().isMacOsX() ? 2000 : 250
+         waitAtEndOfBuildForQuietPeriod(quietPeriod)
+diff --git a/subprojects/launcher/src/integTest/groovy/org/gradle/launcher/continuous/RetryRuleContinuousIntegrationTest.groovy b/subprojects/launcher/src/integTest/groovy/org/gradle/launcher/continuous/RetryOnBuildFailureContinuousIntegrationTest.groovy
+similarity index 92%
+rename from subprojects/launcher/src/integTest/groovy/org/gradle/launcher/continuous/RetryRuleContinuousIntegrationTest.groovy
+rename to subprojects/launcher/src/integTest/groovy/org/gradle/launcher/continuous/RetryOnBuildFailureContinuousIntegrationTest.groovy
+index fc8794eef7a7f..cb5fda967b800 100644
+--- a/subprojects/launcher/src/integTest/groovy/org/gradle/launcher/continuous/RetryRuleContinuousIntegrationTest.groovy
++++ b/subprojects/launcher/src/integTest/groovy/org/gradle/launcher/continuous/RetryOnBuildFailureContinuousIntegrationTest.groovy
+@@ -18,7 +18,7 @@ package org.gradle.launcher.continuous
+ 
+ import org.gradle.integtests.fixtures.AbstractContinuousIntegrationTest
+ 
+-class RetryRuleContinuousIntegrationTest extends AbstractContinuousIntegrationTest{
++class RetryOnBuildFailureContinuousIntegrationTest extends AbstractContinuousIntegrationTest {
+ 
+     def iteration = 0
+ 
+diff --git a/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/experiment/buildcache/LocalTaskOutputCacheCrossBuildPerformanceTest.groovy b/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/experiment/buildcache/LocalTaskOutputCacheCrossBuildPerformanceTest.groovy
+index 379021174b2c4..7bdc3950e68fd 100644
+--- a/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/experiment/buildcache/LocalTaskOutputCacheCrossBuildPerformanceTest.groovy
++++ b/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/experiment/buildcache/LocalTaskOutputCacheCrossBuildPerformanceTest.groovy
+@@ -53,7 +53,7 @@ class LocalTaskOutputCacheCrossBuildPerformanceTest extends AbstractCrossBuildPe
+             }
+         """.stripIndent()
+ 
+-        when:
++        given:
+         runner.buildExperimentListener = new BuildExperimentListenerAdapter() {
+             @Override
+             void beforeExperiment(BuildExperimentSpec experimentSpec, File projectDir) {
+@@ -100,8 +100,11 @@ class LocalTaskOutputCacheCrossBuildPerformanceTest extends AbstractCrossBuildPe
+             }
+         }
+ 
++        when:
++        def results = runner.run()
++
+         then:
+-        runner.run()
++        results
+ 
+         where:
+         testProject                   | tasks
+diff --git a/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/experiment/java/ParallelBuildPerformanceTest.groovy b/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/experiment/java/ParallelBuildPerformanceTest.groovy
+index e050de153f717..8a3066b12c14d 100644
+--- a/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/experiment/java/ParallelBuildPerformanceTest.groovy
++++ b/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/experiment/java/ParallelBuildPerformanceTest.groovy
+@@ -29,7 +29,7 @@ class ParallelBuildPerformanceTest extends AbstractCrossBuildPerformanceTest {
+ 
+     @Unroll
+     def "clean assemble on #testProject with 4 parallel workers"() {
+-        when:
++        given:
+         runner.testGroup = "parallel builds"
+         runner.buildSpec {
+             warmUpCount = warmUpRuns
+@@ -46,8 +46,11 @@ class ParallelBuildPerformanceTest extends AbstractCrossBuildPerformanceTest {
+             }
+         }
+ 
++        when:
++        def results = runner.run()
++
+         then:
+-        runner.run()
++        results
+ 
+         where:
+         testProject                   | warmUpRuns | runs
+diff --git a/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/experiment/nativeplatform/NativeParallelPerformanceTest.groovy b/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/experiment/nativeplatform/NativeParallelPerformanceTest.groovy
+index 288538ceaa35e..320dda32b11a3 100644
+--- a/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/experiment/nativeplatform/NativeParallelPerformanceTest.groovy
++++ b/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/experiment/nativeplatform/NativeParallelPerformanceTest.groovy
+@@ -25,7 +25,7 @@ import spock.lang.Unroll
+ class NativeParallelPerformanceTest extends AbstractCrossBuildPerformanceTest {
+     @Unroll
+     def "clean assemble on #testProject with parallel workers" () {
+-        when:
++        given:
+         runner.testGroup = 'parallel builds'
+         runner.buildSpec {
+             projectName(testProject).displayName("parallel").invocation {
+@@ -38,8 +38,11 @@ class NativeParallelPerformanceTest extends AbstractCrossBuildPerformanceTest {
+             }
+         }
+ 
++        when:
++        def results = runner.run()
++
+         then:
+-        runner.run()
++        results
+ 
+         where:
+         testProject << [ "smallNative", "mediumNative", "bigNative", "multiNative" ]
+diff --git a/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/experiment/nativeplatform/NativePreCompiledHeaderPerformanceTest.groovy b/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/experiment/nativeplatform/NativePreCompiledHeaderPerformanceTest.groovy
+index 56adbfdd06950..eb55dbb7ef4b8 100644
+--- a/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/experiment/nativeplatform/NativePreCompiledHeaderPerformanceTest.groovy
++++ b/subprojects/performance/src/performanceTest/groovy/org/gradle/performance/experiment/nativeplatform/NativePreCompiledHeaderPerformanceTest.groovy
+@@ -25,7 +25,7 @@ import spock.lang.Unroll
+ class NativePreCompiledHeaderPerformanceTest extends AbstractCrossBuildPerformanceTest {
+     @Unroll
+     def "clean assemble on #testProject with precompiled headers" () {
+-        when:
++        given:
+         runner.testGroup = 'pre-compiled header builds'
+         runner.buildSpec {
+             projectName(testProject).displayName("Using PCH").invocation {
+@@ -39,8 +39,11 @@ class NativePreCompiledHeaderPerformanceTest extends AbstractCrossBuildPerforman
+             }
+         }
+ 
++        when:
++        def results = runner.run()
++
+         then:
+-        runner.run()
++        results
+ 
+         where:
+         testProject << [ "smallPCHNative", "mediumPCHNative", "bigPCHNative" ]
+diff --git a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/BaseGradleRunnerIntegrationTest.groovy b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/BaseGradleRunnerIntegrationTest.groovy
+index 5feda6605eb2c..21220a5139538 100644
+--- a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/BaseGradleRunnerIntegrationTest.groovy
++++ b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/BaseGradleRunnerIntegrationTest.groovy
+@@ -20,7 +20,6 @@ import groovy.transform.Sortable
+ import org.gradle.api.JavaVersion
+ import org.gradle.integtests.fixtures.AbstractIntegrationSpec
+ import org.gradle.integtests.fixtures.AbstractMultiTestRunner
+-import org.gradle.integtests.fixtures.RetryRuleUtil
+ import org.gradle.integtests.fixtures.daemon.DaemonLogsAnalyzer
+ import org.gradle.integtests.fixtures.daemon.DaemonsFixture
+ import org.gradle.integtests.fixtures.executer.ExecutionFailure
+@@ -34,7 +33,6 @@ import org.gradle.internal.nativeintegration.services.NativeServices
+ import org.gradle.internal.os.OperatingSystem
+ import org.gradle.internal.service.scopes.DefaultGradleUserHomeScopeServiceRegistry
+ import org.gradle.test.fixtures.file.TestFile
+-import org.gradle.testing.internal.util.RetryRule
+ import org.gradle.testkit.runner.fixtures.CustomDaemonDirectory
+ import org.gradle.testkit.runner.fixtures.Debug
+ import org.gradle.testkit.runner.fixtures.InjectsPluginClasspath
+@@ -50,12 +48,16 @@ import org.gradle.util.SetSystemProperties
+ import org.gradle.wrapper.GradleUserHomeLookup
+ import org.junit.Rule
+ import org.junit.runner.RunWith
++import spock.lang.Retry
+ 
+ import java.lang.annotation.Annotation
+ 
++import static org.gradle.integtests.fixtures.RetryConditions.onIssueWithReleasedGradleVersion
+ import static org.gradle.testkit.runner.internal.ToolingApiGradleExecutor.TEST_KIT_DAEMON_DIR_NAME
++import static spock.lang.Retry.Mode.SETUP_FEATURE_CLEANUP
+ 
+ @RunWith(Runner)
++@Retry(condition = { onIssueWithReleasedGradleVersion(instance, failure) }, mode = SETUP_FEATURE_CLEANUP, count = 2)
+ abstract class BaseGradleRunnerIntegrationTest extends AbstractIntegrationSpec {
+ 
+     public static final GradleVersion MIN_TESTED_VERSION = TestKitFeature.RUN_BUILDS.since
+@@ -173,9 +175,6 @@ abstract class BaseGradleRunnerIntegrationTest extends AbstractIntegrationSpec {
+         return desiredGradleVersion
+     }
+ 
+-    @Rule
+-    RetryRule retryRule = RetryRuleUtil.retryCrossVersionTestOnIssueWithReleasedGradleVersion(this)
+-
+     static class Runner extends AbstractMultiTestRunner {
+ 
+         private static final Map<Class<? extends Annotation>, TestKitFeature> TESTKIT_FEATURES = [
+diff --git a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerGradleVersionIntegrationTest.groovy b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerGradleVersionIntegrationTest.groovy
+index 97e74e6138a5a..220a723e05334 100644
+--- a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerGradleVersionIntegrationTest.groovy
++++ b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerGradleVersionIntegrationTest.groovy
+@@ -17,29 +17,27 @@
+ package org.gradle.testkit.runner
+ 
+ import org.gradle.api.Action
+-import org.gradle.integtests.fixtures.RetryRuleUtil
+ import org.gradle.integtests.fixtures.daemon.DaemonsFixture
+-import org.gradle.testing.internal.util.RetryRule
+ import org.gradle.testkit.runner.fixtures.NonCrossVersion
+ import org.gradle.util.DistributionLocator
+ import org.gradle.util.GradleVersion
+ import org.gradle.util.Requires
+ import org.gradle.util.TestPrecondition
+-import org.junit.Rule
++import spock.lang.Retry
+ import spock.lang.Shared
+ 
++import static org.gradle.integtests.fixtures.RetryConditions.onIssueWithReleasedGradleVersion
++
+ @NonCrossVersion
+ @Requires(TestPrecondition.ONLINE)
++@Retry(condition = { onIssueWithReleasedGradleVersion(instance, failure) }, count = 2)
+ class GradleRunnerGradleVersionIntegrationTest extends BaseGradleRunnerIntegrationTest {
+ 
+     public static final String VERSION = "2.10"
+ 
+     @Shared
+     DistributionLocator locator = new DistributionLocator()
+ 
+-    @Rule
+-    RetryRule retryRule = RetryRuleUtil.retryCrossVersionTestOnIssueWithReleasedGradleVersion(this)
+-
+     String getReleasedGradleVersion() {
+         VERSION
+     }
+diff --git a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerRetryRuleTest.groovy b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerRetryTest.groovy
+similarity index 91%
+rename from subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerRetryRuleTest.groovy
+rename to subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerRetryTest.groovy
+index 35b8859e281cf..c0d03a73cdee1 100644
+--- a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerRetryRuleTest.groovy
++++ b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerRetryTest.groovy
+@@ -16,12 +16,14 @@
+ 
+ package org.gradle.testkit.runner
+ 
+-import org.gradle.integtests.fixtures.RetryRuleUtil
++
+ import org.gradle.tooling.GradleConnectionException
+ import org.gradle.util.GradleVersion
+ import org.gradle.util.Requires
+ 
+-class GradleRunnerRetryRuleTest extends BaseGradleRunnerIntegrationTest {
++import static org.gradle.integtests.fixtures.RetryConditions.runsOnWindowsAndJava7or8
++
++class GradleRunnerRetryTest extends BaseGradleRunnerIntegrationTest {
+ 
+     def setup() {
+         //these meta tests mess with the daemon log: do not interfere with other tests when running in parallel
+@@ -43,7 +45,7 @@ class GradleRunnerRetryRuleTest extends BaseGradleRunnerIntegrationTest {
+         true
+     }
+ 
+-    @Requires(adhoc = {RetryRuleUtil.runsOnWindowsAndJava7or8()})
++    @Requires(adhoc = { runsOnWindowsAndJava7or8() })
+     def "retries if expected socket exception occurs"() {
+         given:
+         iteration++
+@@ -58,7 +60,7 @@ class GradleRunnerRetryRuleTest extends BaseGradleRunnerIntegrationTest {
+         true
+     }
+ 
+-    @Requires(adhoc = {!RetryRuleUtil.runsOnWindowsAndJava7or8()})
++    @Requires(adhoc = { !runsOnWindowsAndJava7or8() })
+     def "does not retry on non-windows and non-java environments"() {
+         given:
+         iteration++
+@@ -72,7 +74,7 @@ class GradleRunnerRetryRuleTest extends BaseGradleRunnerIntegrationTest {
+         ioe.cause?.message == "An existing connection was forcibly closed by the remote host"
+     }
+ 
+-    @Requires(adhoc = {RetryRuleUtil.runsOnWindowsAndJava7or8()})
++    @Requires(adhoc = { runsOnWindowsAndJava7or8() })
+     def "should fail for unexpected cause on client side"() {
+         given:
+         iteration++
+@@ -86,7 +88,7 @@ class GradleRunnerRetryRuleTest extends BaseGradleRunnerIntegrationTest {
+         ioe.cause?.message == "A different cause"
+     }
+ 
+-    @Requires(adhoc = {RetryRuleUtil.runsOnWindowsAndJava7or8()})
++    @Requires(adhoc = { runsOnWindowsAndJava7or8() })
+     def "should fail for unexpected cause on daemon side"() {
+         given:
+         iteration++
+diff --git a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerUnsupportedFeatureFailureIntegrationTest.groovy b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerUnsupportedFeatureFailureIntegrationTest.groovy
+index 6780aa36017d0..72703ae664bdd 100644
+--- a/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerUnsupportedFeatureFailureIntegrationTest.groovy
++++ b/subprojects/test-kit/src/integTest/groovy/org/gradle/testkit/runner/GradleRunnerUnsupportedFeatureFailureIntegrationTest.groovy
+@@ -16,37 +16,27 @@
+ 
+ package org.gradle.testkit.runner
+ 
+-import org.gradle.integtests.fixtures.RetryRuleUtil
++
+ import org.gradle.integtests.fixtures.versions.ReleasedVersionDistributions
+-import org.gradle.testing.internal.util.RetryRule
+ import org.gradle.testkit.runner.fixtures.Debug
+ import org.gradle.testkit.runner.fixtures.NonCrossVersion
+ import org.gradle.testkit.runner.fixtures.PluginUnderTest
+ import org.gradle.testkit.runner.internal.feature.TestKitFeature
+ import org.gradle.util.Requires
+ import org.gradle.util.TestPrecondition
+-import org.junit.Rule
++import spock.lang.Retry
+ 
+-import static org.gradle.testing.internal.util.RetryRule.retryIf
++import static org.gradle.integtests.fixtures.RetryConditions.cleanProjectDir
+ import static org.gradle.testkit.runner.TaskOutcome.SUCCESS
+ 
+ @NonCrossVersion
+ @Requires(TestPrecondition.FIX_TO_WORK_ON_JAVA9)
++@Retry(condition = { failure.class != UnsupportedFeatureException && cleanProjectDir(instance) }, count = 2)
+ class GradleRunnerUnsupportedFeatureFailureIntegrationTest extends BaseGradleRunnerIntegrationTest {
+ 
+     private static final ReleasedVersionDistributions RELEASED_VERSION_DISTRIBUTIONS = new ReleasedVersionDistributions()
+     private final PluginUnderTest plugin = new PluginUnderTest(file("pluginDir"))
+ 
+-    @Rule
+-    RetryRule unsupportedFeatureRetryRule = retryIf(
+-        { Throwable failure ->
+-            if (failure.class != UnsupportedFeatureException) {
+-                return RetryRuleUtil.retryWithCleanProjectDir(this)
+-            }
+-            false
+-        }
+-    )
+-
+     def iteration = 0
+ 
+     def "retries for unexpected exceptions thrown by old Gradle version (meta test)"() {
+diff --git a/subprojects/testing-jvm/src/test/groovy/org/gradle/api/internal/tasks/testing/detection/DefaultTestClassScannerTest.groovy b/subprojects/testing-jvm/src/test/groovy/org/gradle/api/internal/tasks/testing/detection/DefaultTestClassScannerTest.groovy
+index 52a5acccb2dd2..64e46e41a8f62 100755
+--- a/subprojects/testing-jvm/src/test/groovy/org/gradle/api/internal/tasks/testing/detection/DefaultTestClassScannerTest.groovy
++++ b/subprojects/testing-jvm/src/test/groovy/org/gradle/api/internal/tasks/testing/detection/DefaultTestClassScannerTest.groovy
+@@ -39,16 +39,16 @@ class DefaultTestClassScannerTest extends Specification {
+         then:
+         1 * detector.startDetection(processor)
+         then:
+-        1 * detector.processTestClass(new File("class1.class"))
+-        then:
+-        1 * detector.processTestClass(new File("class2.class"))
+-        then:
+         1 * files.visit(_) >> { args ->
+             FileVisitor visitor = args[0]
+             assert visitor
+             visitor.visitFile({new File('class1.class')} as FileVisitDetails)
+             visitor.visitFile({new File('class2.class')} as FileVisitDetails)
+         }
++        then:
++        1 * detector.processTestClass(new File("class1.class"))
++        then:
++        1 * detector.processTestClass(new File("class2.class"))
+ 
+         0 * _._
+     }
+diff --git a/subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/fixture/ContinuousBuildCrossVersionToolingApiSpecificationRetryRuleTest.groovy b/subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/fixture/ContinuousBuildCrossVersionToolingApiSpecificationRetryTest.groovy
+similarity index 90%
+rename from subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/fixture/ContinuousBuildCrossVersionToolingApiSpecificationRetryRuleTest.groovy
+rename to subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/fixture/ContinuousBuildCrossVersionToolingApiSpecificationRetryTest.groovy
+index 66d7d3fc8baf9..2b0a6c67a6cee 100644
+--- a/subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/fixture/ContinuousBuildCrossVersionToolingApiSpecificationRetryRuleTest.groovy
++++ b/subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/fixture/ContinuousBuildCrossVersionToolingApiSpecificationRetryTest.groovy
+@@ -16,7 +16,7 @@
+ 
+ package org.gradle.integtests.tooling.fixture
+ 
+-class ContinuousBuildCrossVersionToolingApiSpecificationRetryRuleTest extends ContinuousBuildToolingApiSpecification {
++class ContinuousBuildCrossVersionToolingApiSpecificationRetryTest extends ContinuousBuildToolingApiSpecification {
+ 
+     def iteration = 0
+ 
+diff --git a/subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/fixture/CrossVersionToolingApiSpecificationRetryRuleTest.groovy b/subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/fixture/CrossVersionToolingApiSpecificationRetryTest.groovy
+similarity index 94%
+rename from subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/fixture/CrossVersionToolingApiSpecificationRetryRuleTest.groovy
+rename to subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/fixture/CrossVersionToolingApiSpecificationRetryTest.groovy
+index 69ace55621e8e..6ab9918f72816 100644
+--- a/subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/fixture/CrossVersionToolingApiSpecificationRetryRuleTest.groovy
++++ b/subprojects/tooling-api/src/crossVersionTest/groovy/org/gradle/integtests/tooling/fixture/CrossVersionToolingApiSpecificationRetryTest.groovy
+@@ -17,14 +17,15 @@
+ package org.gradle.integtests.tooling.fixture
+ 
+ import org.gradle.api.GradleException
+-import org.gradle.integtests.fixtures.RetryRuleUtil
+ import org.gradle.integtests.fixtures.executer.UnexpectedBuildFailure
+ import org.gradle.test.fixtures.file.LeaksFileHandles
+ import org.gradle.tooling.GradleConnectionException
+ import org.gradle.util.Requires
+ 
++import static org.gradle.integtests.fixtures.RetryConditions.runsOnWindowsAndJava7or8
++
+ @LeaksFileHandles //With older 2.x Gradle versions -> Unable to delete file: native-platform.dll
+-class CrossVersionToolingApiSpecificationRetryRuleTest extends ToolingApiSpecification {
++class CrossVersionToolingApiSpecificationRetryTest extends ToolingApiSpecification {
+ 
+     def setup() {
+         //these meta tests mess with the daemon log: do not interfere with other tests when running in parallel
+@@ -83,7 +84,7 @@ class CrossVersionToolingApiSpecificationRetryRuleTest extends ToolingApiSpecifi
+         ioe.cause?.message == "Timeout waiting to connect to the Gradle daemon.\n more infos"
+     }
+ 
+-    @Requires(adhoc = {RetryRuleUtil.runsOnWindowsAndJava7or8()})
++    @Requires(adhoc = { runsOnWindowsAndJava7or8() })
+     def "retries if expected exception occurs"() {
+         given:
+         iteration++
+@@ -98,7 +99,7 @@ class CrossVersionToolingApiSpecificationRetryRuleTest extends ToolingApiSpecifi
+         true
+     }
+ 
+-    @Requires(adhoc = {!RetryRuleUtil.runsOnWindowsAndJava7or8()})
++    @Requires(adhoc = { !runsOnWindowsAndJava7or8() })
+     def "does not retry on non-windows and non-java7 environments"() {
+         given:
+         iteration++
+@@ -112,7 +113,7 @@ class CrossVersionToolingApiSpecificationRetryRuleTest extends ToolingApiSpecifi
+         ioe.cause?.message == "An existing connection was forcibly closed by the remote host"
+     }
+ 
+-    @Requires(adhoc = {RetryRuleUtil.runsOnWindowsAndJava7or8()})
++    @Requires(adhoc = { runsOnWindowsAndJava7or8() })
+     def "should fail for unexpected cause on client side"() {
+         given:
+         iteration++
+@@ -126,7 +127,7 @@ class CrossVersionToolingApiSpecificationRetryRuleTest extends ToolingApiSpecifi
+         ioe.cause?.message == "A different cause"
+     }
+ 
+-    @Requires(adhoc = {RetryRuleUtil.runsOnWindowsAndJava7or8()})
++    @Requires(adhoc = { runsOnWindowsAndJava7or8() })
+     def "should fail for unexpected cause on daemon side"() {
+         given:
+         iteration++
+diff --git a/subprojects/tooling-api/src/integTest/groovy/org/gradle/integtests/tooling/ConcurrentToolingApiIntegrationSpec.groovy b/subprojects/tooling-api/src/integTest/groovy/org/gradle/integtests/tooling/ConcurrentToolingApiIntegrationSpec.groovy
+index ba9f6649e8aa3..c8124d36012cc 100644
+--- a/subprojects/tooling-api/src/integTest/groovy/org/gradle/integtests/tooling/ConcurrentToolingApiIntegrationSpec.groovy
++++ b/subprojects/tooling-api/src/integTest/groovy/org/gradle/integtests/tooling/ConcurrentToolingApiIntegrationSpec.groovy
+@@ -17,7 +17,6 @@
+ package org.gradle.integtests.tooling
+ 
+ import org.gradle.initialization.BuildCancellationToken
+-import org.gradle.integtests.fixtures.RetryRuleUtil
+ import org.gradle.integtests.fixtures.daemon.DaemonsFixture
+ import org.gradle.integtests.fixtures.executer.GradleDistribution
+ import org.gradle.integtests.fixtures.executer.UnderDevelopmentGradleDistribution
+@@ -29,7 +28,6 @@ import org.gradle.internal.logging.progress.ProgressLoggerFactory
+ import org.gradle.test.fixtures.ConcurrentTestUtil
+ import org.gradle.test.fixtures.file.TestFile
+ import org.gradle.test.fixtures.file.TestNameTestDirectoryProvider
+-import org.gradle.testing.internal.util.RetryRule
+ import org.gradle.tooling.GradleConnector
+ import org.gradle.tooling.ProjectConnection
+ import org.gradle.tooling.internal.consumer.Distribution
+@@ -38,11 +36,16 @@ import org.gradle.tooling.model.GradleProject
+ import org.gradle.tooling.model.idea.IdeaProject
+ import org.junit.Rule
+ import spock.lang.Issue
++import spock.lang.Retry
+ import spock.lang.Specification
+ 
+ import java.util.concurrent.CopyOnWriteArrayList
+ 
++import static org.gradle.integtests.fixtures.RetryConditions.onWindowsSocketDisappearance
++import static spock.lang.Retry.Mode.SETUP_FEATURE_CLEANUP
++
+ @Issue("GRADLE-1933")
++@Retry(condition = { onWindowsSocketDisappearance(instance, failure) }, mode = SETUP_FEATURE_CLEANUP, count = 2)
+ class ConcurrentToolingApiIntegrationSpec extends Specification {
+ 
+     @Rule final ConcurrentTestUtil concurrent = new ConcurrentTestUtil()
+@@ -52,9 +55,6 @@ class ConcurrentToolingApiIntegrationSpec extends Specification {
+ 
+     int threads = 3
+ 
+-    @Rule
+-    RetryRule retryRule = RetryRuleUtil.retryToolingAPIOnWindowsSocketDisappearance(this)
+-
+     DaemonsFixture getDaemonsFixture() {
+         toolingApi.daemons
+     }
+diff --git a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ContinuousBuildToolingApiSpecification.groovy b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ContinuousBuildToolingApiSpecification.groovy
+index 03b68cc5e5a7e..203ae603ca900 100644
+--- a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ContinuousBuildToolingApiSpecification.groovy
++++ b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ContinuousBuildToolingApiSpecification.groovy
+@@ -19,7 +19,6 @@ package org.gradle.integtests.tooling.fixture
+ import groovy.transform.stc.ClosureParams
+ import groovy.transform.stc.SimpleType
+ import org.apache.commons.io.output.TeeOutputStream
+-import org.gradle.integtests.fixtures.RetryRuleUtil
+ import org.gradle.integtests.fixtures.executer.ExecutionFailure
+ import org.gradle.integtests.fixtures.executer.ExecutionResult
+ import org.gradle.integtests.fixtures.executer.GradleVersions
+@@ -28,20 +27,23 @@ import org.gradle.integtests.fixtures.executer.UnexpectedBuildFailure
+ import org.gradle.internal.os.OperatingSystem
+ import org.gradle.test.fixtures.ConcurrentTestUtil
+ import org.gradle.test.fixtures.file.TestFile
+-import org.gradle.testing.internal.util.RetryRule
+ import org.gradle.tooling.BuildLauncher
+ import org.gradle.tooling.CancellationToken
+ import org.gradle.tooling.ProjectConnection
+ import org.hamcrest.Matcher
+ import org.hamcrest.Matchers
+ import org.junit.Rule
++import spock.lang.Retry
+ import spock.lang.Timeout
+ 
++import static org.gradle.integtests.fixtures.RetryConditions.onBuildTimeout
+ import static org.hamcrest.Matchers.containsString
++import static spock.lang.Retry.Mode.SETUP_FEATURE_CLEANUP
+ 
+ @Timeout(180)
+ @TargetGradleVersion(GradleVersions.SUPPORTS_CONTINUOUS)
+ @ToolingApiVersion(ToolingApiVersions.SUPPORTS_CANCELLATION)
++@Retry(condition = { onBuildTimeout(instance, failure) }, mode = SETUP_FEATURE_CLEANUP, count = 2)
+ abstract class ContinuousBuildToolingApiSpecification extends ToolingApiSpecification {
+ 
+     public static final String WAITING_MESSAGE = "Waiting for changes to input files of tasks..."
+@@ -58,9 +60,6 @@ abstract class ContinuousBuildToolingApiSpecification extends ToolingApiSpecific
+ 
+     int buildTimeout = 20
+ 
+-    @Rule
+-    RetryRule timeoutRetryRule = RetryRuleUtil.retryContinuousBuildSpecificationOnTimeout(this)
+-
+     @Rule
+     GradleBuildCancellation cancellationTokenSource
+     TestResultHandler buildResult
+diff --git a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiClasspathProvider.groovy b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiClasspathProvider.groovy
+index 78f2fc65131cc..0eb51c7bda975 100644
+--- a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiClasspathProvider.groovy
++++ b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiClasspathProvider.groovy
+@@ -23,7 +23,6 @@ import org.gradle.internal.classloader.FilteringClassLoader
+ import org.gradle.internal.classloader.MultiParentClassLoader
+ import org.gradle.internal.classloader.VisitableURLClassLoader
+ import org.gradle.internal.os.OperatingSystem
+-import org.gradle.testing.internal.util.RetryRule
+ import org.gradle.util.RedirectStdOutAndErr
+ import org.gradle.util.Requires
+ import org.gradle.util.SetSystemProperties
+@@ -70,7 +69,6 @@ trait ToolingApiClasspathProvider {
+         sharedSpec.allowClass(TargetGradleVersion)
+         sharedSpec.allowClass(ToolingApiVersion)
+         sharedSpec.allowClass(TeeOutputStream)
+-        sharedSpec.allowClass(RetryRule)
+         sharedSpec.allowClass(ClassLoaderFixture)
+         classpathConfigurer.execute(sharedSpec)
+         def sharedClassLoader = classLoaderFactory.createFilteringClassLoader(getClass().classLoader, sharedSpec)
+diff --git a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiSpecification.groovy b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiSpecification.groovy
+index efd55993f1892..d4f4b048ed4f9 100644
+--- a/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiSpecification.groovy
++++ b/subprojects/tooling-api/src/testFixtures/groovy/org/gradle/integtests/tooling/fixture/ToolingApiSpecification.groovy
+@@ -19,7 +19,6 @@ package org.gradle.integtests.tooling.fixture
+ import groovy.transform.stc.ClosureParams
+ import groovy.transform.stc.SimpleType
+ import org.gradle.integtests.fixtures.RepoScriptBlockUtil
+-import org.gradle.integtests.fixtures.RetryRuleUtil
+ import org.gradle.integtests.fixtures.build.BuildTestFile
+ import org.gradle.integtests.fixtures.build.BuildTestFixture
+ import org.gradle.integtests.fixtures.daemon.DaemonsFixture
+@@ -30,7 +29,6 @@ import org.gradle.test.fixtures.file.CleanupTestDirectory
+ import org.gradle.test.fixtures.file.TestDistributionDirectoryProvider
+ import org.gradle.test.fixtures.file.TestFile
+ import org.gradle.test.fixtures.file.TestNameTestDirectoryProvider
+-import org.gradle.testing.internal.util.RetryRule
+ import org.gradle.tooling.GradleConnectionException
+ import org.gradle.tooling.GradleConnector
+ import org.gradle.tooling.ProjectConnection
+@@ -39,8 +37,11 @@ import org.gradle.util.SetSystemProperties
+ import org.junit.Rule
+ import org.junit.rules.RuleChain
+ import org.junit.runner.RunWith
++import spock.lang.Retry
+ import spock.lang.Specification
+ 
++import static org.gradle.integtests.fixtures.RetryConditions.onIssueWithReleasedGradleVersion
++import static spock.lang.Retry.Mode.SETUP_FEATURE_CLEANUP
+ /**
+  * A spec that executes tests against all compatible versions of tooling API consumer and testDirectoryProvider, including the current Gradle version under test.
+  *
+@@ -56,6 +57,7 @@ import spock.lang.Specification
+ @ToolingApiVersion('>=2.0')
+ @TargetGradleVersion('>=1.2')
+ @RunWith(ToolingApiCompatibilitySuiteRunner)
++@Retry(condition = { onIssueWithReleasedGradleVersion(instance, failure) }, mode = SETUP_FEATURE_CLEANUP, count = 2)
+ abstract class ToolingApiSpecification extends Specification {
+ 
+     @Rule
+@@ -63,9 +65,6 @@ abstract class ToolingApiSpecification extends Specification {
+ 
+     GradleConnectionException caughtGradleConnectionException
+ 
+-    @Rule
+-    RetryRule retryRule = RetryRuleUtil.retryCrossVersionTestOnIssueWithReleasedGradleVersion(this)
+-
+     String getReleasedGradleVersion() {
+         return targetDist.version.baseVersion.version
+     }

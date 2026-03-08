@@ -1,7 +1,7 @@
 TODO: review if something need to be restored in a non-bootstrap build:
 --- a/buildSrc/build.gradle
 +++ b/buildSrc/build.gradle
-@@ -53,23 +53,9 @@
+@@ -53,10 +53,6 @@
      compile("com.google.guava:guava-jdk5:14.0.1@jar")
      compile("commons-lang:commons-lang:2.6@jar")
      compile(localGroovy())
@@ -9,13 +9,10 @@ TODO: review if something need to be restored in a non-bootstrap build:
 -        exclude(module: "groovy")
 -        exclude(module: "xercesImpl")
 -    }
--    testCompile("junit:junit:4.12@jar")
--    testCompile("org.spockframework:spock-core:2.0-M4-groovy-3.0") {
--        exclude(group = "org.codehaus.groovy")
--    }
--    testCompile("cglib:cglib-nodep:3.2.5")
--    testCompile("org.objenesis:objenesis:1.2")
--    testCompile("org.hamcrest:hamcrest-core:1.3")
+     testCompile("junit:junit:4.12@jar")
+     testCompile("org.spockframework:spock-core:2.0-M4-groovy-3.0") {
+         exclude(group = "org.codehaus.groovy")
+@@ -68,9 +68,6 @@
  
      compile("org.pegdown:pegdown:1.6.0")
      compile("org.jsoup:jsoup:1.6.3")
@@ -141,7 +138,7 @@ TODO: review if something need to be restored in a non-bootstrap build:
 +        'diagnostics', 'reporting', 'publish', 'ivy', 'buildInit', 'platformBase',
 +        'platformJvm', 'languageJvm', 'languageJava', 'languageGroovy',
 +        'platformNative', 'languageNative', 'ideNative', 'testingBase',
-         'testingNative', 'testingJvm', 'pluginDevelopment', 'pluginUse', 'resourcesHttp',
+         'testingNative', 'testingJvm', 'testingJunitPlatform', 'pluginDevelopment', 'pluginUse', 'resourcesHttp',
 -        'resourcesSftp', 'resourcesS3', 'resourcesGcs', 'compositeBuilds', 'buildCacheHttp'
 +        'resourcesSftp', 'compositeBuilds', 'buildCacheHttp'
      ].collect { project(it) }
@@ -379,16 +376,16 @@ TODO: Call asciidoctor directly
  task distDocs(type: Docbook2Xhtml) {
      dependsOn userguideAsciidoc
      source new File(asciidocOutputDir, 'gettingStarted.xml')
---- a/subprojects/distributions/distributions.gradle	(revision 37007e1c012001ff09973e0bd095139239ecd3b3)
-+++ b/subprojects/distributions/distributions.gradle	(date 1744520306820)
+--- a/subprojects/distributions/distributions.gradle
++++ b/subprojects/distributions/distributions.gradle
 @@ -134,5 +134,3 @@
      systemProperty 'org.gradle.public.api.includes', publicApiIncludes.join(':')
      systemProperty 'org.gradle.public.api.excludes', publicApiExcludes.join(':')
  }
 -
 -apply from: 'binary-compatibility.gradle'
---- a/subprojects/base-services/base-services.gradle	(revision 37007e1c012001ff09973e0bd095139239ecd3b3)
-+++ b/subprojects/base-services/base-services.gradle	(date 1744519330376)
+--- a/subprojects/base-services/base-services.gradle
++++ b/subprojects/base-services/base-services.gradle
 @@ -19,12 +19,6 @@
      implementation libraries.commons_lang
      implementation libraries.commons_io
@@ -464,10 +461,10 @@ TODO: Call asciidoctor directly
  include("pluginUse")
  include("pluginDevelopment")
  include("modelCore")
-@@ -83,7 +72,6 @@
- include("testingBase")
+@@ -84,7 +73,6 @@
  include("testingNative")
  include("testingJvm")
+ include("testingJunitPlatform")
 -include("platformPlay")
  include("testKit")
  include("installationBeacon")
@@ -603,7 +600,7 @@ TODO: Call asciidoctor directly
      compile project(':wrapper')
      compile project(':baseServices')
 -    publishCompile libraries.slf4j_api
-+// TODO:   publishCompile libraries.slf4j_api
++    compile libraries.slf4j_api
      compile libraries.jcip
  
      testFixturesCompile project(':baseServicesGroovy')
@@ -881,3 +878,114 @@ TODO: Call asciidoctor directly
  
      testFixturesCompile project(':internalTesting')
  }
+diff --git a/subprojects/ide-native/src/main/resources/META-INF/services/org.gradle.internal.service.scopes.PluginServiceRegistry b/subprojects/ide-native/src/main/resources/META-INF/services/org.gradle.internal.service.scopes.PluginServiceRegistry
+deleted file mode 100644
+index 9298808ac5b4b4931d8d2d4908c816d6e4b69d06..0000000000000000000000000000000000000000
+--- a/subprojects/ide-native/src/main/resources/META-INF/services/org.gradle.internal.service.scopes.PluginServiceRegistry
++++ /dev/null
+@@ -1,1 +0,0 @@
+-org.gradle.ide.xcode.internal.services.XcodeServices
+--- a/subprojects/internal-integ-testing/internal-integ-testing.gradle
++++ b/subprojects/internal-integ-testing/internal-integ-testing.gradle
+@@ -20,12 +20,6 @@
+     compile libraries.jetty
+     compile libraries.jettySecurity
+ 
+-    compile module("org.littleshoot:littleproxy:1.1.0-beta1") {
+-        dependency libraries.slf4j_api
+-        dependency "io.netty:netty-all:4.0.23.Final"
+-        dependency "org.apache.commons:commons-lang3:3.4"
+-    }
+-    compile libraries.gcs
+     compile libraries.ivy
+     compile libraries.sshd
+     compile libraries.gson
+diff --git a/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/internal/tooling/idea/IdeaModelBuilderTest.groovy b/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/internal/tooling/idea/IdeaModelBuilderTest.groovy
+--- a/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/internal/tooling/idea/IdeaModelBuilderTest.groovy
++++ b/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/internal/tooling/idea/IdeaModelBuilderTest.groovy
+@@ -22,7 +22,6 @@
+ import org.gradle.api.internal.composite.CompositeBuildContext
+ import org.gradle.api.plugins.GroovyPlugin
+ import org.gradle.api.plugins.JavaPlugin
+-import org.gradle.api.plugins.scala.ScalaPlugin
+ import org.gradle.internal.jvm.Jvm
+ import org.gradle.internal.service.DefaultServiceRegistry
+ import org.gradle.plugins.ide.idea.IdeaPlugin
+@@ -66,7 +65,7 @@
+         ideaProject.javaLanguageSettings.languageLevel == toJavaVersion(ideaProject.languageLevel)
+ 
+         where:
+-        pluginType << [JavaPlugin, GroovyPlugin, ScalaPlugin]
++        pluginType << [JavaPlugin, GroovyPlugin]
+     }
+ 
+     def "project source language level matches idea plugin language level for jvm projects with explicit configuration"() {
+diff --git a/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/internal/tooling/eclipse/EclipseModelBuilderTest.groovy b/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/internal/tooling/eclipse/EclipseModelBuilderTest.groovy
+--- a/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/internal/tooling/eclipse/EclipseModelBuilderTest.groovy
++++ b/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/internal/tooling/eclipse/EclipseModelBuilderTest.groovy
+@@ -25,8 +25,6 @@
+ import org.gradle.api.plugins.JavaBasePlugin
+ import org.gradle.api.plugins.JavaPlugin
+ import org.gradle.api.plugins.WarPlugin
+-import org.gradle.api.plugins.scala.ScalaBasePlugin
+-import org.gradle.api.plugins.scala.ScalaPlugin
+ import org.gradle.internal.service.DefaultServiceRegistry
+ import org.gradle.plugins.ear.EarPlugin
+ import org.gradle.plugins.ide.eclipse.EclipsePlugin
+@@ -148,8 +146,6 @@
+         type     | compatibilityProperty | languageLevelProperty   | projectType | pluginType
+         "source" | "sourceCompatibility" | "sourceLanguageLevel"   | "java"      | JavaBasePlugin
+         "target" | "targetCompatibility" | "targetBytecodeVersion" | "java"      | JavaBasePlugin
+-        "source" | "sourceCompatibility" | "sourceLanguageLevel"   | "scala"     | ScalaBasePlugin
+-        "target" | "targetCompatibility" | "targetBytecodeVersion" | "scala"     | ScalaBasePlugin
+         "source" | "sourceCompatibility" | "sourceLanguageLevel"   | "groovy"    | GroovyBasePlugin
+         "target" | "targetCompatibility" | "targetBytecodeVersion" | "groovy"    | GroovyBasePlugin
+     }
+@@ -169,7 +165,7 @@
+         eclipseModel.javaSourceSettings.targetBytecodeVersion == org.gradle.api.JavaVersion.current()
+ 
+         where:
+-        pluginType << [JavaPlugin, GroovyPlugin, ScalaPlugin]
++        pluginType << [JavaPlugin, GroovyPlugin]
+     }
+ 
+     @Unroll
+diff --git a/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/idea/IdeaPluginTest.groovy b/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/idea/IdeaPluginTest.groovy
+--- a/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/idea/IdeaPluginTest.groovy
++++ b/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/idea/IdeaPluginTest.groovy
+@@ -20,7 +20,6 @@
+ import org.gradle.api.Task
+ import org.gradle.api.internal.project.ProjectInternal
+ import org.gradle.api.plugins.JavaPlugin
+-import org.gradle.api.plugins.scala.ScalaPlugin
+ import org.gradle.api.tasks.Delete
+ import org.gradle.plugins.ide.idea.model.IdeaLanguageLevel
+ import org.gradle.test.fixtures.AbstractProjectBuilderSpec
+@@ -57,7 +56,7 @@
+         applyPluginToProjects()
+ 
+         then:
+-        project.idea.project.wildcards == ['!?*.java', '!?*.groovy', '!?*.class', '!?*.scala'] as Set
++        project.idea.project.wildcards == ['!?*.java', '!?*.groovy', '!?*.class'] as Set
+         project.idea.project.languageLevel.level ==  new IdeaLanguageLevel(JavaVersion.VERSION_1_6).level
+     }
+ 
+@@ -140,6 +139,7 @@
+         test.any { it.name.contains('test-resources') }
+      }
+ 
++    @spock.lang.Ignore("Scala is not packaged in Guix")
+     def "makes scala modules depend on root's project"() {
+         applyPluginToProjects()
+ 
+diff --git a/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/eclipse/EclipsePluginTest.groovy b/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/eclipse/EclipsePluginTest.groovy
+--- a/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/eclipse/EclipsePluginTest.groovy
++++ b/subprojects/ide/src/test/groovy/org/gradle/plugins/ide/eclipse/EclipsePluginTest.groovy
+@@ -62,6 +62,7 @@
+         checkEclipseClasspath([project.configurations.compileClasspath, project.configurations.runtimeClasspath, project.configurations.testCompileClasspath, project.configurations.testRuntimeClasspath])
+     }
+ 
++    @spock.lang.Ignore("Scala is not packaged in Guix")
+     def applyToScalaProject_shouldHaveProjectAndClasspathTaskForScala() {
+         def scalaIdeContainer = ['org.scala-ide.sdt.launching.SCALA_CONTAINER']
+ 

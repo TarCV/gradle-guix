@@ -1,3 +1,5 @@
+These changes were adapted from Debian
+TODO: Try removing this patch once Groovy package is fixed to be compatible with running on Java 7.
 Description: Fixes the type inference errors when building with the source/target level set to Java 8
 Author: Emmanuel Bourg <ebourg@apache.org>
 Forwarded: not-needed
@@ -38,8 +40,8 @@ Forwarded: not-needed
  
          @Override
          public Action<DependencySubstitution> getRuleAction() {
--            return Actions.composite(CollectionUtils.collect(ruleProviders, new Transformer<Action<? super DependencySubstitution>, DependencySubstitutionRules>() {
-+            return Actions.composite((java.util.Collection) CollectionUtils.collect(ruleProviders, new Transformer<Action<? super DependencySubstitution>, DependencySubstitutionRules>() {
+-            return Actions.composite(CollectionUtils.collect(ruleProviders, new Transformer<Action<DependencySubstitution>, DependencySubstitutionRules>() {
++            return Actions.composite((java.util.Collection) CollectionUtils.collect(ruleProviders, new Transformer<Action<DependencySubstitution>, DependencySubstitutionRules>() {
                  @Override
-                 public Action<? super DependencySubstitution> transform(DependencySubstitutionRules rule) {
+                 public Action<DependencySubstitution> transform(DependencySubstitutionRules rule) {
                      return rule.getRuleAction();

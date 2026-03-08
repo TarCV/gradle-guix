@@ -1,0 +1,13 @@
+--- a/gradle/compile.gradle
++++ b/gradle/compile.gradle
+@@ -54,7 +54,9 @@
+         currentJavaInstallation.displayName
+     }
+ }
+-
++test {
++    useJUnitPlatform()
++}
+ class DefaultJavaInstallation implements LocalJavaInstallation {
+     JavaVersion javaVersion
+     File javaHome

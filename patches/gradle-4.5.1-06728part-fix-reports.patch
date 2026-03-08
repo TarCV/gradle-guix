@@ -1,0 +1,28 @@
+From b80d79c3ee7f3387789e6b8d09e846327b34a745 Mon Sep 17 00:00:00 2001
+From: Marc Philipp <marc@gradle.com>
+Date: Fri, 14 Sep 2018 09:43:21 +0200
+Subject: [PATCH] Fix test report index page
+
+Prior to this commit the Classes tab of the test report index page
+was generated with the link to the class as a sibling to the table cell
+that should have contained it. The update of jsoup discovered this
+issue and the table cell now encloses the link to the test class page.
+---
+ .../internal/tasks/testing/report/OverviewPageRenderer.java    | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/subprojects/testing-base/src/main/java/org/gradle/api/internal/tasks/testing/report/OverviewPageRenderer.java b/subprojects/testing-base/src/main/java/org/gradle/api/internal/tasks/testing/report/OverviewPageRenderer.java
+index 3088ef50059e4..8a16527366459 100644
+--- a/subprojects/testing-base/src/main/java/org/gradle/api/internal/tasks/testing/report/OverviewPageRenderer.java
++++ b/subprojects/testing-base/src/main/java/org/gradle/api/internal/tasks/testing/report/OverviewPageRenderer.java
+@@ -91,8 +91,9 @@ private void renderClasses(SimpleHtmlWriter htmlWriter) throws IOException {
+         for (PackageTestResults testPackage : getResults().getPackages()) {
+             for (ClassTestResults testClass : testPackage.getClasses()) {
+                 htmlWriter.startElement("tr");
+-                htmlWriter.startElement("td").attribute("class", testClass.getStatusClass()).endElement();
++                htmlWriter.startElement("td").attribute("class", testClass.getStatusClass());
+                 htmlWriter.startElement("a").attribute("href", asHtmlLinkEncoded(testClass.getBaseUrl())).characters(testClass.getName()).endElement();
++                htmlWriter.endElement();
+                 htmlWriter.startElement("td").characters(Integer.toString(testClass.getTestCount())).endElement();
+                 htmlWriter.startElement("td").characters(Integer.toString(testClass.getFailureCount())).endElement();
+                 htmlWriter.startElement("td").characters(Integer.toString(testClass.getIgnoredCount())).endElement();
