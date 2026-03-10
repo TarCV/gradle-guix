@@ -11,3 +11,17 @@
  }
  
  configurations {
+For some reason classpath manifests in the final 'gradle' package are generated with duplicate entries, but not in
+ 'gradle-bootstrap-with-gradle' package.
+diff --git a/buildSrc/src/main/groovy/org/gradle/build/ClasspathManifest.groovy b/buildSrc/src/main/groovy/org/gradle/build/ClasspathManifest.groovy
+--- a/buildSrc/src/main/groovy/org/gradle/build/ClasspathManifest.groovy
++++ b/buildSrc/src/main/groovy/org/gradle/build/ClasspathManifest.groovy
+@@ -49,7 +49,7 @@
+     String getRuntime() {
+         return input.fileCollection {
+             (it instanceof ExternalDependency) || (it instanceof FileCollectionDependency)
+-        }.collect { it.name }.join(',')
++        }.collect { it.name }.unique().join(',')
+     }
+ 
+     @Input
