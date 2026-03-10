@@ -1,6 +1,6 @@
 --- a/buildSrc/src/main/groovy/org/gradle/build/Install.groovy
 +++ b/buildSrc/src/main/groovy/org/gradle/build/Install.groovy
-@@ -28,6 +28,29 @@
+@@ -28,6 +28,22 @@
  
      def Install() {
          addPropertyCheck()
@@ -15,13 +15,6 @@
 +                }
 +                java.nio.file.Files.createDirectories(newLinkItself.parent)
 +                java.nio.file.Files.createSymbolicLink(newLinkItself, linkTarget)
-+                it.exclude()
-+                toPreserve.add(it.path)
-+            } else if (!copySource.toAbsolutePath().toString().contains("build-home") && !copySource.toAbsolutePath().toString().contains("gradle-bootstrap")) {
-+                java.nio.file.Path linkTarget = copySource.toAbsolutePath()
-+                java.nio.file.Path newLinkItself = destinationDir.toPath().resolve(it.path)
-+                java.nio.file.Files.createDirectories(newLinkItself.parent)
-+                java.nio.file.Files.createSymbolicLink(newLinkItself, copySource.toAbsolutePath())
 +                it.exclude()
 +                toPreserve.add(it.path)
 +            }

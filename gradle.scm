@@ -23,6 +23,7 @@
   #:use-module (gnu packages base)
   #:use-module (gnu packages compression)
   #:use-module (gnu packages cran)
+  #:use-module (gnu packages diffoscope)
   #:use-module (gnu packages docbook)
   #:use-module (gnu packages groovy)
   #:use-module (gnu packages java)
@@ -2178,7 +2179,22 @@ browser window. It is completely customizable as well via CSS.")
         "patches/gradle-4.5.1-15710-spock.diff" "patches/gradle-4.5.1-16193-groovy-3-2.patch"
         "patches/gradle-4.5.1-16637-spock.patch" "patches/gradle-4.5.1-26150-ivy.diff"
         "patches/gradle-4.5.1-jetty-2.diff" "patches/gradle-4.5.1-guava.patch" "patches/gradle-4.5.1-kryo.patch"
-        "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-unshaded-groovy.patch"))
+        "patches/gradle-4.5.1-type-inference-fix.patch" "patches/gradle-4.5.1-unshaded-groovy.patch"
+        "patches/gradle-4.5.1-default-methods.patch"
+        "patches/gradle-4.5.1-dekotlinize-build-files.patch"
+        "patches/gradle-4.5.1-disable-minifying.patch" ; so that Guix link optimization works
+        "patches/gradle-4.5.1-jcifs-new-coordinates.patch" "patches/gradle-4.5.1-jhighlight-new.patch"
+        "patches/gradle-4.5.1-guix-dependencies.patch" "patches/gradle-4.5.1-local-repository.patch"
+        "patches/gradle-4.5.1-maven-dependencies.patch" "patches/gradle-4.5.1-no-remote-cache.patch"
+        "patches/gradle-4.5.1-remove-complex-dependencies.patch"
+        "patches/gradle-4.5.1-remove-kotlin-dsl.patch"
+        "patches/gradle-4.5.1-reproducible-artifacts.patch"
+        "patches/gradle-4.5.1-symlink-during-install.patch"
+        "patches/gradle-4.5.1-xmlunit-2.patch"
+        "patches/gradle-4.5.1-additional-spock.patch"
+        "patches/gradle-4.5.1-fix-tests.patch"
+        "patches/gradle-4.5.1-groovy-3-4-junit-for-spock.patch"
+    ))
 (define gradle-bootstrap-with-ant
   (package
     (name "gradle-bootstrap-with-ant")
@@ -2190,7 +2206,6 @@ browser window. It is completely customizable as well via CSS.")
         (file-name (string-append "gradle-" version ".tar.gz"))
         (sha256 (base32 "03yaq6kkdk5akjl5is0rmkdqhg1jfhp1mbv9jzpmjrs53z1hsxlw"))
         (patches `(,@common-gradle-patches
-                    "patches/gradle-bootstrap-4.5.1-remove-dependencies.patch"
                     "patches/gradle-bootstrap-4.5.1-single-jar.patch"))
         (modules '((guix build utils)))
         (snippet '(begin
@@ -2200,12 +2215,14 @@ browser window. It is completely customizable as well via CSS.")
     (build-system ant-build-system)
     (propagated-inputs
       (list groovy-ant-fixed groovy-fixed
-              java-asm-9 java-asm-commons-9
+            java-asm-9 java-asm-commons-9
             java-apache-ivy java-bouncycastle java-commons-collections java-commons-compress-no-pack200
             java-commons-io java-commons-lang java-commons-logging-minimal
-            java-fastutil-7 java-gson java-jansi-1 java-jatl java-jgit java-jsr305 java-jul-to-slf4j
-            java-httpcomponents-httpclient java-httpcomponents-httpcore
-            java-kryo-2 java-native-platform-0.14 java-slf4j-api java-testng maven-3.0-settings-builder))
+            java-fastutil-7 java-gson java-jansi-1 java-jatl java-jcifs java-jgit java-jsr305 java-jul-to-slf4j
+            java-junit-platform-launcher-5 java-httpcomponents-httpclient java-httpcomponents-httpcore
+            java-kryo-2 java-native-platform-0.14 java-nekohtml java-slf4j-api java-testng
+            java-sonatype-aether-api-1.13 maven-sonatype-polyglot-common maven-sonatype-polyglot-groovy
+            (fix-maven-3.0 maven-3.0-compat)))
     (arguments
       `(#:jdk ,openjdk9 ; same as groovy
          #:jar-name "gradle.jar"
@@ -2237,19 +2254,15 @@ browser window. It is completely customizable as well via CSS.")
                             "subprojects/base-services"
                             "subprojects/base-services-groovy"
                             "subprojects/build-cache"
-                            ;                        "subprojects/build-init"
                             "subprojects/build-option"
                             "subprojects/cli"
-                            ;                        "subprojects/code-quality"
                             "subprojects/core"
                             "subprojects/composite-builds"
                             "subprojects/core-api"
                             "subprojects/core-impl"
                             "subprojects/dependency-management"
                             "subprojects/diagnostics"
-                            ;                        "subprojects/docs"
-                            ;                        "subprojects/ear"
-                            ;                        "subprojects/installation-beacon"
+                            "subprojects/ivy"
                             "subprojects/javascript"
                             "subprojects/jvm-services"
                             "subprojects/language-groovy"
@@ -2257,7 +2270,7 @@ browser window. It is completely customizable as well via CSS.")
                             "subprojects/language-jvm"
                             "subprojects/launcher"
                             "subprojects/logging"
-                            ;                        "subprojects/maven"
+                            "subprojects/maven"
                             "subprojects/messaging"
                             "subprojects/model-core"
                             "subprojects/model-groovy"
@@ -2269,27 +2282,22 @@ browser window. It is completely customizable as well via CSS.")
                             "subprojects/plugin-use"
                             "subprojects/plugins"
                             "subprojects/process-services"
+                            "subprojects/publish"
                             "subprojects/reporting"
                             "subprojects/resources"
                             "subprojects/resources-http"
-                            ;                        "subprojects/runtime-api-info"
-                            ;                        "subprojects/test-kit"
                             "subprojects/testing-base"
+                            "subprojects/testing-junit-platform"
                             "subprojects/testing-jvm"
                             "subprojects/tooling-api"
                             "subprojects/version-control"
-                            "subprojects/workers"
-                            ))))
+                            "subprojects/workers"))))
                     (add-after 'prepare-merged-sources 'unshade-imports
                       (lambda _ ; TODO: SHARED_PACKAGES in DaemonGroovyCompiler should contain both shaded and unshaded package names
                         (substitute* (find-files "merged-src" ".*\\.(java|groovy)$")
                           (("groovyjarjarasm") "org.objectweb") ; no dot at the end of the pattern as otherwise it would miss some package mentions
                           (("groovyjarjarantlr") "antlr")
                           (("org\\.gradle\\.mvn3.") ""))))
-;                    (add-after 'prepare-merged-sources 'update-asm
-;                      (lambda _
-;                        (substitute* (find-files "merged-src" ".*\\.(java|groovy)$")
-;                          (("ASM6") "ASM8"))))
                     (add-after 'prepare-merged-sources 'patch-jcip
                       (lambda _
                         (substitute* (find-files "merged-src" ".*\\.(java|groovy)$")
@@ -2313,13 +2321,6 @@ browser window. It is completely customizable as well via CSS.")
                           (("</javac>" all) (string-append all "</groovyc>")))))
                     (add-before 'build 'remove-dependencies
                       (lambda _
-                        (delete-file-recursively
-                          "merged-src/src/main/java/org/gradle/internal/resource/transport/http/ntlm")
-                        ;                        (delete-file-recursively
-                        ;                          "merged-src/src/main/java/org/gradle/api/publication/maven")
-                        ;                        (delete-file-recursively
-                        ;                          "merged-src/src/main/java/org/gradle/api/publish/maven")
-
                         ; Gradle only depends on javascript-base plugin, everything else can be removed
                         (delete-file-recursively "merged-src/src/main/java/org/gradle/plugins/javascript/coffeescript")
                         (delete-file-recursively "merged-src/src/main/java/org/gradle/plugins/javascript/envjs")
@@ -2328,11 +2329,6 @@ browser window. It is completely customizable as well via CSS.")
 
                         (for-each delete-file
                           (list
-                            "merged-src/src/main/java/org/gradle/internal/nativeintegration/console/WindowsConsoleDetector.java"
-                            "merged-src/src/main/java/org/gradle/internal/resource/transport/http/ApacheDirectoryListingParser.java"
-                            "merged-src/src/main/java/org/gradle/plugin/devel/plugins/IvyPluginPublishingRules.java"
-                            "merged-src/src/main/java/org/gradle/plugin/devel/plugins/MavenPluginPublishingRules.java"
-
                             ; Only used in Tooling API and tests
                             "merged-src/src/main/java/org/gradle/tooling/internal/consumer/ConnectorServices.java"
                             "merged-src/src/main/java/org/gradle/tooling/internal/consumer/DistributionFactory.java"
@@ -2479,24 +2475,14 @@ browser window. It is completely customizable as well via CSS.")
   (lookup-input (package-transitive-native-inputs this-package) name))
 
 ; TODO: document patches/changes in Gradle docs?
-; TODO: disable patching dependencies and libs in out are bit-for-bit same as are provided by Guix
 (define gradle-bootstrap-with-gradle
   (package
     (inherit gradle-bootstrap-with-ant)
-    (name "gradle-bootstrap-with-gradle")
+    (name "gradle")
     (source (origin
               (inherit (package-source gradle-bootstrap-with-ant))
               (patches `(,@common-gradle-patches
-                         "patches/gradle-4.5.1-default-methods.patch"
-                         "patches/gradle-4.5.1-dekotlinize-build-files.patch"
-                         "patches/gradle-4.5.1-disable-minifying.patch" ; so that Guix link optimization works
-                         "patches/gradle-4.5.1-jcifs-new-coordinates.patch" "patches/gradle-4.5.1-jhighlight-new.patch"
-                         "patches/gradle-4.5.1-guix-dependencies.patch" "patches/gradle-4.5.1-local-repository.patch"
-                         "patches/gradle-4.5.1-maven-dependencies.patch" "patches/gradle-4.5.1-no-remote-cache.patch"
-                         "patches/gradle-4.5.1-remove-complex-dependencies.patch"
-                         "patches/gradle-4.5.1-remove-kotlin-dsl.patch"
-                         "patches/gradle-4.5.1-reproducible-artifacts.patch"
-                         "patches/gradle-4.5.1-symlink-during-install.patch"))))
+                         ))))
     (native-inputs (list
                      ant antlr2 apache-commons-parent-pom-42 groovy-fixed groovy-spock-junit4 groovy-test
                      java-apache-ivy java-aqute-bndlib java-aqute-libg java-byte-buddy-dep java-bouncycastle
@@ -2766,7 +2752,6 @@ browser window. It is completely customizable as well via CSS.")
                                                       (mkdir-p (dirname path))
                                                       (symlink (string-append pkg source-path) path)
                                                       path)))
-                                ; TODO: replace the fixed jars in outputs back to unfixed onesd to allow link optimization
                                 (fix-grafted-jar (lambda (out-jar)
                                   (let* ((unzip-command (string-append ,unzip "/bin/unzip"))
                                           (zip-command (string-append ,zip "/bin/zip")))
@@ -3029,23 +3014,17 @@ browser window. It is completely customizable as well via CSS.")
                                     ":")
                               ":" classpathWithoutAntlrAsmGroovyMina
                               ":" ,gradle-bootstrap-with-ant "/share/java/gradle.jar"))
+                          (setenv "JDK_JAVA_OPTIONS" (string-append "-Duser.home=" dir))
                           (setenv "HOME" dir)))))
                   (replace 'build
                     (lambda* (#:key outputs #:allow-other-keys)
                       (invoke
                         "java"
-                        (string-append "-Duser.home=" (getenv "HOME"))
-                        (string-append "-Dmaven.repo.local=" (getenv "HOME") "/.m2/repository")
                         "-Dorg.gradle.daemon=false"
                         "org.gradle.launcher.Main"
                         "--init-script" "init.gradle"
                         "--no-build-cache"
-;                        "--debug"
-;                        "--full-stacktrace"
                         ; TODO: set number of worker threads based on '--cores' Guix argument
-;                        "test"
-                        ; TODO "integTest"
-                        ; TODO "check"
                         "install"
                         "-PbuildTimestamp=19700101000000+0000"
                         (string-append "-Pgradle_installPath=" (assoc-ref outputs "out")))))
@@ -3077,40 +3056,40 @@ browser window. It is completely customizable as well via CSS.")
   (package
     (inherit gradle-bootstrap-with-gradle)
     (name "gradle")
-    (source (origin
-              (inherit (package-source gradle-bootstrap-with-gradle))
-              (patches (append
-                         (origin-patches (package-source gradle-bootstrap-with-gradle))
-                         '("patches/gradle-4.5.1-groovy-3-4-junit-for-spock.patch"
-                           "patches/gradle-4.5.1-additional-spock.patch"
-                           "patches/gradle-4.5.1-fix-tests.patch"
-                           "patches/gradle-4.5.1-xmlunit-2.patch")))))
     (arguments
       (substitute-keyword-arguments (package-arguments gradle-bootstrap-with-gradle)
         ((#:phases phases '%standard-phases)
          `(modify-phases ,phases
-           ; TODO: self-compile comparison check
            (replace 'build
                    (lambda* (#:key outputs #:allow-other-keys)
                      (setenv "CLASSPATH" "")
-
-                     ; TODO: or JAVA_TOOL_OPTIONS or _JAVA_OPTIONS?
-                     (setenv "JDK_JAVA_OPTIONS" (string-append "-Duser.home=" (getenv "HOME")))
 
                      (setenv "GRADLE_OPTS" (string-append "-Dorg.gradle.daemon=false"))
                      (setenv "TERM" "xterm") ; Required for NativePlatformConsoleDetectorTest
                      (invoke
                        (string-append ,gradle-bootstrap-with-gradle "/bin/gradle")
                        "--init-script" "init.gradle"
-                       "--continue" ; run all not blocked tasks, so that most errors are triggered in a single run
-;                       "--debug"
-;                       "--full-stacktrace"
                        ; TODO: set number of worker threads based on '--cores' Guix argument
                        "test"
                        ; TODO "integTest"
                        "install" ; TODO: generate and install docs
                        "-x" ":docs:test" ; depends on Selenium
+                       ;; TODO should the timestamp be included in the version reported by Gradle:
                        "-PbuildTimestamp=19700101000000+0000"
-                       (string-append "-Pgradle_installPath=" (assoc-ref outputs "out")))))))))))
+                       (string-append "-Pgradle_installPath=" (assoc-ref outputs "out")))
 
+                     ;; For some reason this file gets included the second time under lib/plugins/ in addition to being
+                     ;; included under lib/. Thus it breaks 'check-same check if not deleted.
+                     (delete-file (string-append (assoc-ref outputs "out")
+                                    "/lib/plugins/asm-util-" ,(package-version java-asm-util-9) ".jar"))))
+            ;; should be the very last step to account for changes by post-install phases:
+            (add-after 'compress-documentation 'check-same 
+              (lambda* (#:key outputs version #:allow-other-keys)
+                ;; TODO: use some lightweight tool/implement the comparison in guile
+                (invoke (string-append ,diffoscope "/bin/diffoscope")
+                  "--exclude-directory-metadata" "yes"
+                  ,gradle-bootstrap-with-gradle
+                  (assoc-ref outputs "out"))))))))))
+
+; TODO: how to avoid JARs being corrupted by grafting?
 gradle
